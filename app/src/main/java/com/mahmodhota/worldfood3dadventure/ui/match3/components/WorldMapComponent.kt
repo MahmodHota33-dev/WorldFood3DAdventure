@@ -33,6 +33,48 @@ import kotlin.math.atan2
 import kotlin.math.min
 import kotlin.math.roundToInt
 
+// ─── Static brush/paint constants — allocated once, never re-allocated per frame ────────────────
+
+/** Land fill: natural forest green, north-to-south tonal shift. */
+private val LandGradientBrush = Brush.linearGradient(
+    colors = listOf(Color(0xFF3A9C68), Color(0xFF1E5E45))
+)
+
+/** Ocean background: deep polar blue to rich mid-ocean to shallow coastal. */
+private val OceanGradientBrush = Brush.verticalGradient(
+    colorStops = arrayOf(
+        0.00f to Color(0xFF1A4A74),
+        0.40f to Color(0xFF0E2C4A),
+        1.00f to Color(0xFF041326)
+    )
+)
+
+/** Atmospheric globe glow drawn over the land layer (logical 1000×500 coordinates). */
+private val LandAtmosphereGlow = Brush.radialGradient(
+    colors = listOf(Color.White.copy(alpha = 0.06f), Color.Transparent),
+    center = Offset(WorldMapGeometry.MAP_WIDTH / 2f, WorldMapGeometry.MAP_HEIGHT / 2f),
+    radius = WorldMapGeometry.MAP_WIDTH * 0.55f
+)
+
+/** Edge vignette — static, never recomposed. */
+private val VignetteBrush = Brush.radialGradient(
+    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.30f)),
+    radius = 1600f
+)
+
+/**
+ * Cloud strip definitions: [xPhaseOffset, yDp, widthDp, heightDp].
+ * Y positions are chosen to land in the Arctic strip (y ≤ 60 dp) or
+ * the Southern Ocean band (y ≥ 310 dp), safely away from all country markers
+ * which sit between ~143–265 dp on a 576×1280 device at displayScaleMultiplier=3.0.
+ */
+private val CloudDefs = arrayOf(
+    floatArrayOf(   0f,   4f, 260f, 40f),
+    floatArrayOf( 860f,  26f, 195f, 30f),
+    floatArrayOf( 400f, 318f, 235f, 36f),
+    floatArrayOf(1120f, 350f, 180f, 28f),
+)
+
 @Composable
 fun WorldMapComponent(
     mapScale: Float,
@@ -230,100 +272,74 @@ fun WorldMapComponent(
 @Composable
 private fun OceanBackgroundLayer(phase: Float) {
     Canvas(modifier = Modifier.fillMaxSize()) {
-        // Deep to shallow ocean gradient
+        // Base ocean — static gradient, no per-frame allocation
+        drawRect(brush = OceanGradientBrush)
+
+        // Latitude tonal depth variation — 3 static bands (no animation)
+        // Polar caps: slightly cooler/darker
         drawRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(PremiumColors.OceanShallow.copy(alpha = 0.75f), PremiumColors.OceanMid, PremiumColors.OceanDeep)
-            )
+            color = Color(0xFF001845).copy(alpha = 0.10f),
+            topLeft = Offset(0f, 0f),
+            size = Size(size.width, size.height * 0.10f)
+        )
+        drawRect(
+            color = Color(0xFF001845).copy(alpha = 0.10f),
+            topLeft = Offset(0f, size.height * 0.88f),
+            size = Size(size.width, size.height * 0.12f)
+        )
+        // Equatorial band: very slightly warmer blue
+        drawRect(
+            color = Color(0xFF1565C0).copy(alpha = 0.06f),
+            topLeft = Offset(0f, size.height * 0.38f),
+            size = Size(size.width, size.height * 0.22f)
         )
 
-        // Ocean shimmer bands
-        repeat(8) { i ->
-            val y = ((i * size.height / 8f) + phase * size.height * 0.5f) % size.height
-            drawRoundRect(
-                color = Color.White.copy(alpha = 0.035f),
-                topLeft = Offset(-size.width * 0.15f, y),
-                size = Size(size.width * 1.3f, size.height * 0.03f),
-                cornerRadius = CornerRadius(40f, 40f)
-            )
-        }
-
-        // Soft whirlpool-like depth circles
-        repeat(4) { i ->
-            drawCircle(
-                color = Color.White.copy(alpha = 0.025f),
-                radius = (size.width * 0.18f * (i + 1)),
-                center = Offset(size.width * (0.2f + i * 0.25f), size.height * (0.22f + i * 0.17f)),
-                style = Stroke(width = 1.5f)
-            )
-        }
+        // Single gentle shimmer ribbon — replaces the 8-stripe pattern
+        val shimmerY = ((phase * 0.55f) % 1.08f) * size.height - size.height * 0.04f
+        drawRoundRect(
+            color = Color.White.copy(alpha = 0.016f),
+            topLeft = Offset(-size.width * 0.08f, shimmerY),
+            size = Size(size.width * 1.16f, size.height * 0.022f),
+            cornerRadius = CornerRadius(size.width, size.width)
+        )
     }
 }
 
 private fun DrawScope.drawPremiumContinents(paths: List<Path>) {
-    val landBrush = Brush.linearGradient(
-        colors = listOf(Color(0xFF3A9C68), Color(0xFF1E5E45))
-    )
     val center = Offset(WorldMapGeometry.MAP_WIDTH / 2f, WorldMapGeometry.MAP_HEIGHT / 2f)
 
     scale(1.07f, pivot = center) {
         paths.forEach { path ->
-            // Drop Shadow
-            translate(3f, 4f) {
-                drawPath(path, Color.Black.copy(alpha = 0.24f))
+            // Drop shadow (subtle)
+            translate(2.5f, 3.5f) {
+                drawPath(path, Color.Black.copy(alpha = 0.20f))
             }
-            // Coastal Highlight (Outer)
-            drawPath(path, Color(0xFF8CFCD8).copy(alpha = 0.32f), style = Stroke(width = 3f))
-            // Base Land
-            drawPath(path, landBrush)
-            // Subtle inner contour
-            drawPath(path, Color.White.copy(alpha = 0.05f), style = Stroke(width = 1f))
+            // Coastal shoreline highlight — softer teal, reduced alpha
+            drawPath(path, Color(0xFF5DD4A4).copy(alpha = 0.18f), style = Stroke(width = 2.5f))
+            // Base land fill (static brush — no per-draw allocation)
+            drawPath(path, LandGradientBrush)
+            // Interior terrain texture whisper
+            drawPath(path, Color.White.copy(alpha = 0.04f), style = Stroke(width = 1f))
         }
     }
 
+    // Atmospheric globe glow (static brush — no per-draw allocation)
     drawCircle(
-        brush = Brush.radialGradient(
-            colors = listOf(Color.White.copy(alpha = 0.08f), Color.Transparent),
-            center = center,
-            radius = WorldMapGeometry.MAP_WIDTH * 0.55f
-        ),
+        brush = LandAtmosphereGlow,
         radius = WorldMapGeometry.MAP_WIDTH * 0.55f,
         center = center
     )
 }
 
 private fun DrawScope.drawTerrainFeatures() {
-    // Forests
-    WorldMapGeometry.forestZones.forEach { center ->
-        drawCircle(
-            color = PremiumColors.TerrainForest,
-            radius = 15f,
-            center = center
-        )
-        drawCircle(
-            color = PremiumColors.TerrainForest.copy(alpha = 0.6f),
-            radius = 10f,
-            center = center + Offset(8f, -5f)
-        )
-    }
-    
-    // Mountains
-    WorldMapGeometry.mountainRanges.forEach { center ->
-        val mountainPath = Path().apply {
-            moveTo(center.x, center.y - 12f)
-            lineTo(center.x - 10f, center.y + 8f)
-            lineTo(center.x + 10f, center.y + 8f)
-            close()
-        }
-        drawPath(mountainPath, PremiumColors.TerrainMountain)
-    }
-    
     // Sahara Desert — subtle atmospheric tint only, Northern Africa band
     drawRect(
         color = PremiumColors.TerrainDesert.copy(alpha = 0.10f),
         topLeft = Offset(460f, 168f),
         size = Size(105f, 38f)
     )
+    // Forest dots and mountain triangles removed: at displayScaleMultiplier=3.0 they
+    // appear disconnected from their continents in the default Europe/Africa view.
 }
 
 private fun DrawScope.drawTravelRoutes(
@@ -415,56 +431,52 @@ private fun PlaneAnimationV2(start: Offset, end: Offset) {
 
 @Composable
 private fun AtmosphereLayer() {
-    // Vignette and subtle clouds
     Box(modifier = Modifier.fillMaxSize().clipToBounds()) {
-        Box(modifier = Modifier
+        VignetteOverlay()
+        CloudLayer()
+    }
+}
+
+/**
+ * Static edge vignette — no state, no animation, recomposes at most once.
+ */
+@Composable
+private fun VignetteOverlay() {
+    Box(
+        modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.3f)),
-                    radius = 1600f
-                )
-            )
-        )
-        
-        val infiniteTransition = rememberInfiniteTransition(label = "clouds")
-        val cloudOffset by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 2000f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(180000, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "cloudOffset"
-        )
+            .background(VignetteBrush)
+    )
+}
 
-        repeat(4) { i ->
+/**
+ * Slow-drifting clouds — isolated so only this subtree recomposes on each animation tick.
+ * Clouds are clamped to two safe horizontal bands (Arctic top / Southern Ocean bottom)
+ * so they never overlap country markers.
+ */
+@Composable
+private fun CloudLayer() {
+    val cloudTransition = rememberInfiniteTransition(label = "clouds")
+    val cloudDrift by cloudTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1800f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(200_000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "cloudDrift"
+    )
+
+    Box(modifier = Modifier.fillMaxSize().clipToBounds()) {
+        CloudDefs.forEach { def ->
+            val xDp = ((cloudDrift + def[0]) % 2100f) - 350f
             Box(
                 modifier = Modifier
-                    .size(300.dp, 100.dp)
-                    .offset {
-                        val currentX = ((cloudOffset + i * 500) % 2000) - 400
-                        IntOffset(currentX.dp.toPx().roundToInt(), (100 + i * 120).dp.toPx().roundToInt())
-                    }
-                    .alpha(0.04f)
+                    .width(def[2].dp)
+                    .height(def[3].dp)
+                    .offset(x = xDp.dp, y = def[1].dp)
+                    .alpha(0.055f)
                     .background(Color.White, RoundedCornerShape(100.dp))
-            )
-        }
-
-        // Subtle floating particles to lift scene quality without noise.
-        repeat(14) { i ->
-            val drift = ((cloudOffset * 0.08f + i * 120f) % 1700f) - 300f
-            Box(
-                modifier = Modifier
-                    .size((2 + (i % 3)).dp)
-                    .offset {
-                        IntOffset(
-                            drift.dp.toPx().roundToInt(),
-                            (40 + (i * 38 % 560)).dp.toPx().roundToInt()
-                        )
-                    }
-                    .alpha(0.12f)
-                    .background(Color.White, CircleShape)
             )
         }
     }
