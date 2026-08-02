@@ -24,22 +24,56 @@ object WorldMapGeometry {
      * Adjusted for flipped geometry (x = 1000 - projected_x).
      */
     val mapCoords = mapOf(
-        "germany" to Offset(471.0f, 107.9f),
-        "italy"   to Offset(465.1f, 133.7f),
-        "france"  to Offset(493.9f, 121.6f),
-        "sudan"   to Offset(416.1f, 214.3f),
-        "mexico"  to Offset(784.9f, 184.4f),
-        "japan"   to Offset(116.0f, 149.4f)
+        "mexico" to Offset(218.0f, 184.0f),
+        "france" to Offset(503.0f, 121.0f),
+        "germany" to Offset(526.0f, 108.0f),
+        "italy" to Offset(536.0f, 133.0f),
+        "sudan" to Offset(578.0f, 205.0f),
+        "japan" to Offset(884.0f, 150.0f)
     )
 
     /**
-     * Visual offsets for labels in crowded areas (logical units).
+     * Authoritative UI layout overrides for markers.
+     * visualOffset: Moves the entire marker (icon + label) relative to the anchor.
+     * labelOffset: Fine-tunes the label position relative to the icon.
      */
-    val labelOffsets = mapOf(
-        "germany" to Offset(0f, -50f),
-        "france"  to Offset(85f, -10f),
-        "italy"   to Offset(-85f, 20f),
-        "sudan"   to Offset(0f, 50f)
+    data class MarkerLayout(
+        val visualOffset: Offset = Offset.Zero,
+        val labelOffset: Offset = Offset.Zero,
+        val showLeaderLine: Boolean = false
+    )
+
+    val markerLayouts = mapOf(
+        // Germany: shifted slightly up, stays in Central Europe
+        "germany" to MarkerLayout(
+            visualOffset = Offset(0f, -30f),
+            showLeaderLine = true
+        ),
+        // France: shifted left and slightly up, stays in Western Europe / Bay of Biscay
+        "france" to MarkerLayout(
+            visualOffset = Offset(-40f, -20f),
+            showLeaderLine = true
+        ),
+        // Italy: small right + slight down shift, keeps marker in Adriatic/Southern Italy zone
+        "italy" to MarkerLayout(
+            visualOffset = Offset(14f, 16f),
+            showLeaderLine = true
+        ),
+        // Sudan: shifted further south into East Africa / Nile region
+        "sudan" to MarkerLayout(
+            visualOffset = Offset(0f, 42f),
+            showLeaderLine = false
+        ),
+        // Mexico: small upward shift, no leader line needed
+        "mexico" to MarkerLayout(
+            visualOffset = Offset(0f, -18f),
+            showLeaderLine = false
+        ),
+        // Japan: small upward shift, no leader line needed
+        "japan" to MarkerLayout(
+            visualOffset = Offset(0f, -18f),
+            showLeaderLine = false
+        )
     )
 
     // Terrain Landmarks (Projected centers)
