@@ -66,11 +66,80 @@ class GlobeCameraState(
 
     /**
      * Immediately snap camera to focus on a geographic position.
-     * A smooth-fly-to animation is planned for Phase 2.
+     * Use [startFlyTo] for smooth animated transition.
      */
     fun focusOn(latDeg: Float, lonDeg: Float) {
         rotationY = -lonDeg
         rotationX = (latDeg * 0.8f).coerceIn(-80f, 80f)
         stopInertia()
+    }
+
+    // ── Smooth fly-to animation ──────────────────────────────────────────────
+
+    private var flyFromY = 0f
+    private var flyFromX = 0f
+    private var flyTargetY = 0f
+    private var flyTargetX = 0f
+    private var flyProgress = 1f     // 0..1; 1 = idle/complete
+    var isFlyingTo = false
+        private set
+
+    /**
+     * Start a smooth camera fly-to for a geographic position.
+     * Uses the shortest rotation path. Cancels any current inertia.
+     */
+    fun startFlyTo(latDeg: Float, lonDeg: Float) {
+        val targetY = -lonDeg
+        val targetX = (latDeg * 0.8f).coerceIn(-80f, 80f)
+        flyFromY = rotationY
+        flyFromX = rotationX
+        // Shortest longitude path avoids flying 300° the wrong way
+        val dY = normalizeAngleDiff(targetY - flyFromY)
+        flyTargetY = flyFromY + dY
+        flyTargetX = targetX
+        flyProgress = 0f
+        isFlyingTo = true
+        stopInertia()
+    }
+
+    /**
+     * Advance fly-to by one frame tick (~16 ms at 60 fps).
+     * Total duration ≈ 600 ms. Call from the animation frame loop.
+     */
+    fun tickFlyTo() {
+        if (!isFlyingTo) return
+        flyProgress = (flyProgress + FLY_STEP).coerceAtMost(1f)
+        val t = easeOutCubic(flyProgress)
+        rotationY = flyFromY + (flyTargetY - flyFromY) * t
+        rotationX = flyFromX + (flyTargetX - flyFromX) * t
+        if (flyProgress >= 1f) isFlyingTo = false
+    }
+
+    /** Cancel an in-progress fly-to; leaves camera at current position. */
+    fun cancelFlyTo() {
+        isFlyingTo = false
+        flyProgress = 1f
+    }
+
+    companion object {
+        /** Frames to reach destination (≈600 ms at 60 fps). */
+        const val FLY_STEP = 1f / 36f
+
+        /** Smooth deceleration curve: fast start → gentle arrival. */
+        fun easeOutCubic(t: Float): Float {
+            val c = 1f - t.coerceIn(0f, 1f)
+            return 1f - c * c * c
+        }
+
+        /**
+         * Normalise a longitude difference to the range [−180, 180] so the
+         * camera always takes the shortest arc.
+         */
+        fun normalizeAngleDiff(diff: Float): Float {
+            var d = diff % 360f
+            if (d > 180f) d -= 360f
+            else if (d < -180f) d += 360f
+            return d
+        }
     }
 }
