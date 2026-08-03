@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
@@ -34,18 +35,36 @@ import kotlin.math.roundToInt
 
 // ─── Static brush/paint constants — allocated once, never re-allocated per frame ────────────────
 
-/** Land fill: natural forest green, north-to-south tonal shift. */
+/** Land fill: rich tropical green, north-to-south tonal shift. */
 private val LandGradientBrush = Brush.linearGradient(
-    colors = listOf(Color(0xFF3A9C68), Color(0xFF1E5E45))
+    colors = listOf(Color(0xFF3DBE7A), Color(0xFF1C6B47))
 )
 
-/** Ocean background: deep polar blue to rich mid-ocean to shallow coastal. */
+/** Ocean background: deep polar navy to midnight abyss. */
 private val OceanGradientBrush = Brush.verticalGradient(
     colorStops = arrayOf(
-        0.00f to Color(0xFF1A4A74),
-        0.40f to Color(0xFF0E2C4A),
-        1.00f to Color(0xFF041326)
+        0.00f to Color(0xFF0D3B6E),
+        0.35f to Color(0xFF082040),
+        0.75f to Color(0xFF041020),
+        1.00f to Color(0xFF020810)
     )
+)
+
+/** Tropical coastal tint — lighter teal at the equatorial band. */
+private val TropicalBandBrush = Brush.verticalGradient(
+    colorStops = arrayOf(
+        0.28f to Color.Transparent,
+        0.43f to Color(0xFF1A7FC1).copy(alpha = 0.12f),
+        0.57f to Color(0xFF1A7FC1).copy(alpha = 0.12f),
+        0.72f to Color.Transparent
+    )
+)
+
+/** Directional sunlight from upper-left — warm soft glow in logical 1000×500 space. */
+private val SunlightBrush = Brush.radialGradient(
+    colors = listOf(Color(0xFFFFF3CC).copy(alpha = 0.11f), Color.Transparent),
+    center = Offset(-80f, -40f),
+    radius = 920f
 )
 
 /** Atmospheric globe glow drawn over the land layer (logical 1000×500 coordinates). */
@@ -55,10 +74,10 @@ private val LandAtmosphereGlow = Brush.radialGradient(
     radius = WorldMapGeometry.MAP_WIDTH * 0.55f
 )
 
-/** Edge vignette — static, never recomposed. */
+/** Edge vignette — stronger for premium depth feel. */
 private val VignetteBrush = Brush.radialGradient(
-    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.30f)),
-    radius = 1600f
+    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.42f)),
+    radius = 1450f
 )
 
 /**
@@ -301,6 +320,18 @@ private fun OceanBackgroundLayer(phase: Float) {
             size = Size(size.width * 1.16f, size.height * 0.022f),
             cornerRadius = CornerRadius(size.width, size.width)
         )
+
+        // Tropical coastal tint — equatorial lighter water
+        drawRect(brush = TropicalBandBrush)
+
+        // Second shimmer at offset phase — adds subtle depth
+        val shimmerY2 = ((phase * 0.55f + 0.52f) % 1.08f) * size.height - size.height * 0.04f
+        drawRoundRect(
+            color = Color(0xFF5BA3E0).copy(alpha = 0.020f),
+            topLeft = Offset(-size.width * 0.08f, shimmerY2),
+            size = Size(size.width * 1.16f, size.height * 0.016f),
+            cornerRadius = CornerRadius(size.width, size.width)
+        )
     }
 }
 
@@ -313,8 +344,8 @@ private fun DrawScope.drawPremiumContinents(paths: List<Path>) {
             translate(2.5f, 3.5f) {
                 drawPath(path, Color.Black.copy(alpha = 0.20f))
             }
-            // Coastal shoreline highlight — softer teal, reduced alpha
-            drawPath(path, Color(0xFF5DD4A4).copy(alpha = 0.18f), style = Stroke(width = 2.5f))
+            // Coastal shoreline highlight — brighter teal for crisper coastlines
+            drawPath(path, Color(0xFF7DE8BE).copy(alpha = 0.24f), style = Stroke(width = 2.8f))
             // Base land fill (static brush — no per-draw allocation)
             drawPath(path, LandGradientBrush)
             // Interior terrain texture whisper
@@ -328,17 +359,36 @@ private fun DrawScope.drawPremiumContinents(paths: List<Path>) {
         radius = WorldMapGeometry.MAP_WIDTH * 0.55f,
         center = center
     )
+
+    // Directional sunlight pass from upper-left — warm soft overlay
+    drawRect(brush = SunlightBrush)
 }
 
 private fun DrawScope.drawTerrainFeatures() {
-    // Sahara Desert — subtle atmospheric tint only, Northern Africa band
+    // Sahara Desert — warm sand tint over Northern Africa band
     drawRect(
-        color = PremiumColors.TerrainDesert.copy(alpha = 0.10f),
+        color = PremiumColors.TerrainDesert.copy(alpha = 0.14f),
         topLeft = Offset(460f, 168f),
         size = Size(105f, 38f)
     )
-    // Forest dots and mountain triangles removed: at displayScaleMultiplier=3.0 they
-    // appear disconnected from their continents in the default Europe/Africa view.
+    // Arabian Peninsula — subtle sand tint
+    drawRect(
+        color = Color(0xFFC8A96E).copy(alpha = 0.10f),
+        topLeft = Offset(582f, 175f),
+        size = Size(38f, 30f)
+    )
+    // European Alps — subtle snow/ice highlight
+    drawRect(
+        color = Color(0xFFCDE8F5).copy(alpha = 0.15f),
+        topLeft = Offset(492f, 150f),
+        size = Size(20f, 12f)
+    )
+    // Himalayan zone — subtle snow/ice highlight
+    drawRect(
+        color = Color(0xFFCDE8F5).copy(alpha = 0.12f),
+        topLeft = Offset(702f, 182f),
+        size = Size(42f, 16f)
+    )
 }
 
 private fun DrawScope.drawTravelRoutes(
@@ -432,8 +482,30 @@ private fun PlaneAnimationV2(start: Offset, end: Offset) {
 private fun AtmosphereLayer() {
     Box(modifier = Modifier.fillMaxSize().clipToBounds()) {
         VignetteOverlay()
+        AtmosphericEdgeGlow()
         CloudLayer()
     }
+}
+
+/**
+ * Blue atmospheric edge glow — brush is cached in drawWithCache so it's only
+ * allocated when the layout size changes, never on each frame redraw.
+ */
+@Composable
+private fun AtmosphericEdgeGlow() {
+    Spacer(
+        modifier = Modifier
+            .fillMaxSize()
+            .drawWithCache {
+                val radius = size.width * 0.80f
+                val brush = Brush.radialGradient(
+                    colors = listOf(Color.Transparent, Color(0xFF0A1E4A).copy(alpha = 0.48f)),
+                    center = Offset(size.width / 2f, size.height / 2f),
+                    radius = radius
+                )
+                onDrawBehind { drawRect(brush = brush) }
+            }
+    )
 }
 
 /**
@@ -474,7 +546,7 @@ private fun CloudLayer() {
                     .width(def[2].dp)
                     .height(def[3].dp)
                     .offset(x = xDp.dp, y = def[1].dp)
-                    .alpha(0.055f)
+                    .alpha(0.072f)
                     .background(Color.White, RoundedCornerShape(100.dp))
             )
         }

@@ -11,12 +11,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 object PremiumColors {
-    val DeepNavy = Color(0xFF0D1B2A)
-    val DarkSlate = Color(0xFF1B263B)
-    val MutedBlue = Color(0xFF415A77)
-    val Gold = Color(0xFFFFD700)
-    val GoldLight = Color(0xFFFFEC8B)
-    val GoldDark = Color(0xFFB8860B)
+    val DeepNavy = Color(0xFF081426)
+    val DarkSlate = Color(0xFF12253F)
+    val MutedBlue = Color(0xFF2F4A68)
+    val Emerald = Color(0xFF2F7D65)
+    val Gold = Color(0xFFFACF64)
+    val GoldLight = Color(0xFFFFE7A6)
+    val GoldDark = Color(0xFF9F7324)
     val WhiteHigh = Color.White
     val WhiteMed = Color.White.copy(alpha = 0.7f)
     val WhiteLow = Color.White.copy(alpha = 0.4f)
@@ -26,18 +27,18 @@ object PremiumColors {
     )
     
     val PanelGradient = Brush.verticalGradient(
-        colors = listOf(DarkSlate, DeepNavy)
+        colors = listOf(Color(0xFF1A3150), DeepNavy)
     )
 
     // Adventure Map V2 Colors
-    val OceanDeep = Color(0xFF0D1B2A)
-    val OceanMid = Color(0xFF1B263B)
-    val OceanShallow = Color(0xFF415A77)
-    val CoastHighlight = Color(0xFF64FFDA).copy(alpha = 0.3f)
+    val OceanDeep = Color(0xFF041326)
+    val OceanMid = Color(0xFF0E2C4A)
+    val OceanShallow = Color(0xFF1F5580)
+    val CoastHighlight = Color(0xFF7FFFD4).copy(alpha = 0.35f)
     
-    val TerrainForest = Color(0xFF2D6A4F)
-    val TerrainMountain = Color(0xFF4A4E69)
-    val TerrainDesert = Color(0xFFE9C46A)
+    val TerrainForest = Color(0xFF2F7D65)
+    val TerrainMountain = Color(0xFF56627A)
+    val TerrainDesert = Color(0xFFD9AE58)
     val TerrainTundra = Color(0xFFE0E1DD)
     
     val LandShadow = Color.Black.copy(alpha = 0.25f)
@@ -54,7 +55,7 @@ object PremiumShapes {
 }
 
 fun Modifier.premiumPanel() = this
-    .shadow(8.dp, PremiumShapes.PanelShape)
+    .shadow(10.dp, PremiumShapes.PanelShape)
     .clip(PremiumShapes.PanelShape)
     .background(PremiumColors.PanelGradient)
     .border(1.dp, PremiumColors.WhiteLow, PremiumShapes.PanelShape)

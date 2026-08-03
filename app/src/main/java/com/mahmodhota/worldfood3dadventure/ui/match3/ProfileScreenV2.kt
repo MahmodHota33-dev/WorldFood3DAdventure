@@ -2,15 +2,27 @@ package com.mahmodhota.worldfood3dadventure.ui.match3
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -19,13 +31,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.*
+import com.mahmodhota.worldfood3dadventure.game.progress.PlayerLevelProgression
+import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionQuery
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.BottomNavigationBar
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumColors
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumGameBackdrop
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumShapes
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.TopStatusBar
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.premiumPanel
 
 @Composable
 fun ProfileScreenV2(
@@ -35,112 +52,69 @@ fun ProfileScreenV2(
     val gameState by progressViewModel.gameState.collectAsState()
     val player = gameState.player
     val stats = gameState.stats
+    val completedLevels = ProgressionQuery.totalLevelsCompleted(gameState)
+    val totalCountries = ProgressionQuery.totalCountries().coerceAtLeast(1)
+    val completedCountries = ProgressionQuery.completedCountries(gameState)
+    val xpSnapshot = PlayerLevelProgression.snapshot(totalXp = player.xp, storedLevel = player.level)
+    val travelRank = rememberTravelRank(xpSnapshot.level)
 
     Scaffold(
         topBar = { TopStatusBar(onSettingsClick = {}) },
         bottomBar = { BottomNavigationBar(currentTab = "profile", onTabSelected = onTabSelected) },
-        containerColor = PremiumColors.DeepNavy
+        containerColor = Color.Transparent
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(24.dp)
         ) {
-            // Header: Avatar & Username
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .premiumPanel()
-                    .padding(16.dp)
-                    .border(1.dp, PremiumColors.Gold.copy(alpha = 0.3f), PremiumShapes.PanelShape)
+            PremiumGameBackdrop()
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 10.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(Brush.radialGradient(listOf(PremiumColors.Gold, PremiumColors.GoldDark))),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = "👨‍🍳", fontSize = 40.sp)
+                item {
+                    ProfileHeroCard(
+                        username = player.username,
+                        level = xpSnapshot.level,
+                        xp = xpSnapshot.xpIntoCurrentLevel,
+                        xpToNext = xpSnapshot.xpForNextLevel,
+                        travelRank = travelRank,
+                        completedLevels = completedLevels,
+                        completedCountries = completedCountries,
+                        totalCountries = totalCountries
+                    )
                 }
-                Spacer(Modifier.width(16.dp))
-                Column {
+                item {
                     Text(
-                        text = player.username.uppercase(), 
-                        color = PremiumColors.Gold, 
-                        fontSize = 22.sp, 
+                        text = "PLAYER STATISTICS",
+                        color = Color.White,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.sp
-                    )
-                    Text(
-                        text = "Master Chef Level ${player.level}", 
-                        color = Color.White.copy(alpha = 0.7f), 
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
+                        letterSpacing = 1.3.sp
                     )
                 }
-            }
-
-            Spacer(Modifier.height(32.dp))
-
-            // Stats Grid
-            Text(
-                text = "PLAYER STATISTICS", 
-                color = Color.White, 
-                fontSize = 14.sp, 
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 2.sp
-            )
-            Spacer(Modifier.height(16.dp))
-            
-            val statItems = listOf(
-                StatItemData("Total Stars", player.totalStars.toString(), Icons.Default.Star, PremiumColors.Gold),
-                StatItemData("Coins Found", player.coins.toString(), Icons.Default.Star, PremiumColors.Gold),
-                StatItemData("Levels Done", stats.totalCompletedLevels.toString(), Icons.Default.EmojiEvents, Color(0xFF81C784)),
-                StatItemData("Best Combo", stats.highestCombo.toString(), Icons.Default.EmojiEvents, Color(0xFFE91E63))
-            )
-
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.height(220.dp)
-            ) {
-                items(statItems) { item ->
-                    StatCard(item)
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        ProfileStatCard("Stars", player.totalStars.toString(), Icons.Default.Star, PremiumColors.Gold, Modifier.weight(1f))
+                        ProfileStatCard("Coins", player.coins.toString(), Icons.Default.Star, Color(0xFF72A8FF), Modifier.weight(1f))
+                    }
                 }
-            }
-
-            Spacer(Modifier.height(32.dp))
-
-            // Achievements Placeholder
-            Text(
-                text = "WORLD ACHIEVEMENTS", 
-                color = Color.White, 
-                fontSize = 14.sp, 
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 2.sp
-            )
-            Spacer(Modifier.height(16.dp))
-            
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .premiumPanel()
-                    .padding(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🌟", fontSize = 32.sp)
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "ACHIEVEMENT SYSTEM COMING SOON", 
-                        color = Color.Gray, 
-                        fontSize = 11.sp, 
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        ProfileStatCard("Levels", completedLevels.toString(), Icons.Default.EmojiEvents, Color(0xFF81C784), Modifier.weight(1f))
+                        ProfileStatCard("Countries", "$completedCountries/$totalCountries", Icons.Default.EmojiEvents, PremiumColors.GoldLight, Modifier.weight(1f))
+                    }
+                }
+                item {
+                    ProfileSummaryCard(
+                        completedLevels = completedLevels,
+                        completedCountries = completedCountries,
+                        totalCountries = totalCountries,
+                        highestCombo = stats.highestCombo,
+                        rank = travelRank
                     )
                 }
             }
@@ -148,22 +122,179 @@ fun ProfileScreenV2(
     }
 }
 
-private data class StatItemData(val label: String, val value: String, val icon: ImageVector, val color: Color)
-
 @Composable
-private fun StatCard(data: StatItemData) {
-    Box(
+private fun ProfileHeroCard(
+    username: String,
+    level: Int,
+    xp: Int,
+    xpToNext: Int,
+    travelRank: String,
+    completedLevels: Int,
+    completedCountries: Int,
+    totalCountries: Int
+) {
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .premiumPanel()
-            .border(0.5.dp, PremiumColors.WhiteLow, PremiumShapes.PanelShape)
-            .padding(16.dp)
+            .border(1.dp, PremiumColors.Gold.copy(alpha = 0.35f), PremiumShapes.PanelShape),
+        color = Color.Transparent
     ) {
-        Column {
-            Icon(data.icon, contentDescription = null, tint = data.color, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.height(12.dp))
-            Text(text = data.value, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
-            Text(text = data.label.uppercase(), color = Color.Gray, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(92.dp)
+                        .clip(CircleShape)
+                        .background(Brush.radialGradient(listOf(PremiumColors.Gold, PremiumColors.GoldDark)))
+                        .border(2.dp, PremiumColors.GoldLight.copy(alpha = 0.7f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("👨‍🍳", fontSize = 40.sp)
+                }
+                Spacer(Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = username.uppercase(),
+                        color = Color.White,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 22.sp,
+                        letterSpacing = 1.2.sp
+                    )
+                    Text(
+                        text = "TRAVEL RANK · $travelRank",
+                        color = PremiumColors.Gold,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        letterSpacing = 0.8.sp
+                    )
+                    Text(
+                        text = "Level $level  •  XP $xp / $xpToNext",
+                        color = Color.White.copy(alpha = 0.75f),
+                        fontSize = 12.sp
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(10.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.1f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth((xp.toFloat() / xpToNext.toFloat()).coerceIn(0f, 1f))
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .background(Brush.horizontalGradient(listOf(PremiumColors.GoldLight, PremiumColors.Gold)))
+                        )
+                    }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                ProfileBadge("Traveler", travelRank)
+                ProfileBadge("Wins", completedLevels.toString())
+                ProfileBadge("Countries", "$completedCountries/$totalCountries")
+            }
         }
+    }
+}
+
+@Composable
+private fun ProfileStatCard(
+    label: String,
+    value: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        color = Color.Transparent,
+        border = androidx.compose.foundation.BorderStroke(1.dp, PremiumColors.WhiteLow.copy(alpha = 0.25f))
+    ) {
+        Column(
+            modifier = Modifier
+                .background(
+                    Brush.verticalGradient(
+                        listOf(PremiumColors.DarkSlate.copy(alpha = 0.96f), PremiumColors.DeepNavy.copy(alpha = 0.96f))
+                    )
+                )
+                .padding(16.dp)
+        ) {
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.height(10.dp))
+            Text(text = value, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 25.sp)
+            Text(text = label.uppercase(), color = Color.White.copy(alpha = 0.72f), fontWeight = FontWeight.Bold, fontSize = 9.sp, letterSpacing = 1.sp)
+        }
+    }
+}
+
+@Composable
+private fun ProfileSummaryCard(
+    completedLevels: Int,
+    completedCountries: Int,
+    totalCountries: Int,
+    highestCombo: Int,
+    rank: String
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .premiumPanel()
+            .border(1.dp, PremiumColors.WhiteLow.copy(alpha = 0.25f), PremiumShapes.PanelShape),
+        color = Color.Transparent
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                text = "ACHIEVEMENT SNAPSHOT",
+                color = PremiumColors.Gold,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 1.sp
+            )
+            SummaryLine("Levels completed", completedLevels.toString())
+            SummaryLine("Countries unlocked", "$completedCountries / $totalCountries")
+            SummaryLine("Highest combo", highestCombo.toString())
+            SummaryLine("Travel rank", rank)
+        }
+    }
+}
+
+@Composable
+private fun ProfileBadge(title: String, value: String) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = Color.White.copy(alpha = 0.08f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.14f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = title, color = Color.White.copy(alpha = 0.58f), fontSize = 9.sp, letterSpacing = 0.8.sp)
+            Text(text = value, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun SummaryLine(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(text = label, color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp)
+        Text(text = value, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+private fun rememberTravelRank(level: Int): String {
+    return when {
+        level >= 30 -> "World Legend"
+        level >= 20 -> "Globe Master"
+        level >= 10 -> "Explorer"
+        else -> "Rising Chef"
     }
 }

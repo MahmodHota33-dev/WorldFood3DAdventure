@@ -10,7 +10,10 @@ object MatchDetector {
     /**
      * Finds all matches on the current board.
      */
-    fun findMatches(board: Match3Board): MatchResult {
+    fun findMatches(
+        board: Match3Board,
+        preferredPositions: List<BoardPosition> = emptyList()
+    ): MatchResult {
         val horizontalGroups = findHorizontalGroups(board)
         val verticalGroups = findVerticalGroups(board)
 
@@ -31,9 +34,11 @@ object MatchDetector {
                 if (hGroup.type == vGroup.type) {
                     val intersection = hGroup.positions.intersect(vGroup.positions)
                     if (intersection.isNotEmpty()) {
-                        // T or L shape found
                         val combinedPositions = hGroup.positions + vGroup.positions
-                        val spawnPoint = intersection.first()
+                        val spawnPoint = chooseSpawnPoint(
+                            candidates = intersection,
+                            preferredPositions = preferredPositions
+                        )
                         finalGroups.add(MatchGroup(combinedPositions, MatchDirection.HORIZONTAL, hGroup.type, SpecialTileType.BOMB, spawnPoint))
                         specialSpawns[spawnPoint] = SpecialTileType.BOMB
                         processedHorizontal.add(hGroup)
@@ -46,27 +51,45 @@ object MatchDetector {
         // 2. Process Line Matches (5 and 4)
         horizontalGroups.filter { it !in processedHorizontal }.forEach { group ->
             val spawnType = when (group.length) {
-                5 -> SpecialTileType.COLOR_BOMB
-                4 -> SpecialTileType.COLUMN_CLEAR // Horizontal 4 creates Vertical clear
+                in 5..Int.MAX_VALUE -> SpecialTileType.COLOR_BOMB
+                4 -> SpecialTileType.ROW_CLEAR
                 else -> SpecialTileType.NONE
             }
-            val spawnPoint = group.positions.first() // Default to first for now
+            val spawnPoint = if (spawnType == SpecialTileType.NONE) {
+                null
+            } else {
+                chooseSpawnPoint(group.positions, preferredPositions)
+            }
             finalGroups.add(group.copy(creationType = spawnType, creationPoint = if (spawnType != SpecialTileType.NONE) spawnPoint else null))
-            if (spawnType != SpecialTileType.NONE) specialSpawns[spawnPoint] = spawnType
+            if (spawnType != SpecialTileType.NONE && spawnPoint != null) specialSpawns[spawnPoint] = spawnType
         }
 
         verticalGroups.filter { it !in processedVertical }.forEach { group ->
             val spawnType = when (group.length) {
-                5 -> SpecialTileType.COLOR_BOMB
-                4 -> SpecialTileType.ROW_CLEAR // Vertical 4 creates Horizontal clear
+                in 5..Int.MAX_VALUE -> SpecialTileType.COLOR_BOMB
+                4 -> SpecialTileType.COLUMN_CLEAR
                 else -> SpecialTileType.NONE
             }
-            val spawnPoint = group.positions.first()
+            val spawnPoint = if (spawnType == SpecialTileType.NONE) {
+                null
+            } else {
+                chooseSpawnPoint(group.positions, preferredPositions)
+            }
             finalGroups.add(group.copy(creationType = spawnType, creationPoint = if (spawnType != SpecialTileType.NONE) spawnPoint else null))
-            if (spawnType != SpecialTileType.NONE) specialSpawns[spawnPoint] = spawnType
+            if (spawnType != SpecialTileType.NONE && spawnPoint != null) specialSpawns[spawnPoint] = spawnType
         }
 
         return MatchResult(finalGroups, uniquePositions, specialSpawns)
+    }
+
+    private fun chooseSpawnPoint(
+        candidates: Set<BoardPosition>,
+        preferredPositions: List<BoardPosition>
+    ): BoardPosition {
+        preferredPositions.firstOrNull { it in candidates }?.let { return it }
+        return candidates
+            .sortedWith(compareBy<BoardPosition>({ it.row }, { it.column }))
+            .let { sorted -> sorted[sorted.size / 2] }
     }
 
     private fun findHorizontalGroups(board: Match3Board): List<MatchGroup> {

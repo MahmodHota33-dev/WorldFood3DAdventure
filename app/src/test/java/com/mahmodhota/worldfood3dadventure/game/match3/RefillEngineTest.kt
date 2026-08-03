@@ -30,4 +30,22 @@ class RefillEngineTest {
         assertNotNull(result[BoardPosition(0, 1)])
         assertNotNull(result[BoardPosition(1, 1)])
     }
+
+    @Test
+    fun testRefillMetadataReportsUniqueSpawnedIds() {
+        val engine = RefillEngine(Random(7))
+        val result = engine.refillWithMetadata(
+            rows = 2,
+            cols = 2,
+            currentTiles = mapOf(
+                BoardPosition(0, 0) to null,
+                BoardPosition(0, 1) to null,
+                BoardPosition(1, 0) to FoodTile(1, FoodTileType.PIZZA),
+                BoardPosition(1, 1) to null
+            )
+        )
+
+        assertEquals(3, result.newTileIds.size)
+        assertEquals(result.newTileIds.size, result.newTileIds.distinct().size)
+    }
 }

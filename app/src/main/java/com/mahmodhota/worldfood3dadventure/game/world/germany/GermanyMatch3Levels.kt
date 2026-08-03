@@ -80,17 +80,33 @@ object GermanyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 9,
             countryId = "germany",
-            allowedTiles = FoodTileType.values().toList(),
-            goals = listOf(LevelGoal.CollectFood(FoodTileType.PRETZEL, 20), LevelGoal.CollectFood(FoodTileType.BRATWURST, 20)),
-            moves = 40
+            allowedTiles = listOf(
+                FoodTileType.PRETZEL,
+                FoodTileType.BRATWURST,
+                FoodTileType.POTATO,
+                FoodTileType.BREAD,
+                FoodTileType.CHEESE,
+                FoodTileType.APPLE,
+                FoodTileType.BLACK_FOREST_CAKE
+            ),
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.PRETZEL, 18), LevelGoal.CollectFood(FoodTileType.BRATWURST, 18)),
+            moves = 34
         ),
         // Level 10: Germany Master
         Match3LevelDefinition(
             levelNumber = 10,
             countryId = "germany",
-            allowedTiles = FoodTileType.values().toList(),
-            goals = listOf(LevelGoal.ScoreTarget(10000)),
-            moves = 50
+            allowedTiles = listOf(
+                FoodTileType.PRETZEL,
+                FoodTileType.BRATWURST,
+                FoodTileType.POTATO,
+                FoodTileType.BREAD,
+                FoodTileType.CHEESE,
+                FoodTileType.APPLE,
+                FoodTileType.BLACK_FOREST_CAKE
+            ),
+            goals = listOf(LevelGoal.ScoreTarget(14000)),
+            moves = 36
         ),
         // Level 11: The Classic
         Match3LevelDefinition(
@@ -113,24 +129,35 @@ object GermanyMatch3Levels {
             levelNumber = 13,
             countryId = "germany",
             allowedTiles = listOf(FoodTileType.PRETZEL, FoodTileType.APPLE, FoodTileType.BRATWURST, FoodTileType.POTATO),
-            goals = listOf(LevelGoal.CollectFood(FoodTileType.PRETZEL, 40)),
-            moves = 25
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.PRETZEL, 28)),
+            moves = 24
         ),
         // Level 14: Gateau Celebration
         Match3LevelDefinition(
             levelNumber = 14,
             countryId = "germany",
             allowedTiles = listOf(FoodTileType.BLACK_FOREST_CAKE, FoodTileType.APPLE, FoodTileType.BREAD, FoodTileType.CHEESE),
-            goals = listOf(LevelGoal.CollectFood(FoodTileType.BLACK_FOREST_CAKE, 15)),
-            moves = 25
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.BLACK_FOREST_CAKE, 12)),
+            moves = 24
         ),
         // Level 15: Germany Grand Finale
         Match3LevelDefinition(
             levelNumber = 15,
             countryId = "germany",
-            allowedTiles = FoodTileType.values().toList(),
-            goals = listOf(LevelGoal.ScoreTarget(15000)),
-            moves = 45
+            allowedTiles = listOf(
+                FoodTileType.PRETZEL,
+                FoodTileType.BRATWURST,
+                FoodTileType.POTATO,
+                FoodTileType.BREAD,
+                FoodTileType.CHEESE,
+                FoodTileType.APPLE,
+                FoodTileType.BLACK_FOREST_CAKE
+            ),
+            goals = listOf(
+                LevelGoal.ScoreTarget(22000),
+                LevelGoal.CollectFood(FoodTileType.BLACK_FOREST_CAKE, 10)
+            ),
+            moves = 30
         )
     )
 

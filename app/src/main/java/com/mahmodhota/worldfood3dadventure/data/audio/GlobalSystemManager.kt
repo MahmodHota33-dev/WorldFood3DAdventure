@@ -22,6 +22,20 @@ object GlobalSystemManager {
         }
     }
 
+    fun applySettings(musicVolume: Float, sfxVolume: Float, vibrationEnabled: Boolean) {
+        _audioManager?.setMusicVolume(musicVolume)
+        _audioManager?.setSfxVolume(sfxVolume)
+        _hapticManager?.setEnabled(vibrationEnabled)
+    }
+
+    fun onAppBackground() {
+        _audioManager?.pauseMusicForBackground()
+    }
+
+    fun onAppForeground() {
+        _audioManager?.resumeMusicIfNeeded()
+    }
+
     fun release() {
         _audioManager?.release()
         _audioManager = null

@@ -10,12 +10,12 @@ import android.os.VibratorManager
  * Manages haptic feedback (vibration).
  */
 class HapticManager(context: Context) {
-    private val vibrator: Vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-        vibratorManager.defaultVibrator
+    private val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+        vibratorManager?.defaultVibrator
     } else {
         @Suppress("DEPRECATION")
-        context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
     }
 
     private var isEnabled: Boolean = true
@@ -46,14 +46,15 @@ class HapticManager(context: Context) {
     }
 
     private fun vibrate(duration: Long, amplitude: Int) {
-        if (!isEnabled || !vibrator.hasVibrator()) return
+        val currentVibrator = vibrator ?: return
+        if (!isEnabled || !currentVibrator.hasVibrator()) return
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createOneShot(duration, amplitude))
+                currentVibrator.vibrate(VibrationEffect.createOneShot(duration, amplitude))
             } else {
                 @Suppress("DEPRECATION")
-                vibrator.vibrate(duration)
+                currentVibrator.vibrate(duration)
             }
         } catch (e: SecurityException) {
             // Permission missing or restricted

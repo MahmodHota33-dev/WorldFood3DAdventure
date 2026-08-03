@@ -32,7 +32,6 @@ import com.mahmodhota.worldfood3dadventure.ui.match3.*
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumColors
 import com.mahmodhota.worldfood3dadventure.ui.theme.WorldFood3DAdventureTheme
 import com.mahmodhota.worldfood3dadventure.ui.world3d.Globe3DScreen
-import com.mahmodhota.worldfood3dadventure.world.WorldFeatureFlags
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -128,39 +127,21 @@ class MainActivity : ComponentActivity() {
                         ) { targetScreen ->
                             when (targetScreen) {
                                 AppScreen.WORLD_MAP_V2 -> {
-                                    if (WorldFeatureFlags.ENABLE_EXPERIMENTAL_GLOBE) {
-                                        Globe3DScreen(
-                                            onLevelSelected = { countryId, levelNum ->
-                                                selectedLevelId = countryId
-                                                selectedMatch3Level = levelNum
-                                                currentScreen = AppScreen.PREMIUM_ADVENTURE
-                                            },
-                                            onTabSelected = { tab ->
-                                                currentScreen = when (tab) {
-                                                    "book" -> AppScreen.FOOD_BOOK
-                                                    "rewards" -> AppScreen.REWARDS
-                                                    "profile" -> AppScreen.PROFILE
-                                                    else -> AppScreen.WORLD_MAP_V2
-                                                }
+                                    Globe3DScreen(
+                                        onLevelSelected = { countryId, levelNum ->
+                                            selectedLevelId = countryId
+                                            selectedMatch3Level = levelNum
+                                            currentScreen = AppScreen.PREMIUM_ADVENTURE
+                                        },
+                                        onTabSelected = { tab ->
+                                            currentScreen = when (tab) {
+                                                "book" -> AppScreen.FOOD_BOOK
+                                                "rewards" -> AppScreen.REWARDS
+                                                "profile" -> AppScreen.PROFILE
+                                                else -> AppScreen.WORLD_MAP_V2
                                             }
-                                        )
-                                    } else {
-                                        WorldMapScreenV2(
-                                            onLevelSelected = { countryId, levelNum ->
-                                                selectedLevelId = countryId
-                                                selectedMatch3Level = levelNum
-                                                currentScreen = AppScreen.PREMIUM_ADVENTURE
-                                            },
-                                            onTabSelected = { tab ->
-                                                currentScreen = when (tab) {
-                                                    "book" -> AppScreen.FOOD_BOOK
-                                                    "rewards" -> AppScreen.REWARDS
-                                                    "profile" -> AppScreen.PROFILE
-                                                    else -> AppScreen.WORLD_MAP_V2
-                                                }
-                                            }
-                                        )
-                                    }
+                                        }
+                                    )
                                 }
                                 AppScreen.PREMIUM_ADVENTURE -> {
                                     PremiumAdventureScreen(

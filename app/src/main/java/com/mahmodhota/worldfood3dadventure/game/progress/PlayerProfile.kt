@@ -4,6 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.mahmodhota.worldfood3dadventure.data.progress.GameProgressManager
+import com.mahmodhota.worldfood3dadventure.telemetry.Match3Telemetry
+import com.mahmodhota.worldfood3dadventure.telemetry.Match3TelemetryEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -30,12 +32,26 @@ object PlayerProfile {
                 xp = gameState.player.xp
                 level = gameState.player.level
                 username = gameState.player.username
+                Match3Telemetry.log(
+                    event = Match3TelemetryEvent.PROFILE_UPDATED,
+                    levelId = Match3Telemetry.levelId(gameState.lastSelectedCountry, gameState.lastSelectedLevel),
+                    countryId = gameState.lastSelectedCountry,
+                    remainingMoves = 0,
+                    score = gameState.player.coins,
+                    comboCount = gameState.player.totalStars,
+                    cascadeCount = gameState.player.xp,
+                    detail = "level=${gameState.player.level} user=$username"
+                )
             }
         }
     }
 
-    val xpToNextLevel: Int get() = level * 500
-    val xpProgress: Float get() = xp.toFloat() / xpToNextLevel.toFloat()
+    val xpToNextLevel: Int get() = PlayerLevelProgression.XP_PER_LEVEL
+    val xpProgress: Float
+        get() {
+            val snapshot = PlayerLevelProgression.snapshot(totalXp = xp, storedLevel = level)
+            return snapshot.xpIntoCurrentLevel.toFloat() / snapshot.xpForNextLevel.toFloat()
+        }
 
     /**
      * Adds XP and handles level up (Logic handled in Repository now, but keeping for compatibility).

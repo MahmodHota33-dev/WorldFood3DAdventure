@@ -1,16 +1,22 @@
 package com.mahmodhota.worldfood3dadventure.ui.match3
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -20,7 +26,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.mahmodhota.worldfood3dadventure.game.match3.model.GameStatus
 import com.mahmodhota.worldfood3dadventure.game.match3.model.LevelGoal
-import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionManager
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.*
 import com.mahmodhota.worldfood3dadventure.ui.theme.WorldFood3DAdventureTheme
 
@@ -37,6 +42,9 @@ fun Match3GameScreen(
         Match3ViewModel(countryId, levelNumber)
     }
     val state = viewModel.uiState
+    DisposableEffect(viewModel) {
+        onDispose { viewModel.onScreenExit() }
+    }
     
     val backgroundColor = when (countryId) {
         "germany" -> Color(0xFF1B5E20)
@@ -87,7 +95,12 @@ fun Match3GameScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     PremiumMovesPanel(moves = state.movesRemaining)
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .premiumPanel()
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
                         Text(
                             text = "Level $levelNumber", 
                             color = Color.White, 
@@ -101,6 +114,17 @@ fun Match3GameScreen(
 
                 Spacer(Modifier.height(16.dp))
 
+                PremiumBoosterPanel(
+                    inventory = state.boosterInventory,
+                    selectedBooster = state.selectedBooster,
+                    onBoosterSelected = viewModel::onBoosterSelected,
+                    modifier = Modifier.fillMaxWidth(),
+                    isHorizontal = true,
+                    enabled = !state.isAnimating && state.status == GameStatus.PLAYING
+                )
+
+                Spacer(Modifier.height(16.dp))
+
                 // Board
                 Match3BoardComposable(
                     board = state.board,
@@ -108,7 +132,16 @@ fun Match3GameScreen(
                     matchedPositions = state.matchedPositions,
                     onTileClick = { viewModel.onTileSelected(it) },
                     modifier = Modifier.weight(1f),
-                    comboCount = state.comboCount
+                    comboCount = state.comboCount,
+                    animationPhase = state.animationPhase,
+                    activeTileAnimationIds = state.activeTileAnimationIds,
+                    fallDistanceByTileId = state.fallDistanceByTileId,
+                    refillTileIds = state.refillTileIds,
+                    landingTileIds = state.landingTileIds,
+                    comboLabel = state.comboLabel,
+                    boardShakeNonce = state.boardShakeNonce,
+                    boardShakeEnabled = state.boardShakeEnabled,
+                    specialEffects = state.specialEffects
                 )
 
                 Spacer(Modifier.height(16.dp))
@@ -127,27 +160,33 @@ fun Match3GameScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        if (com.mahmodhota.worldfood3dadventure.BuildConfig.DEBUG) {
-                            Button(
-                                onClick = { 
-                                    ProgressionManager.completeLevel(countryId, levelNumber, 5000, 3)
-                                    onBackToMap()
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.5f)),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("WIN")
-                            }
-                        }
-
-                        Button(
-                            onClick = onBackToMap,
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Black.copy(alpha = 0.5f)),
-                            shape = RoundedCornerShape(12.dp)
+                        val interactionSource = remember { MutableInteractionSource() }
+                        val pressed by interactionSource.collectIsPressedAsState()
+                        val buttonScale by androidx.compose.animation.core.animateFloatAsState(
+                            targetValue = if (pressed) 0.97f else 1f,
+                            animationSpec = androidx.compose.animation.core.spring(),
+                            label = "exitButtonScale"
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .scale(buttonScale)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Brush.horizontalGradient(listOf(PremiumColors.Emerald, PremiumColors.MutedBlue)))
+                                .clickable(
+                                    interactionSource = interactionSource,
+                                    indication = null,
+                                    onClick = onBackToMap
+                                )
+                                .padding(vertical = 14.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text("QUIT")
+                            Text(
+                                "EXIT LEVEL",
+                                color = Color.White,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.2.sp
+                            )
                         }
                     }
                 }

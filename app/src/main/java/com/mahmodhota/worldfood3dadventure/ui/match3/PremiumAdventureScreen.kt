@@ -1,41 +1,58 @@
 package com.mahmodhota.worldfood3dadventure.ui.match3
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mahmodhota.worldfood3dadventure.game.match3.Match3LevelRegistry
+import com.mahmodhota.worldfood3dadventure.game.match3.model.FoodTileType
 import com.mahmodhota.worldfood3dadventure.game.match3.model.LevelGoal
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.*
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
-import com.mahmodhota.worldfood3dadventure.game.progress.PlayerProfile
-import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionManager
-import com.mahmodhota.worldfood3dadventure.game.world.LevelRegistry
-import kotlinx.coroutines.launch
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.FoodIcon
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.Match3BoardComposable
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumColors
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumBoosterPanel
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.TopStatusBar
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.WorldMapComponent
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.WorldMapGeometry
 
-/**
- * Premium Combined Adventure Screen (HUB).
- * Integrates World Map and Match-3 gameplay into a single hierarchical view.
- */
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun PremiumAdventureScreen(
     countryId: String,
@@ -46,24 +63,18 @@ fun PremiumAdventureScreen(
     val viewModel: Match3ViewModel = remember(countryId, levelNumber) {
         Match3ViewModel(countryId, levelNumber)
     }
-    val match3State = viewModel.uiState
-    
+    val state = viewModel.uiState
     val levelDef = remember(countryId, levelNumber) {
         Match3LevelRegistry.getLevel(countryId, levelNumber)
     }
+    DisposableEffect(viewModel) {
+        onDispose { viewModel.onScreenExit() }
+    }
 
-    val coroutineScope = rememberCoroutineScope()
-    val scrollState = rememberScrollState()
-    val mapRequester = remember { BringIntoViewRequester() }
-    val boardRequester = remember { BringIntoViewRequester() }
-    
-    var focusedSection by remember { mutableStateOf("puzzle") }
-
-    // Map State
-    var mapScale by remember { mutableStateOf(1.0f) }
-    var mapOffset by remember { mutableStateOf(Offset(0f, 0f)) }
-    val transformState = rememberTransformableState { zoomChange, offsetChange, _ ->
-        mapScale = (mapScale * zoomChange).coerceIn(0.5f, 4f)
+    var mapScale by remember { mutableStateOf(1f) }
+    var mapOffset by remember { mutableStateOf(Offset.Zero) }
+    val transformState = androidx.compose.foundation.gestures.rememberTransformableState { zoomChange, offsetChange, _ ->
+        mapScale = (mapScale * zoomChange).coerceIn(0.75f, 3f)
         mapOffset += offsetChange
     }
 
@@ -71,285 +82,309 @@ fun PremiumAdventureScreen(
         topBar = { TopStatusBar(onSettingsClick = onSettingsClick) },
         containerColor = PremiumColors.DeepNavy
     ) { innerPadding ->
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(scrollState),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .navigationBarsPadding()
         ) {
-            // 1. World Map Section
-            AdventureMapSection(
-                mapScale = mapScale,
-                mapOffset = mapOffset,
-                transformState = transformState,
-                selectedCountryId = countryId,
-                modifier = Modifier.bringIntoViewRequester(mapRequester)
-            )
+            val compactPhone = maxHeight < 760.dp
+            val mapHeight = if (compactPhone) 112.dp else 132.dp
+            val stripHeight = if (compactPhone) 70.dp else 78.dp
+            val boosterHeight = if (compactPhone) 72.dp else 78.dp
+            val quickActionsHeight = 46.dp
 
-            // 2. Current Level Header
-            CurrentLevelHeader(
-                countryName = countryId.replaceFirstChar { it.uppercase() },
-                levelNumber = levelNumber,
-                levelTitle = levelDef?.title
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CompactAdventureMapHeader(
+                    mapScale = mapScale,
+                    mapOffset = mapOffset,
+                    transformState = transformState,
+                    selectedCountryId = countryId,
+                    mapHeight = mapHeight
+                )
 
-            // 3. Match-3 Section (Goal + Board + Booster)
-            CombinedMatch3Section(
-                viewModel = viewModel,
-                state = match3State,
-                modifier = Modifier.bringIntoViewRequester(boardRequester)
-            )
+                CompactGameplayInfoStrip(
+                    countryName = countryId.replaceFirstChar { it.uppercase() },
+                    levelNumber = levelNumber,
+                    levelTitle = levelDef?.title ?: "Adventure Puzzle",
+                    movesRemaining = state.movesRemaining,
+                    goals = state.goals,
+                    collected = state.collectedCounts,
+                    score = state.score,
+                    modifier = Modifier.height(stripHeight)
+                )
 
-            // 4. Bottom Cards
-            AdventureBottomCards(
-                currentCountryId = countryId,
-                currentLevel = levelNumber,
-                focusedSection = focusedSection,
-                onCardClick = { section ->
-                    focusedSection = section
-                    when (section) {
-                        "travel" -> {
-                            coroutineScope.launch {
-                                mapRequester.bringIntoView()
-                            }
-                        }
-                        "puzzle" -> {
-                            coroutineScope.launch {
-                                boardRequester.bringIntoView()
-                            }
-                        }
-                        "rewards" -> onTabSelected("rewards")
-                    }
+                PremiumBoosterPanel(
+                    inventory = state.boosterInventory,
+                    selectedBooster = state.selectedBooster,
+                    onBoosterSelected = viewModel::onBoosterSelected,
+                    modifier = Modifier.height(boosterHeight),
+                    isHorizontal = true,
+                    enabled = !state.isAnimating && state.status == com.mahmodhota.worldfood3dadventure.game.match3.model.GameStatus.PLAYING
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .heightIn(min = 220.dp)
+                ) {
+                    Match3BoardComposable(
+                        board = state.board,
+                        selectedPosition = state.selectedPosition,
+                        matchedPositions = state.matchedPositions,
+                        onTileClick = { viewModel.onTileSelected(it) },
+                        modifier = Modifier.fillMaxSize(),
+                        comboCount = state.comboCount,
+                        animationPhase = state.animationPhase,
+                        activeTileAnimationIds = state.activeTileAnimationIds,
+                        fallDistanceByTileId = state.fallDistanceByTileId,
+                        refillTileIds = state.refillTileIds,
+                        landingTileIds = state.landingTileIds,
+                        comboLabel = state.comboLabel,
+                        boardShakeNonce = state.boardShakeNonce,
+                        boardShakeEnabled = state.boardShakeEnabled,
+                        specialEffects = state.specialEffects
+                    )
                 }
-            )
-            
-            Spacer(Modifier.height(32.dp))
+
+                AdventureQuickActions(
+                    onTabSelected = onTabSelected,
+                    modifier = Modifier.height(quickActionsHeight)
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun AdventureMapSection(
+private fun CompactAdventureMapHeader(
     mapScale: Float,
     mapOffset: Offset,
     transformState: androidx.compose.foundation.gestures.TransformableState,
     selectedCountryId: String,
+    mapHeight: androidx.compose.ui.unit.Dp
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(mapHeight)
+            .clip(RoundedCornerShape(22.dp))
+            .background(PremiumColors.DeepNavy)
+            .border(1.dp, PremiumColors.WhiteLow.copy(alpha = 0.5f), RoundedCornerShape(22.dp))
+    ) {
+        WorldMapComponent(
+            mapScale = mapScale,
+            offset = mapOffset,
+            state = transformState,
+            selectedCountryId = selectedCountryId,
+            onCountryClick = {},
+            onCountryLongClick = {},
+            gameplayMode = true,
+            focusCountryId = selectedCountryId,
+            modifier = Modifier.fillMaxSize()
+        )
+    }
+}
+
+@Composable
+private fun CompactGameplayInfoStrip(
+    countryName: String,
+    levelNumber: Int,
+    levelTitle: String,
+    movesRemaining: Int,
+    goals: List<LevelGoal>,
+    collected: Map<FoodTileType, Int>,
+    score: Int,
     modifier: Modifier = Modifier
 ) {
-    BoxWithConstraints(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(PremiumColors.DeepNavy)
-            .border(1.dp, PremiumColors.WhiteLow, RoundedCornerShape(24.dp))
+    val primaryGoal = goals.firstOrNull()
+    val goalLabel: String
+    val goalProgress: String
+    val goalIconType: FoodTileType?
+
+    when (primaryGoal) {
+        is LevelGoal.CollectFood -> {
+            val current = collected[primaryGoal.type] ?: 0
+            goalLabel = primaryGoal.type.name.replace('_', ' ')
+            goalProgress = "$current/${primaryGoal.amount}"
+            goalIconType = primaryGoal.type
+        }
+        is LevelGoal.ScoreTarget -> {
+            goalLabel = "Score Target"
+            goalProgress = "$score/${primaryGoal.target}"
+            goalIconType = null
+        }
+        null -> {
+            goalLabel = "Mission"
+            goalProgress = "--"
+            goalIconType = null
+        }
+    }
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = PremiumColors.DarkSlate,
+        border = androidx.compose.foundation.BorderStroke(1.dp, PremiumColors.Gold.copy(alpha = 0.45f))
     ) {
-        // Calculate responsive height based on 1000:500 (2:1) aspect ratio
-        val responsiveHeight = (maxWidth.value * (WorldMapGeometry.MAP_HEIGHT / WorldMapGeometry.MAP_WIDTH)).dp
-        val dynamicHeight = responsiveHeight.coerceIn(200.dp, 400.dp)
-        
-        Box(modifier = Modifier.height(dynamicHeight)) {
-            WorldMapComponent(
-                mapScale = mapScale,
-                offset = mapOffset,
-                state = transformState,
-                selectedCountryId = selectedCountryId,
-                onCountryClick = { /* Handled via parent selection */ },
-                onCountryLongClick = { /* Handled via parent selection */ }
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "${countryName.uppercase()} • LEVEL $levelNumber",
+                    color = PremiumColors.Gold,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 11.sp,
+                    letterSpacing = 0.8.sp
+                )
+                Text(
+                    text = levelTitle,
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontStyle = FontStyle.Italic,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color.White.copy(alpha = 0.08f),
+                modifier = Modifier
+                    .width(72.dp)
+                    .semantics { contentDescription = "Moves remaining $movesRemaining" }
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("MOVES", color = Color.White.copy(alpha = 0.7f), fontSize = 9.sp)
+                    Text(
+                        text = movesRemaining.toString(),
+                        color = if (movesRemaining < 5) Color(0xFFFF6B6B) else Color.White,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 20.sp
+                    )
+                }
+            }
+
+            Spacer(Modifier.width(8.dp))
+
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color.White.copy(alpha = 0.08f),
+                modifier = Modifier
+                    .widthIn(min = 96.dp, max = 132.dp)
+                    .semantics { contentDescription = "Goal $goalLabel progress $goalProgress" }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (goalIconType != null) {
+                        FoodIcon(type = goalIconType, size = 20.dp)
+                    } else {
+                        Text("⭐", fontSize = 14.sp)
+                    }
+                    Spacer(Modifier.width(6.dp))
+                    Column {
+                        Text(
+                            text = goalLabel,
+                            color = Color.White.copy(alpha = 0.78f),
+                            fontSize = 9.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = goalProgress,
+                            color = Color.White,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdventureQuickActions(
+    onTabSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        QuickActionChip(
+            title = "WORLD",
+            emoji = "🌍",
+            modifier = Modifier.weight(1f)
+        ) { onTabSelected("world") }
+        QuickActionChip(
+            title = "REWARDS",
+            emoji = "🎁",
+            modifier = Modifier.weight(1f)
+        ) { onTabSelected("rewards") }
+        QuickActionChip(
+            title = "PROFILE",
+            emoji = "👤",
+            modifier = Modifier.weight(1f)
+        ) { onTabSelected("profile") }
+    }
+}
+
+@Composable
+private fun QuickActionChip(
+    title: String,
+    emoji: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(PremiumColors.DarkSlate.copy(alpha = 0.92f), PremiumColors.DeepNavy.copy(alpha = 0.92f))
+                    )
+                )
+                .border(1.dp, PremiumColors.WhiteLow.copy(alpha = 0.45f), RoundedCornerShape(14.dp))
+                .padding(horizontal = 6.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(emoji, fontSize = 12.sp)
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
             )
         }
     }
 }
-
-@Composable
-private fun CurrentLevelHeader(
-    countryName: String,
-    levelNumber: Int,
-    levelTitle: String? = null
-) {
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(countryName, levelNumber) {
-        visible = false
-        kotlinx.coroutines.delay(kotlin.time.Duration.parse("100ms"))
-        visible = true
-    }
-
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn() + expandVertically() + slideInVertically { -20 },
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .shadow(8.dp, RoundedCornerShape(16.dp)),
-            color = PremiumColors.DarkSlate,
-            shape = RoundedCornerShape(16.dp),
-            border = androidx.compose.foundation.BorderStroke(1.5.dp, PremiumColors.GoldGradient)
-        ) {
-            Column(
-                modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "${countryName.uppercase()} - LEVEL $levelNumber",
-                        color = PremiumColors.Gold,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 18.sp,
-                        letterSpacing = 2.sp,
-                        textAlign = TextAlign.Center
-                    )
-                }
-                
-                levelTitle?.let { title ->
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = title,
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp,
-                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CombinedMatch3Section(
-    viewModel: Match3ViewModel,
-    state: Match3UiState,
-    modifier: Modifier = Modifier
-) {
-    BoxWithConstraints(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-    ) {
-        val isWide = maxWidth > 600.dp
-        
-        if (isWide) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    PremiumGoalPanel(
-                        goals = state.goals,
-                        collected = state.collectedCounts,
-                        currentScore = state.score
-                    )
-                    PremiumMovesPanel(moves = state.movesRemaining)
-                }
-
-                Match3BoardComposable(
-                    board = state.board,
-                    selectedPosition = state.selectedPosition,
-                    matchedPositions = state.matchedPositions,
-                    onTileClick = { viewModel.onTileSelected(it) },
-                    modifier = Modifier.weight(1f),
-                    comboCount = state.comboCount
-                )
-
-                PremiumBoosterPanel(isHorizontal = false)
-            }
-        } else {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    PremiumGoalPanel(
-                        goals = state.goals,
-                        collected = state.collectedCounts,
-                        currentScore = state.score,
-                        modifier = Modifier.weight(1f)
-                    )
-                    PremiumMovesPanel(moves = state.movesRemaining)
-                }
-
-                Match3BoardComposable(
-                    board = state.board,
-                    selectedPosition = state.selectedPosition,
-                    matchedPositions = state.matchedPositions,
-                    onTileClick = { viewModel.onTileSelected(it) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                PremiumBoosterPanel(isHorizontal = true)
-            }
-        }
-    }
-}
-
-@Composable
-private fun AdventureBottomCards(
-    currentCountryId: String,
-    currentLevel: Int,
-    focusedSection: String,
-    onCardClick: (String) -> Unit
-) {
-    val unlockedCount = ProgressionManager.progressMap.values.count { it.isUnlocked }
-    val totalCountries = LevelRegistry.allCountryIds.size
-    val travelProgress = unlockedCount.toFloat() / totalCountries.toFloat()
-    
-    val countryProgress = ProgressionManager.getCountryProgress(currentCountryId)
-    val earnedStars = countryProgress.totalStars
-    val totalStarsPossible = countryProgress.levels.size * 3
-    val puzzleProgress = if (totalStarsPossible > 0) earnedStars.toFloat() / totalStarsPossible.toFloat() else 0f
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-            .heightIn(max = 140.dp)
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        PremiumAdventureCard(
-            title = "TRAVEL",
-            subtitle = currentCountryId.replaceFirstChar { it.uppercase() },
-            icon = "🌍",
-            isSelected = focusedSection == "travel",
-            progress = travelProgress,
-            onClick = { onCardClick("travel") },
-            modifier = Modifier.width(120.dp)
-        )
-        
-        PremiumAdventureCard(
-            title = "PUZZLE",
-            subtitle = "Level $currentLevel",
-            icon = "🧩",
-            isSelected = focusedSection == "puzzle",
-            progress = puzzleProgress,
-            onClick = { onCardClick("puzzle") },
-            modifier = Modifier.width(120.dp)
-        )
-        
-        PremiumAdventureCard(
-            title = "REWARDS",
-            subtitle = "${PlayerProfile.stars} Stars",
-            icon = "🎁",
-            isSelected = focusedSection == "rewards",
-            onClick = { onCardClick("rewards") },
-            modifier = Modifier.width(120.dp)
-        )
-    }
-}
-
-// Old placeholders removed as they are now in separate files or replaced by premium panels
-

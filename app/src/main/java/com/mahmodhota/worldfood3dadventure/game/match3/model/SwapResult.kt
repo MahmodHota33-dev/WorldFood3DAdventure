@@ -8,7 +8,7 @@ sealed class SwapResult {
         val initialBoard: Match3Board,
         val swappedBoard: Match3Board,
         val stableBoard: Match3Board,
-        val cascadeSteps: List<MatchResult>,
+        val cascadeSteps: List<CascadeStep>,
         val scoreGained: Int,
         val totalMatchedTiles: Int,
         val collectedCounts: Map<FoodTileType, Int>

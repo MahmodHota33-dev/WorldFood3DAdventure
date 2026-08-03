@@ -34,11 +34,16 @@ fun FoodIcon(
 }
 
 private fun DrawScope.drawFoodIcon(type: FoodTileType, s: Float) {
-    // Shared Shadow for depth
+    // Shared soft depth and gloss base.
     drawCircle(
-        color = Color.Black.copy(alpha = 0.1f),
-        radius = s * 0.45f,
-        center = Offset(s * 0.52f, s * 0.52f)
+        color = Color.Black.copy(alpha = 0.12f),
+        radius = s * 0.42f,
+        center = Offset(s * 0.54f, s * 0.58f)
+    )
+    drawCircle(
+        color = Color.White.copy(alpha = 0.06f),
+        radius = s * 0.46f,
+        center = Offset(s * 0.5f, s * 0.5f)
     )
 
     when (type) {

@@ -1,5 +1,7 @@
 package com.mahmodhota.worldfood3dadventure.data.audio
 
+import android.content.Context
+
 /**
  * Categorizes all game sound effects.
  */
@@ -40,35 +42,24 @@ enum class MusicType {
 }
 
 /**
- * Maps sound types to placeholder resource IDs.
- * In a real production environment, these would point to R.raw.sound_file.
+ * Resolves sound resources by enum name from res/raw at runtime.
+ * Example: SfxType.BUTTON_CLICK -> res/raw/button_click.*
  */
 object SoundRepository {
-    
-    // SFX mapping (Placeholders)
-    val sfxMap = mapOf(
-        SfxType.BUTTON_CLICK to 1,
-        SfxType.TILE_SELECT to 2,
-        SfxType.SWAP_VALID to 3,
-        SfxType.SWAP_INVALID to 4,
-        SfxType.MATCH_SMALL to 5,
-        SfxType.MATCH_LARGE to 6,
-        SfxType.VICTORY to 7,
-        SfxType.DEFEAT to 8,
-        SfxType.ITALY_VICTORY to 9,
-        SfxType.JAPAN_VICTORY to 10,
-        SfxType.MEXICO_VICTORY to 11
-    )
 
-    // Music mapping (Placeholders)
-    val musicMap = mapOf(
-        MusicType.WORLD_MAP to 101,
-        MusicType.GERMANY_THEME to 102,
-        MusicType.ITALY_THEME to 103,
-        MusicType.FRANCE_THEME to 104,
-        MusicType.JAPAN_THEME to 105,
-        MusicType.MEXICO_THEME to 106
-    )
+    private fun resolveRawResourceId(context: Context, rawName: String): Int? {
+        val id = context.resources.getIdentifier(rawName, "raw", context.packageName)
+        return if (id == 0) null else id
+    }
+
+    fun getSfxResId(context: Context, type: SfxType): Int? {
+        return resolveRawResourceId(context, type.name.lowercase())
+    }
+
+    fun getMusicResId(context: Context, type: MusicType): Int? {
+        if (type == MusicType.NONE) return null
+        return resolveRawResourceId(context, type.name.lowercase())
+    }
 
     fun getMusicForCountry(countryId: String): MusicType {
         return when (countryId.lowercase()) {

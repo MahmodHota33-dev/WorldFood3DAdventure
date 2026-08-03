@@ -25,42 +25,42 @@ object LevelRegistry {
         register(CountryDefinition(
             id = "germany",
             metadata = CountryMetadata("germany", "Germany", "DE", "🇩🇪", "Explore rustic villages and hearty cuisine."),
-            levels = GermanyMatch3Levels.levels
+            levels = GermanyMatch3Levels.levels.map { it.withBalancedThresholds() }
         ))
 
         // Italy
         register(CountryDefinition(
             id = "italy",
             metadata = CountryMetadata("italy", "Italy", "IT", "🇮🇹", "Discover the Mediterranean soul."),
-            levels = ItalyMatch3Levels.levels
+            levels = ItalyMatch3Levels.levels.map { it.withBalancedThresholds() }
         ))
 
         // France
         register(CountryDefinition(
             id = "france",
             metadata = CountryMetadata("france", "France", "FR", "🇫🇷", "Indulge in elegant pastries."),
-            levels = FranceMatch3Levels.levels
+            levels = FranceMatch3Levels.levels.map { it.withBalancedThresholds() }
         ))
 
         // Japan
         register(CountryDefinition(
             id = "japan",
             metadata = CountryMetadata("japan", "Japan", "JP", "🇯🇵", "Experience the zen of Japanese cuisine."),
-            levels = JapanMatch3Levels.levels
+            levels = JapanMatch3Levels.levels.map { it.withBalancedThresholds() }
         ))
 
         // Mexico
         register(CountryDefinition(
             id = "mexico",
             metadata = CountryMetadata("mexico", "Mexico", "MX", "🇲🇽", "A vibrant fiesta of flavors."),
-            levels = MexicoMatch3Levels.levels
+            levels = MexicoMatch3Levels.levels.map { it.withBalancedThresholds() }
         ))
 
         // Sudan
         register(CountryDefinition(
             id = "sudan",
             metadata = CountryMetadata("sudan", "Sudan", "SD", "🇸🇩", "Discover the ancient flavors of the Nile."),
-            levels = SudanMatch3Levels.levels
+            levels = SudanMatch3Levels.levels.map { it.withBalancedThresholds() }
         ))
     }
 

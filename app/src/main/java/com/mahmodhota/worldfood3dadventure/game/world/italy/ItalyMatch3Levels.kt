@@ -88,8 +88,8 @@ object ItalyMatch3Levels {
             levelNumber = 10,
             countryId = "italy",
             allowedTiles = listOf(FoodTileType.PIZZA, FoodTileType.PASTA, FoodTileType.SPAGHETTI, FoodTileType.LASAGNE, FoodTileType.GELATO, FoodTileType.TIRAMISU),
-            goals = listOf(LevelGoal.ScoreTarget(15000)),
-            moves = 45
+            goals = listOf(LevelGoal.ScoreTarget(17000)),
+            moves = 34
         ),
         // Level 11: Pizza Master
         Match3LevelDefinition(
@@ -120,16 +120,31 @@ object ItalyMatch3Levels {
             levelNumber = 14,
             countryId = "italy",
             allowedTiles = listOf(FoodTileType.GELATO, FoodTileType.TIRAMISU, FoodTileType.CHEESE, FoodTileType.BASIL),
-            goals = listOf(LevelGoal.CollectFood(FoodTileType.GELATO, 30)),
-            moves = 20
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.GELATO, 18)),
+            moves = 24
         ),
         // Level 15: Italy Grand Finale
         Match3LevelDefinition(
             levelNumber = 15,
             countryId = "italy",
-            allowedTiles = FoodTileType.values().toList(),
-            goals = listOf(LevelGoal.ScoreTarget(20000)),
-            moves = 40
+            allowedTiles = listOf(
+                FoodTileType.PIZZA,
+                FoodTileType.PASTA,
+                FoodTileType.TOMATO,
+                FoodTileType.CHEESE,
+                FoodTileType.BASIL,
+                FoodTileType.SPAGHETTI,
+                FoodTileType.LASAGNE,
+                FoodTileType.RAVIOLI,
+                FoodTileType.GNOCCHI,
+                FoodTileType.TIRAMISU,
+                FoodTileType.GELATO
+            ),
+            goals = listOf(
+                LevelGoal.ScoreTarget(24000),
+                LevelGoal.CollectFood(FoodTileType.TIRAMISU, 10)
+            ),
+            moves = 32
         )
     )
 

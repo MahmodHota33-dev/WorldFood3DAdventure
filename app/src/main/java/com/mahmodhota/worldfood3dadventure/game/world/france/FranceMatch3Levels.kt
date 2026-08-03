@@ -87,7 +87,7 @@ object FranceMatch3Levels {
             levelNumber = 10,
             countryId = "france",
             allowedTiles = listOf(FoodTileType.CROISSANT, FoodTileType.BAGUETTE, FoodTileType.FRENCH_CHEESE, FoodTileType.MACARON, FoodTileType.RATATOUILLE, FoodTileType.SOUFFLE),
-            goals = listOf(LevelGoal.ScoreTarget(15000)),
+            goals = listOf(LevelGoal.ScoreTarget(17500)),
             moves = 32
         ),
         // Level 11: Croissant Master
@@ -111,8 +111,8 @@ object FranceMatch3Levels {
             levelNumber = 13,
             countryId = "france",
             allowedTiles = listOf(FoodTileType.SOUFFLE, FoodTileType.CREPE, FoodTileType.FRENCH_CHEESE, FoodTileType.CROISSANT),
-            goals = listOf(LevelGoal.CollectFood(FoodTileType.SOUFFLE, 15)),
-            moves = 20
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.SOUFFLE, 12)),
+            moves = 22
         ),
         // Level 14: Bistro Special
         Match3LevelDefinition(
@@ -120,15 +120,28 @@ object FranceMatch3Levels {
             countryId = "france",
             allowedTiles = listOf(FoodTileType.RATATOUILLE, FoodTileType.TOMATO, FoodTileType.BASIL, FoodTileType.POTATO),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.RATATOUILLE, 20)),
-            moves = 30
+            moves = 26
         ),
         // Level 15: France Grand Finale
         Match3LevelDefinition(
             levelNumber = 15,
             countryId = "france",
-            allowedTiles = FoodTileType.values().toList(),
-            goals = listOf(LevelGoal.ScoreTarget(20000)),
-            moves = 40
+            allowedTiles = listOf(
+                FoodTileType.CROISSANT,
+                FoodTileType.BAGUETTE,
+                FoodTileType.FRENCH_CHEESE,
+                FoodTileType.CREPE,
+                FoodTileType.MACARON,
+                FoodTileType.RATATOUILLE,
+                FoodTileType.ECLAIR,
+                FoodTileType.SOUFFLE,
+                FoodTileType.TARTE_TATIN
+            ),
+            goals = listOf(
+                LevelGoal.ScoreTarget(24000),
+                LevelGoal.CollectFood(FoodTileType.TARTE_TATIN, 10)
+            ),
+            moves = 32
         )
     )
 

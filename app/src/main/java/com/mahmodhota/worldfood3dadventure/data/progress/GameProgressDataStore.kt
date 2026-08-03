@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import com.mahmodhota.worldfood3dadventure.game.match3.model.BoosterType
 
 /**
  * Low-level DataStore configuration.
@@ -48,4 +49,5 @@ object GameKeys {
     fun levelCompleted(cId: String, lvl: Int) = booleanPreferencesKey("l_${cId}_${lvl}_completed")
     fun levelStars(cId: String, lvl: Int) = intPreferencesKey("l_${cId}_${lvl}_stars")
     fun levelScore(cId: String, lvl: Int) = intPreferencesKey("l_${cId}_${lvl}_score")
+    fun boosterCount(type: BoosterType) = intPreferencesKey("booster_${type.name.lowercase()}")
 }

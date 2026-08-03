@@ -8,15 +8,36 @@ import androidx.lifecycle.viewModelScope
 import com.mahmodhota.worldfood3dadventure.data.audio.GlobalSystemManager
 import com.mahmodhota.worldfood3dadventure.data.audio.SfxType
 import com.mahmodhota.worldfood3dadventure.game.match3.Match3LevelRegistry
+import com.mahmodhota.worldfood3dadventure.game.match3.Match3SpecialConfig
+import com.mahmodhota.worldfood3dadventure.game.match3.engine.CascadeResult
 import com.mahmodhota.worldfood3dadventure.game.match3.engine.Match3Engine
 import com.mahmodhota.worldfood3dadventure.game.match3.model.*
 import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionManager
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.Match3MotionTokens
+import com.mahmodhota.worldfood3dadventure.telemetry.Match3Telemetry
+import com.mahmodhota.worldfood3dadventure.telemetry.Match3TelemetryEvent
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Detailed UI state for the Match-3 game, including animation tracking.
  */
+enum class Match3AnimationPhase {
+    Idle,
+    Selecting,
+    Swapping,
+    Validating,
+    RemovingMatches,
+    ApplyingGravity,
+    Refilling,
+    CheckingCascade,
+    InvalidReturning,
+    Completed
+}
+
 data class Match3UiState(
     val board: Match3Board,
     val score: Int = 0,
@@ -28,27 +49,49 @@ data class Match3UiState(
     val matchedPositions: Set<BoardPosition> = emptySet(),
     val goals: List<LevelGoal> = emptyList(),
     val scoreThresholds: StarThresholds = StarThresholds(800, 1200, 1500),
-    val comboCount: Int = 0
+    val comboCount: Int = 0,
+    val animationPhase: Match3AnimationPhase = Match3AnimationPhase.Idle,
+    val activeTileAnimationIds: Set<Long> = emptySet(),
+    val fallDistanceByTileId: Map<Long, Int> = emptyMap(),
+    val refillTileIds: Set<Long> = emptySet(),
+    val landingTileIds: Set<Long> = emptySet(),
+    val comboLabel: String? = null,
+    val boardShakeNonce: Int = 0,
+    val boardShakeEnabled: Boolean = false,
+    val specialEffects: List<SpecialBoardEffect> = emptyList(),
+    val boosterInventory: BoosterInventory = BoosterInventory(),
+    val selectedBooster: BoosterType? = null
 )
 
 class Match3ViewModel(
     val countryId: String,
-    val levelNumber: Int
+    val levelNumber: Int,
+    private val engineFactory: (List<FoodTileType>) -> Match3Engine = { Match3Engine(allowedTiles = it) },
+    private val playSfx: (SfxType) -> Unit = { GlobalSystemManager.audio.playSfx(it) },
+    private val hapticLight: () -> Unit = { GlobalSystemManager.haptics.light() },
+    private val hapticMedium: () -> Unit = { GlobalSystemManager.haptics.medium() },
+    private val hapticHeavy: () -> Unit = { GlobalSystemManager.haptics.heavy() },
+    private val boosterInventoryProvider: () -> BoosterInventory = { ProgressionManager.boosterInventory },
+    private val consumeBooster: suspend (BoosterType) -> BoosterInventory? = { ProgressionManager.consumeBooster(it) },
+    private val completeLevelProgress: (String, Int, Int, Int) -> Unit = { country, level, score, stars ->
+        ProgressionManager.completeLevel(country, level, score, stars)
+    }
 ) : ViewModel() {
-    
-    private val levelDefinition = Match3LevelRegistry.getLevel(countryId, levelNumber) 
+
+    private val levelDefinition = Match3LevelRegistry.getLevel(countryId, levelNumber)
         ?: throw IllegalArgumentException("Invalid level: $countryId $levelNumber")
-    
-    private val engine = Match3Engine(allowedTiles = levelDefinition.allowedTiles)
-    private val audio = GlobalSystemManager.audio
-    private val haptics = GlobalSystemManager.haptics
-    
+
+    private val engine = engineFactory(levelDefinition.allowedTiles)
+    private val telemetryLevelId = Match3Telemetry.levelId(countryId, levelNumber)
+    private var resolutionJob: Job? = null
+
     var uiState by mutableStateOf(
         Match3UiState(
             board = engine.createStartBoard(),
             movesRemaining = levelDefinition.moves,
             goals = levelDefinition.goals,
-            scoreThresholds = levelDefinition.scoreThresholds
+            scoreThresholds = levelDefinition.scoreThresholds,
+            boosterInventory = boosterInventoryProvider()
         )
     )
         private set
@@ -56,74 +99,445 @@ class Match3ViewModel(
     fun onTileSelected(position: BoardPosition) {
         if (uiState.isAnimating || uiState.status != GameStatus.PLAYING) return
 
-        audio.playSfx(SfxType.TILE_SELECT)
-        haptics.light()
+        if (uiState.selectedBooster == BoosterType.HAMMER) {
+            useHammer(position)
+            return
+        }
+
+        playSfx(SfxType.TILE_SELECT)
+        hapticLight()
 
         val selected = uiState.selectedPosition
         if (selected == null) {
-            uiState = uiState.copy(selectedPosition = position)
+            uiState = uiState.copy(
+                selectedPosition = position,
+                animationPhase = Match3AnimationPhase.Selecting
+            )
         } else {
             if (selected == position) {
-                uiState = uiState.copy(selectedPosition = null)
+                uiState = uiState.copy(
+                    selectedPosition = null,
+                    animationPhase = Match3AnimationPhase.Idle
+                )
             } else if (selected.isAdjacent(position)) {
                 performSwap(selected, position)
             } else {
-                uiState = uiState.copy(selectedPosition = position)
+                uiState = uiState.copy(
+                    selectedPosition = position,
+                    animationPhase = Match3AnimationPhase.Selecting
+                )
             }
         }
     }
 
+    fun onBoosterSelected(type: BoosterType) {
+        if (uiState.isAnimating || uiState.status != GameStatus.PLAYING) return
+        if (uiState.boosterInventory.countFor(type) <= 0) return
+
+        when (type) {
+            BoosterType.HAMMER -> {
+                playSfx(SfxType.BUTTON_CLICK)
+                hapticLight()
+                uiState = uiState.copy(
+                    selectedBooster = if (uiState.selectedBooster == type) null else type,
+                    selectedPosition = null,
+                    animationPhase = Match3AnimationPhase.Idle
+                )
+            }
+            BoosterType.SHUFFLE -> useShuffle()
+            BoosterType.EXTRA_MOVES -> useExtraMoves()
+        }
+    }
+
     private fun performSwap(pos1: BoardPosition, pos2: BoardPosition) {
-        viewModelScope.launch {
-            uiState = uiState.copy(isAnimating = true, selectedPosition = null)
-            
-            val result = engine.performSwap(uiState.board, pos1, pos2)
-            
+        resolutionJob?.cancel()
+        resolutionJob = viewModelScope.launch {
+            Match3Telemetry.log(
+                event = Match3TelemetryEvent.MOVE_START,
+                levelId = telemetryLevelId,
+                countryId = countryId,
+                remainingMoves = uiState.movesRemaining,
+                score = uiState.score,
+                comboCount = uiState.comboCount,
+                cascadeCount = 0,
+                detail = "from=$pos1 to=$pos2"
+            )
+            val firstId = uiState.board.tileAt(pos1)?.id
+            val secondId = uiState.board.tileAt(pos2)?.id
+            val swappedIds = setOfNotNull(firstId, secondId)
+            uiState = uiState.copy(
+                isAnimating = true,
+                selectedPosition = null,
+                selectedBooster = null,
+                animationPhase = Match3AnimationPhase.Swapping,
+                activeTileAnimationIds = swappedIds,
+                fallDistanceByTileId = emptyMap(),
+                refillTileIds = emptySet(),
+                landingTileIds = emptySet(),
+                specialEffects = emptyList()
+            )
+
+            val result = withContext(Dispatchers.Default) { engine.performSwap(uiState.board, pos1, pos2) }
             when (result) {
                 is SwapResult.Success -> {
-                    audio.playSfx(SfxType.SWAP_VALID)
-                    // 1. Swap Animation
-                    uiState = uiState.copy(board = result.swappedBoard)
-                    delay(300L)
-
-                    // 2. Cascade Iteration
-                    result.cascadeSteps.forEachIndexed { index, step ->
-                        audio.playSfx(SfxType.MATCH_SMALL)
-                        haptics.medium()
-                        uiState = uiState.copy(
-                            matchedPositions = step.uniquePositions,
-                            comboCount = index + 1
-                        )
-                        delay(400L)
-                        uiState = uiState.copy(matchedPositions = emptySet())
-                        delay(200L)
-                    }
-
-                    // Update local collection map
-                    val newCollected = uiState.collectedCounts.toMutableMap()
-                    result.collectedCounts.forEach { (type, count) ->
-                        newCollected[type] = (newCollected[type] ?: 0) + count
-                    }
-
-                    uiState = uiState.copy(
-                        board = result.stableBoard,
-                        score = uiState.score + result.scoreGained,
-                        movesRemaining = uiState.movesRemaining - 1,
-                        collectedCounts = newCollected,
-                        isAnimating = false,
-                        comboCount = 0
+                    Match3Telemetry.log(
+                        event = Match3TelemetryEvent.MOVE_VALID,
+                        levelId = telemetryLevelId,
+                        countryId = countryId,
+                        remainingMoves = uiState.movesRemaining,
+                        score = uiState.score,
+                        comboCount = uiState.comboCount,
+                        cascadeCount = result.cascadeSteps.size,
+                        detail = "matched=${result.totalMatchedTiles} score=${result.scoreGained}"
                     )
-                    
-                    checkGameStatus()
+                    playSfx(SfxType.SWAP_VALID)
+                    uiState = uiState.copy(board = result.swappedBoard)
+                    delay(Match3MotionTokens.SwapDurationMs.toLong())
+                    playCascadeResult(result.stableBoard, result.cascadeSteps, result.scoreGained, result.collectedCounts, movesDelta = -1)
                 }
                 else -> {
-                    audio.playSfx(SfxType.SWAP_INVALID)
-                    uiState = uiState.copy(board = uiState.board.swap(pos1, pos2))
-                    delay(300L)
-                    uiState = uiState.copy(board = uiState.board.swap(pos1, pos2), isAnimating = false)
+                    Match3Telemetry.log(
+                        event = Match3TelemetryEvent.MOVE_INVALID,
+                        levelId = telemetryLevelId,
+                        countryId = countryId,
+                        remainingMoves = uiState.movesRemaining,
+                        score = uiState.score,
+                        comboCount = uiState.comboCount,
+                        cascadeCount = 0,
+                        detail = "from=$pos1 to=$pos2"
+                    )
+                    playSfx(SfxType.SWAP_INVALID)
+                    hapticMedium()
+                    val swapped = uiState.board.swap(pos1, pos2)
+                    uiState = uiState.copy(
+                        animationPhase = Match3AnimationPhase.Swapping,
+                        board = swapped
+                    )
+                    delay(Match3MotionTokens.InvalidSwapOutDurationMs.toLong())
+                    uiState = uiState.copy(
+                        animationPhase = Match3AnimationPhase.InvalidReturning,
+                        board = swapped.swap(pos1, pos2)
+                    )
+                    delay(Match3MotionTokens.InvalidSwapReturnDurationMs.toLong())
+                    clearTransientAnimationState(isAnimating = false)
                 }
             }
         }
+    }
+
+    private fun useHammer(position: BoardPosition) {
+        resolutionJob?.cancel()
+        resolutionJob = viewModelScope.launch {
+            val updatedInventory = consumeBooster(BoosterType.HAMMER) ?: return@launch
+            Match3Telemetry.log(
+                event = Match3TelemetryEvent.BOOSTER_USED,
+                levelId = telemetryLevelId,
+                countryId = countryId,
+                remainingMoves = uiState.movesRemaining,
+                score = uiState.score,
+                comboCount = uiState.comboCount,
+                cascadeCount = 0,
+                detail = "type=HAMMER"
+            )
+            Match3Telemetry.log(
+                event = Match3TelemetryEvent.HAMMER_USED,
+                levelId = telemetryLevelId,
+                countryId = countryId,
+                remainingMoves = uiState.movesRemaining,
+                score = uiState.score,
+                comboCount = uiState.comboCount,
+                cascadeCount = 0,
+                detail = "target=$position"
+            )
+            playSfx(SfxType.MATCH_SMALL)
+            hapticMedium()
+            uiState = uiState.copy(
+                boosterInventory = updatedInventory,
+                selectedBooster = null,
+                selectedPosition = null,
+                isAnimating = true,
+                animationPhase = Match3AnimationPhase.RemovingMatches,
+                matchedPositions = setOf(position),
+                specialEffects = emptyList(),
+                boardShakeNonce = uiState.boardShakeNonce + 1,
+                boardShakeEnabled = true
+            )
+            delay(Match3MotionTokens.MatchPopDurationMs.toLong())
+            val result = withContext(Dispatchers.Default) { engine.applyHammer(uiState.board, position) }
+            if (result == null) {
+                clearTransientAnimationState(isAnimating = false)
+                return@launch
+            }
+            playCascadeResult(result.finalBoard, result.steps, result.totalScore, result.collectedCounts, movesDelta = 0)
+        }
+    }
+
+    private fun useShuffle() {
+        resolutionJob?.cancel()
+        resolutionJob = viewModelScope.launch {
+            val updatedInventory = consumeBooster(BoosterType.SHUFFLE) ?: return@launch
+            Match3Telemetry.log(
+                event = Match3TelemetryEvent.BOOSTER_USED,
+                levelId = telemetryLevelId,
+                countryId = countryId,
+                remainingMoves = uiState.movesRemaining,
+                score = uiState.score,
+                comboCount = uiState.comboCount,
+                cascadeCount = 0,
+                detail = "type=SHUFFLE"
+            )
+            Match3Telemetry.log(
+                event = Match3TelemetryEvent.SHUFFLE_USED,
+                levelId = telemetryLevelId,
+                countryId = countryId,
+                remainingMoves = uiState.movesRemaining,
+                score = uiState.score,
+                comboCount = uiState.comboCount,
+                cascadeCount = 0
+            )
+            val shuffledBoard = withContext(Dispatchers.Default) { engine.shuffleBoard(uiState.board) }
+            playSfx(SfxType.CASCADE)
+            hapticMedium()
+            uiState = uiState.copy(
+                board = shuffledBoard,
+                boosterInventory = updatedInventory,
+                selectedBooster = null,
+                selectedPosition = null,
+                boardShakeNonce = uiState.boardShakeNonce + 1,
+                boardShakeEnabled = true
+            )
+            delay(Match3SpecialConfig.SpecialComboDurationMs.toLong())
+            uiState = uiState.copy(boardShakeEnabled = false)
+        }
+    }
+
+    private fun useExtraMoves() {
+        resolutionJob?.cancel()
+        resolutionJob = viewModelScope.launch {
+            val updatedInventory = consumeBooster(BoosterType.EXTRA_MOVES) ?: return@launch
+            Match3Telemetry.log(
+                event = Match3TelemetryEvent.BOOSTER_USED,
+                levelId = telemetryLevelId,
+                countryId = countryId,
+                remainingMoves = uiState.movesRemaining,
+                score = uiState.score,
+                comboCount = uiState.comboCount,
+                cascadeCount = 0,
+                detail = "type=EXTRA_MOVES"
+            )
+            Match3Telemetry.log(
+                event = Match3TelemetryEvent.EXTRA_MOVES_USED,
+                levelId = telemetryLevelId,
+                countryId = countryId,
+                remainingMoves = uiState.movesRemaining,
+                score = uiState.score,
+                comboCount = uiState.comboCount,
+                cascadeCount = 0,
+                detail = "bonus=${Match3SpecialConfig.ExtraMovesBoostAmount}"
+            )
+            playSfx(SfxType.STAR_EARNED)
+            hapticLight()
+            uiState = uiState.copy(
+                movesRemaining = uiState.movesRemaining + Match3SpecialConfig.ExtraMovesBoostAmount,
+                boosterInventory = updatedInventory,
+                selectedBooster = null,
+                selectedPosition = null
+            )
+        }
+    }
+
+    private suspend fun playCascadeResult(
+        finalBoard: Match3Board,
+        cascadeSteps: List<CascadeStep>,
+        scoreGained: Int,
+        collectedCounts: Map<FoodTileType, Int>,
+        movesDelta: Int
+    ) {
+        Match3Telemetry.log(
+            event = Match3TelemetryEvent.CASCADE_START,
+            levelId = telemetryLevelId,
+            countryId = countryId,
+            remainingMoves = uiState.movesRemaining,
+            score = uiState.score,
+            comboCount = uiState.comboCount,
+            cascadeCount = cascadeSteps.size
+        )
+        cascadeSteps.forEachIndexed { index, step ->
+            val impactfulStep = step.specialSpawnCount > 0 ||
+                step.specialEffects.isNotEmpty() ||
+                step.matchedPositions.size >= 5
+            val comboLabel = when {
+                step.specialEffects.any { it.type == SpecialBoardEffectType.COLOR_CLEAR } -> "Delicious Combo"
+                index >= 2 -> "Amazing"
+                index == 1 -> "Great"
+                else -> null
+            }
+
+            when {
+                step.specialEffects.any { it.type == SpecialBoardEffectType.COLOR_CLEAR } -> {
+                    playSfx(SfxType.MATCH_LARGE)
+                    hapticHeavy()
+                }
+                step.specialEffects.isNotEmpty() || step.specialSpawnCount > 0 -> {
+                    playSfx(SfxType.MATCH_LARGE)
+                    hapticMedium()
+                }
+                index > 0 -> {
+                    playSfx(SfxType.CASCADE)
+                    hapticLight()
+                }
+                else -> {
+                    playSfx(SfxType.MATCH_SMALL)
+                    hapticMedium()
+                }
+            }
+
+            Match3Telemetry.log(
+                event = Match3TelemetryEvent.MATCH_FOUND,
+                levelId = telemetryLevelId,
+                countryId = countryId,
+                remainingMoves = uiState.movesRemaining,
+                score = uiState.score,
+                comboCount = index + 1,
+                cascadeCount = index + 1,
+                detail = "tiles=${step.matchedPositions.size}"
+            )
+            Match3Telemetry.log(
+                event = Match3TelemetryEvent.MATCH_COUNT,
+                levelId = telemetryLevelId,
+                countryId = countryId,
+                remainingMoves = uiState.movesRemaining,
+                score = uiState.score,
+                comboCount = index + 1,
+                cascadeCount = index + 1,
+                detail = "count=${step.matchedPositions.size}"
+            )
+            if (step.specialSpawnCount > 0) {
+                Match3Telemetry.log(
+                    event = Match3TelemetryEvent.SPECIAL_CREATED,
+                    levelId = telemetryLevelId,
+                    countryId = countryId,
+                    remainingMoves = uiState.movesRemaining,
+                    score = uiState.score,
+                    comboCount = index + 1,
+                    cascadeCount = index + 1,
+                    detail = "count=${step.specialSpawnCount}"
+                )
+            }
+            if (step.specialEffects.isNotEmpty()) {
+                Match3Telemetry.log(
+                    event = Match3TelemetryEvent.SPECIAL_ACTIVATED,
+                    levelId = telemetryLevelId,
+                    countryId = countryId,
+                    remainingMoves = uiState.movesRemaining,
+                    score = uiState.score,
+                    comboCount = index + 1,
+                    cascadeCount = index + 1,
+                    detail = "effects=${step.specialEffects.size}"
+                )
+            }
+            uiState = uiState.copy(
+                animationPhase = Match3AnimationPhase.RemovingMatches,
+                matchedPositions = step.matchedPositions,
+                comboCount = index + 1,
+                comboLabel = comboLabel,
+                activeTileAnimationIds = emptySet(),
+                fallDistanceByTileId = emptyMap(),
+                refillTileIds = emptySet(),
+                landingTileIds = emptySet(),
+                specialEffects = step.specialEffects,
+                boardShakeNonce = if (impactfulStep) uiState.boardShakeNonce + 1 else uiState.boardShakeNonce,
+                boardShakeEnabled = impactfulStep
+            )
+            delay(Match3MotionTokens.MatchPopDurationMs.toLong())
+            uiState = uiState.copy(
+                matchedPositions = emptySet(),
+                specialEffects = emptyList()
+            )
+
+            Match3Telemetry.log(
+                event = Match3TelemetryEvent.REFILL_START,
+                levelId = telemetryLevelId,
+                countryId = countryId,
+                remainingMoves = uiState.movesRemaining,
+                score = uiState.score,
+                comboCount = index + 1,
+                cascadeCount = index + 1,
+                detail = "newTiles=${step.refillTileIds.size}"
+            )
+            val landingTileIds = (step.fallDistanceByTileId.keys + step.refillTileIds).toSet()
+            uiState = uiState.copy(
+                animationPhase = Match3AnimationPhase.ApplyingGravity,
+                board = step.boardAfterStep,
+                fallDistanceByTileId = step.fallDistanceByTileId,
+                refillTileIds = step.refillTileIds,
+                landingTileIds = landingTileIds,
+                boardShakeEnabled = false
+            )
+
+            val maxDrop = step.fallDistanceByTileId.values.maxOrNull() ?: 0
+            val fallDuration = Match3MotionTokens.fallDurationForRows(maxDrop)
+            val refillDuration = if (step.refillTileIds.isNotEmpty()) Match3MotionTokens.RefillDurationMs else 0
+            val settleDuration = maxOf(fallDuration, refillDuration).coerceAtLeast(36)
+            delay(settleDuration.toLong())
+            Match3Telemetry.log(
+                event = Match3TelemetryEvent.REFILL_END,
+                levelId = telemetryLevelId,
+                countryId = countryId,
+                remainingMoves = uiState.movesRemaining,
+                score = uiState.score,
+                comboCount = index + 1,
+                cascadeCount = index + 1
+            )
+
+            uiState = uiState.copy(animationPhase = Match3AnimationPhase.CheckingCascade)
+            delay(Match3MotionTokens.CascadePauseMs.toLong())
+        }
+
+        val newCollected = uiState.collectedCounts.toMutableMap()
+        collectedCounts.forEach { (type, count) ->
+            newCollected[type] = (newCollected[type] ?: 0) + count
+        }
+
+        uiState = uiState.copy(
+            board = finalBoard,
+            score = uiState.score + scoreGained,
+            movesRemaining = (uiState.movesRemaining + movesDelta).coerceAtLeast(0),
+            collectedCounts = newCollected,
+            boosterInventory = boosterInventoryProvider(),
+            isAnimating = false,
+            comboCount = 0,
+            animationPhase = Match3AnimationPhase.Idle,
+            activeTileAnimationIds = emptySet(),
+            fallDistanceByTileId = emptyMap(),
+            refillTileIds = emptySet(),
+            landingTileIds = emptySet(),
+            comboLabel = null,
+            boardShakeEnabled = false,
+            specialEffects = emptyList(),
+            selectedBooster = null
+        )
+
+        Match3Telemetry.log(
+            event = Match3TelemetryEvent.BOARD_STABLE,
+            levelId = telemetryLevelId,
+            countryId = countryId,
+            remainingMoves = uiState.movesRemaining,
+            score = uiState.score,
+            comboCount = uiState.comboCount,
+            cascadeCount = cascadeSteps.size
+        )
+        Match3Telemetry.log(
+            event = Match3TelemetryEvent.CASCADE_END,
+            levelId = telemetryLevelId,
+            countryId = countryId,
+            remainingMoves = uiState.movesRemaining,
+            score = uiState.score,
+            comboCount = uiState.comboCount,
+            cascadeCount = cascadeSteps.size
+        )
+
+        checkGameStatus()
     }
 
     private fun checkGameStatus() {
@@ -133,7 +547,7 @@ class Match3ViewModel(
                 is LevelGoal.CollectFood -> (uiState.collectedCounts[goal.type] ?: 0) >= goal.amount
             }
         }
-        
+
         if (won) {
             val victorySfx = when (countryId) {
                 "italy" -> SfxType.ITALY_VICTORY
@@ -141,23 +555,82 @@ class Match3ViewModel(
                 "mexico" -> SfxType.MEXICO_VICTORY
                 else -> SfxType.VICTORY
             }
-            audio.playSfx(victorySfx)
-            haptics.heavy()
-            uiState = uiState.copy(status = GameStatus.WON)
-            // Update Progression
+            Match3Telemetry.log(
+                event = Match3TelemetryEvent.LEVEL_WIN,
+                levelId = telemetryLevelId,
+                countryId = countryId,
+                remainingMoves = uiState.movesRemaining,
+                score = uiState.score,
+                comboCount = uiState.comboCount,
+                cascadeCount = 0
+            )
+            playSfx(victorySfx)
+            playSfx(SfxType.STAR_EARNED)
+            playSfx(SfxType.XP_GAINED)
+            hapticHeavy()
+            uiState = uiState.copy(status = GameStatus.WON, animationPhase = Match3AnimationPhase.Completed)
             val stars = when {
                 uiState.score >= uiState.scoreThresholds.threeStars -> 3
                 uiState.score >= uiState.scoreThresholds.twoStars -> 2
                 else -> 1
             }
-            ProgressionManager.completeLevel(countryId, levelNumber, uiState.score, stars)
+            Match3Telemetry.log(
+                event = Match3TelemetryEvent.REWARD_GRANTED,
+                levelId = telemetryLevelId,
+                countryId = countryId,
+                remainingMoves = uiState.movesRemaining,
+                score = uiState.score,
+                comboCount = uiState.comboCount,
+                cascadeCount = 0,
+                detail = "stars=$stars"
+            )
+            completeLevelProgress(countryId, levelNumber, uiState.score, stars)
         } else if (uiState.movesRemaining <= 0) {
-            audio.playSfx(SfxType.DEFEAT)
-            uiState = uiState.copy(status = GameStatus.LOST)
+            Match3Telemetry.log(
+                event = Match3TelemetryEvent.LEVEL_LOSE,
+                levelId = telemetryLevelId,
+                countryId = countryId,
+                remainingMoves = uiState.movesRemaining,
+                score = uiState.score,
+                comboCount = uiState.comboCount,
+                cascadeCount = 0
+            )
+            playSfx(SfxType.DEFEAT)
+            uiState = uiState.copy(status = GameStatus.LOST, animationPhase = Match3AnimationPhase.Completed)
         }
     }
 
     fun resetGame() {
-        uiState = Match3UiState(board = engine.createStartBoard())
+        resolutionJob?.cancel()
+        uiState = Match3UiState(
+            board = engine.createStartBoard(),
+            movesRemaining = levelDefinition.moves,
+            goals = levelDefinition.goals,
+            scoreThresholds = levelDefinition.scoreThresholds,
+            boosterInventory = boosterInventoryProvider()
+        )
+    }
+
+    fun onScreenExit() {
+        resolutionJob?.cancel()
+        clearTransientAnimationState(isAnimating = false)
+    }
+
+    private fun clearTransientAnimationState(isAnimating: Boolean) {
+        uiState = uiState.copy(
+            isAnimating = isAnimating,
+            selectedPosition = null,
+            matchedPositions = emptySet(),
+            comboCount = 0,
+            animationPhase = Match3AnimationPhase.Idle,
+            activeTileAnimationIds = emptySet(),
+            fallDistanceByTileId = emptyMap(),
+            refillTileIds = emptySet(),
+            landingTileIds = emptySet(),
+            comboLabel = null,
+            boardShakeEnabled = false,
+            specialEffects = emptyList(),
+            selectedBooster = null
+        )
     }
 }

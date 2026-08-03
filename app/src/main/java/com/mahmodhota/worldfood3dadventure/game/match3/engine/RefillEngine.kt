@@ -12,13 +12,26 @@ class RefillEngine(
     private val random: Random = Random.Default,
     private val allowedTiles: List<FoodTileType> = FoodTileType.values().toList()
 ) {
+    data class RefillResult(
+        val tiles: Map<BoardPosition, FoodTile>,
+        val newTileIds: Set<Long>
+    )
     private var nextTileId: Long = 10000L // Offset for refilled tiles to avoid ID collisions
 
     /**
      * Fills null spaces in the tile map with new random tiles.
      */
     fun refill(rows: Int, cols: Int, currentTiles: Map<BoardPosition, FoodTile?>): Map<BoardPosition, FoodTile> {
+        return refillWithMetadata(rows, cols, currentTiles).tiles
+    }
+
+    fun refillWithMetadata(
+        rows: Int,
+        cols: Int,
+        currentTiles: Map<BoardPosition, FoodTile?>
+    ): RefillResult {
         val finalTiles = mutableMapOf<BoardPosition, FoodTile>()
+        val newTileIds = mutableSetOf<Long>()
 
         for (r in 0 until rows) {
             for (c in 0 until cols) {
@@ -27,12 +40,14 @@ class RefillEngine(
                 if (existing != null) {
                     finalTiles[pos] = existing
                 } else {
-                    finalTiles[pos] = createRandomTile()
+                    val created = createRandomTile()
+                    finalTiles[pos] = created
+                    newTileIds.add(created.id)
                 }
             }
         }
 
-        return finalTiles
+        return RefillResult(finalTiles, newTileIds)
     }
 
     private fun createRandomTile(): FoodTile {
