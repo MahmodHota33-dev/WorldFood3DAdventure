@@ -43,10 +43,16 @@ class GlobeCameraState(
     fun tickInertia() {
         if (!hasVelocity) return
         rotate(velY, velX)
-        velY *= 0.90f
-        velX *= 0.90f
-        if (abs(velY) < 0.15f) velY = 0f
-        if (abs(velX) < 0.15f) velX = 0f
+        val speed = maxOf(abs(velY), abs(velX))
+        val damping = when {
+            speed > 3.5f -> 0.92f
+            speed > 1.4f -> 0.89f
+            else         -> 0.84f
+        }
+        velY *= damping
+        velX *= damping
+        if (abs(velY) < 0.04f) velY = 0f
+        if (abs(velX) < 0.04f) velX = 0f
     }
 
     val hasVelocity: Boolean get() = abs(velY) > 0.1f || abs(velX) > 0.1f
@@ -54,6 +60,18 @@ class GlobeCameraState(
     fun stopInertia() {
         velY = 0f
         velX = 0f
+    }
+
+    /**
+     * Apply touch drag impulse to camera velocity with soft acceleration and clamping.
+     * The blend term reduces abrupt speed jumps while preserving responsiveness.
+     */
+    fun applyDragImpulse(panX: Float, panY: Float) {
+        if (!panX.isFinite() || !panY.isFinite()) return
+        val impulseY = (panX * 0.24f).coerceIn(-5f, 5f)
+        val impulseX = (-panY * 0.24f).coerceIn(-5f, 5f)
+        velY = (velY * 0.78f + impulseY).coerceIn(-9f, 9f)
+        velX = (velX * 0.78f + impulseX).coerceIn(-9f, 9f)
     }
 
     fun resetToDefault() {

@@ -24,34 +24,68 @@ private const val DEG2RAD = (PI / 180.0).toFloat()
  * 5=Asia, 6=Asia-FE, 7=India, 8=Australia, 9=Greenland, 10=Japan, 11=NZ
  */
 private val CONTINENT_FILLS = arrayOf(
-    Color(0xFF4A8F50),  // N. America — temperate forest/plains mix
-    Color(0xFF237840),  // S. America — dense tropical
-    Color(0xFF5C9E52),  // Europe — lighter temperate green
-    Color(0xFF5CA055),  // Scandinavia — boreal/conifer
-    Color(0xFF8F8C2A),  // Africa — warm savanna/grassland
-    Color(0xFF376040),  // Asia main — mixed forest
-    Color(0xFF376040),  // Asia far east — mixed forest
-    Color(0xFF4E7C38),  // India — subtropical
-    Color(0xFFB8843A),  // Australia — arid red-ochre
-    Color(0xFFD4E8F5),  // Greenland — glacial blue-white
-    Color(0xFF376040),  // Japan
-    Color(0xFF50906A)   // New Zealand — lush green
+    Color(0xFF4D9958),  // N. America — rich temperate forests
+    Color(0xFF2C854D),  // S. America — lush rainforest
+    Color(0xFF73AF62),  // Europe — lighter plains
+    Color(0xFF6EAE62),  // Scandinavia — cool boreal green
+    Color(0xFFA99747),  // Africa — warm savanna / dry grassland
+    Color(0xFF4A7A4E),  // Asia main — mixed forest/plains
+    Color(0xFF4E7D53),  // Asia far east
+    Color(0xFF6D8C4B),  // India — subtropical plains
+    Color(0xFFC08E4A),  // Australia — warm desert earth
+    Color(0xFFDCEBFA),  // Greenland — icy blue-white
+    Color(0xFF4B7E4F),  // Japan — forested green
+    Color(0xFF5C9A75)   // New Zealand — bright lush green
 )
 
 private val CONTINENT_COASTS = arrayOf(
-    Color(0xFF28603A),  // N. America
-    Color(0xFF14582C),  // S. America — dark jungle
-    Color(0xFF347040),  // Europe
-    Color(0xFF347040),  // Scandinavia
-    Color(0xFF5E5C1A),  // Africa — ochre-olive coast
-    Color(0xFF1A5228),  // Asia main — deep jungle coast
-    Color(0xFF1A5228),  // Asia far east
-    Color(0xFF285E2C),  // India
-    Color(0xFF7A5828),  // Australia — burnt ochre coast
-    Color(0xFFA0C4DC),  // Greenland — faint blue coast
-    Color(0xFF1A5228),  // Japan
-    Color(0xFF347040)   // New Zealand
+    Color(0xFF2F6A45),  // N. America
+    Color(0xFF1E693A),  // S. America — deep jungle coast
+    Color(0xFF3F7A4B),  // Europe
+    Color(0xFF3D7A4A),  // Scandinavia
+    Color(0xFF6D6730),  // Africa — warm olive coast
+    Color(0xFF2B6240),  // Asia main
+    Color(0xFF2D6443),  // Asia far east
+    Color(0xFF3D6C3C),  // India
+    Color(0xFF8B6230),  // Australia — desert coastline
+    Color(0xFFA5C9E0),  // Greenland — cool ice coast
+    Color(0xFF2D6641),  // Japan
+    Color(0xFF417954)   // New Zealand
 )
+
+private val CONTINENT_MOUNTAIN_TINT = arrayOf(
+    Color(0x142A2F38), Color(0x10272F38), Color(0x162E333C), Color(0x182E343E),
+    Color(0x1536342B), Color(0x1E2A2F38), Color(0x1C2A2F38), Color(0x1630322F),
+    Color(0x123B2F26), Color(0x10F0F6FF), Color(0x1C2B313A), Color(0x162B323B)
+)
+
+private data class CloudBandSpec(
+    val coords: FloatArray,
+    val baseAlpha: Float,
+    val tint: Color,
+    val centroidXyz: FloatArray
+)
+
+private val CLOUD_BANDS: List<CloudBandSpec> = listOf(
+    floatArrayOf(18f,-58f, 22f,-18f, 20f, 22f, 17f, 22f, 17f,-18f, 17f,-58f) to Pair(0.21f, Color(0xFFF4FBFF)),
+    floatArrayOf(37f, 52f, 42f, 92f, 40f,128f, 36f,128f, 36f, 92f, 36f, 52f) to Pair(0.18f, Color(0xFFEAF7FF)),
+    floatArrayOf(-13f, 28f,-10f, 75f,-14f,118f,-18f,118f,-18f, 75f,-18f, 28f) to Pair(0.16f, Color(0xFFE6F4FF)),
+    floatArrayOf(52f,-133f,57f,-96f, 55f,-62f, 50f,-62f, 50f,-96f, 50f,-133f) to Pair(0.19f, Color(0xFFF0F9FF)),
+    floatArrayOf(6f, 78f,10f,107f, 7f,132f, 3f,132f, 3f,107f, 3f, 78f)       to Pair(0.14f, Color(0xFFEAF6FF)),
+    floatArrayOf(33f,-38f,38f,  0f,35f, 22f,31f, 22f,31f,  0f,31f,-38f)       to Pair(0.17f, Color(0xFFF4FAFF)),
+    floatArrayOf(-28f,-62f,-24f,-28f,-29f, 8f,-34f, 8f,-34f,-28f,-34f,-62f)   to Pair(0.12f, Color(0xFFE5F3FF)),
+    floatArrayOf(63f, 18f,68f, 62f,64f, 98f,60f, 98f,60f, 62f,60f, 18f)       to Pair(0.11f, Color(0xFFE7F5FF))
+).map { (coords, style) ->
+    var latSum = 0f
+    var lonSum = 0f
+    val n = coords.size / 2
+    for (i in 0 until n) {
+        latSum += coords[i * 2]
+        lonSum += coords[i * 2 + 1]
+    }
+    val centroid = latLonToXyz(latSum / n, lonSum / n)
+    CloudBandSpec(coords, style.first, style.second, centroid)
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Projection math — UNCHANGED from Phase 2
@@ -215,14 +249,15 @@ fun DrawScope.drawAtmosphereGlow(cx: Float, cy: Float, r: Float) {
     if (r <= 0f) return
 
     // Layer 1: Wide diffuse blue haze
-    val haloR = r * 1.50f
+    val haloR = r * 1.58f
     if (haloR > 0f) {
         drawCircle(
             brush = Brush.radialGradient(
                 0f      to Color.Transparent,
-                0.76f   to Color.Transparent,
-                0.87f   to Color(0x203399EE),
-                0.94f   to Color(0x3855BBFF),
+                0.72f   to Color.Transparent,
+                0.86f   to Color(0x1C2E96EE),
+                0.93f   to Color(0x3A4BAFFF),
+                0.98f   to Color(0x1F66C4FF),
                 1f      to Color.Transparent,
                 center = Offset(cx, cy), radius = haloR
             ),
@@ -231,13 +266,14 @@ fun DrawScope.drawAtmosphereGlow(cx: Float, cy: Float, r: Float) {
     }
 
     // Layer 2: Bright inner horizon ring
-    val innerR = r * 1.11f
+    val innerR = r * 1.13f
     if (innerR > 0f) {
         drawCircle(
             brush = Brush.radialGradient(
                 0f    to Color.Transparent,
-                0.87f to Color.Transparent,
-                0.94f to Color(0x5577DDFF),
+                0.86f to Color.Transparent,
+                0.93f to Color(0x5887D9FF),
+                0.98f to Color(0x3398E4FF),
                 1f    to Color.Transparent,
                 center = Offset(cx, cy), radius = innerR
             ),
@@ -246,13 +282,13 @@ fun DrawScope.drawAtmosphereGlow(cx: Float, cy: Float, r: Float) {
     }
 
     // Layer 3: Warm yellow tint on sunlit side (upper-left)
-    val warmR = r * 0.88f
+    val warmR = r * 0.96f
     if (warmR > 0f) {
-        val wx = cx - r * 0.28f; val wy = cy - r * 0.30f
+        val wx = cx - r * 0.30f; val wy = cy - r * 0.32f
         drawCircle(
             brush = Brush.radialGradient(
-                0f    to Color(0x14FFE080),
-                0.55f to Color(0x08FFD060),
+                0f    to Color(0x16FFE38F),
+                0.52f to Color(0x0AFFD975),
                 1f    to Color.Transparent,
                 center = Offset(wx, wy), radius = warmR
             ),
@@ -269,16 +305,17 @@ fun DrawScope.drawOceanSphere(cx: Float, cy: Float, r: Float) {
     if (r <= 0f) return
 
     // Base ocean — highlight offset creates natural top-left sun illumination
-    val hlOffset = Offset(cx - r * 0.20f, cy - r * 0.26f)
-    val gradR = r * 1.60f
+    val hlOffset = Offset(cx - r * 0.22f, cy - r * 0.29f)
+    val gradR = r * 1.68f
     if (gradR > 0f) {
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    Color(0xFF4AAAD8),   // Illuminated surface (moderate cyan-blue)
-                    Color(0xFF1870AA),   // Mid-depth navy blue
-                    Color(0xFF0A3D6E),   // Deep ocean
-                    Color(0xFF051828)    // Dark abyss / night edge
+                    Color(0xFF4B9DD2),   // sun-facing bright ocean
+                    Color(0xFF1E6EA8),   // upper mid-depth
+                    Color(0xFF0C4679),   // deep ocean body
+                    Color(0xFF06263F),   // dark basin
+                    Color(0xFF03151F)    // abyss edge
                 ),
                 center = hlOffset, radius = gradR
             ),
@@ -286,19 +323,39 @@ fun DrawScope.drawOceanSphere(cx: Float, cy: Float, r: Float) {
         )
     }
 
-    // Subtle coastal tint — very light, only noticeable near illuminated shore
-    val coastR = r * 0.60f
+    // Tropical/turquoise coast tint near the lit side
+    val coastR = r * 0.72f
     if (coastR > 0f) {
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    Color(0x0C40BBDD),
-                    Color(0x0F2896BE),
-                    Color(0x00000000)
+                    Color(0x124FE7D9),
+                    Color(0x1736C7C2),
+                    Color(0x08248CB0),
+                    Color.Transparent
                 ),
-                center = Offset(cx - r * 0.10f, cy - r * 0.12f), radius = coastR
+                center = Offset(cx - r * 0.14f, cy - r * 0.16f), radius = coastR
             ),
             radius = r, center = Offset(cx, cy)
+        )
+    }
+
+    // Subtle depth variation to avoid flat plastic look.
+    val depthR = r * 1.05f
+    if (depthR > 0f) {
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    Color.Transparent,
+                    Color(0x0D0A3560),
+                    Color(0x1A041D36),
+                    Color.Transparent
+                ),
+                center = Offset(cx + r * 0.26f, cy + r * 0.28f),
+                radius = depthR
+            ),
+            radius = r,
+            center = Offset(cx, cy)
         )
     }
 }
@@ -406,14 +463,14 @@ fun DrawScope.drawAtmosphereRim(cx: Float, cy: Float, r: Float) {
     if (r <= 0f) return
     val c = Offset(cx, cy)
     // Outermost faint haze
-    drawCircle(color = Color(0x1455AAFF), radius = r + 12f, center = c, style = Stroke(width = 24f))
+    drawCircle(color = Color(0x103A8EEA), radius = r + 15f, center = c, style = Stroke(width = 28f))
     // Mid atmosphere band
-    drawCircle(color = Color(0x2A6EC2FF), radius = r + 4f,  center = c, style = Stroke(width = 9f))
+    drawCircle(color = Color(0x2F5FAEFF), radius = r + 6f,  center = c, style = Stroke(width = 10f))
     // Sharp bright limb
-    drawCircle(color = Color(0x4890DEFF), radius = r,       center = c, style = Stroke(width = 2.8f))
+    drawCircle(color = Color(0x5A9EE7FF), radius = r,       center = c, style = Stroke(width = 3.0f))
     // Warm highlight arc on sunlit side — approximately upper-left 120° arc
     // Approximated as a slightly offset lighter circle with a clipping mask effect
-    drawCircle(color = Color(0x22FFDC80), radius = r + 1f,  center = Offset(cx - 2f, cy - 2f), style = Stroke(width = 2.8f))
+    drawCircle(color = Color(0x2CFFE39B), radius = r + 1.5f, center = Offset(cx - 3f, cy - 3f), style = Stroke(width = 3.0f))
 }
 
 /**
@@ -426,12 +483,26 @@ fun DrawScope.drawContinents(
     r: Float
 ) {
     if (r <= 0f) return
+    val sunBrush = Brush.linearGradient(
+        colorStops = arrayOf(
+            0.00f to Color(0x24FFF6DD),
+            0.30f to Color(0x12FFF4D1),
+            0.70f to Color.Transparent,
+            1.00f to Color.Transparent
+        ),
+        start = Offset(cx - r * 0.70f, cy - r * 0.72f),
+        end = Offset(cx + r * 0.80f, cy + r * 0.90f)
+    )
     GlobeContinentData.allPolygons.forEachIndexed { idx, poly ->
         val path = buildContinentPath(poly, rotY, rotX, cx, cy, r) ?: return@forEachIndexed
         val fill  = CONTINENT_FILLS.getOrElse(idx)  { Color(0xFF4D8E52) }
         val coast = CONTINENT_COASTS.getOrElse(idx) { Color(0xFF2A6A38) }
+        val mountain = CONTINENT_MOUNTAIN_TINT.getOrElse(idx) { Color(0x142B313A) }
         drawPath(path, color = fill)
-        drawPath(path, color = coast, style = Stroke(width = 1.4f, cap = StrokeCap.Round))
+        drawPath(path, brush = sunBrush)
+        drawPath(path, color = mountain)
+        drawPath(path, color = coast, style = Stroke(width = 1.2f, cap = StrokeCap.Round))
+        drawPath(path, color = Color(0x18EAF8FF), style = Stroke(width = 0.8f, cap = StrokeCap.Round))
     }
 }
 
@@ -494,21 +565,27 @@ fun DrawScope.drawCloudLayer(
 ) {
     if (r <= 0f) return
 
-    // (polygon coords, alpha as Float)
-    val bands = listOf(
-        floatArrayOf(18f,-58f, 22f,-18f, 20f, 22f, 17f, 22f, 17f,-18f, 17f,-58f) to 0.22f,
-        floatArrayOf(37f, 52f, 42f, 92f, 40f,128f, 36f,128f, 36f, 92f, 36f, 52f) to 0.18f,
-        floatArrayOf(-13f, 28f,-10f, 75f,-14f,118f,-18f,118f,-18f, 75f,-18f, 28f) to 0.16f,
-        floatArrayOf(52f,-133f,57f,-96f, 55f,-62f, 50f,-62f, 50f,-96f, 50f,-133f) to 0.20f,
-        floatArrayOf(6f, 78f,10f,107f, 7f,132f, 3f,132f, 3f,107f, 3f, 78f)       to 0.15f,
-        floatArrayOf(33f,-38f,38f,  0f,35f, 22f,31f, 22f,31f,  0f,31f,-38f)       to 0.17f,
-        floatArrayOf(-28f,-62f,-24f,-28f,-29f, 8f,-34f, 8f,-34f,-28f,-34f,-62f)   to 0.12f,
-        floatArrayOf(63f, 18f,68f, 62f,64f, 98f,60f, 98f,60f, 62f,60f, 18f)       to 0.11f
-    )
+    val ry = (rotY + cloudRotY) * DEG2RAD
+    val cosRy = cos(ry); val sinRy = sin(ry)
+    val rx = rotX * DEG2RAD
+    val cosRx = cos(rx); val sinRx = sin(rx)
 
-    for ((coords, alpha) in bands) {
-        val path = buildContinentPath(coords, rotY + cloudRotY, rotX, cx, cy, r + 1.8f) ?: continue
-        drawPath(path, color = Color(1f, 1f, 1f, alpha))
+    for (band in CLOUD_BANDS) {
+        val p = band.centroidXyz
+        val x1 = p[0] * cosRy + p[2] * sinRy
+        val z1 = -p[0] * sinRy + p[2] * cosRy
+        val y2 = p[1] * cosRx - z1 * sinRx
+        val z2 = p[1] * sinRx + z1 * cosRx
+        val cloudNight = nightIntensity(x1, y2, z2)
+        val path = buildContinentPath(band.coords, rotY + cloudRotY, rotX, cx, cy, r + 1.8f) ?: continue
+
+        // Brighter and denser on day side; softer/dimmer on night side.
+        val litFactor = 1f - cloudNight
+        val alpha = (band.baseAlpha * (0.62f + litFactor * 0.60f)).coerceIn(0.06f, 0.30f)
+        val tintR = (band.tint.red   * (0.86f + litFactor * 0.14f)).coerceIn(0f, 1f)
+        val tintG = (band.tint.green * (0.88f + litFactor * 0.12f)).coerceIn(0f, 1f)
+        val tintB = (band.tint.blue  * (0.90f + litFactor * 0.10f)).coerceIn(0f, 1f)
+        drawPath(path, color = Color(tintR, tintG, tintB, alpha))
     }
 }
 
