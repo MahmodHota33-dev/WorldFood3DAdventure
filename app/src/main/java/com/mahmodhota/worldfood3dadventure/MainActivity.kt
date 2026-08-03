@@ -19,6 +19,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.mahmodhota.worldfood3dadventure.data.audio.GlobalSystemManager
 import com.mahmodhota.worldfood3dadventure.data.audio.MusicType
 import com.mahmodhota.worldfood3dadventure.data.audio.SoundRepository
@@ -28,6 +31,11 @@ import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionManager
 import com.mahmodhota.worldfood3dadventure.ui.match3.*
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumColors
 import com.mahmodhota.worldfood3dadventure.ui.theme.WorldFood3DAdventureTheme
+import com.mahmodhota.worldfood3dadventure.ui.world3d.Globe3DScreen
+import com.mahmodhota.worldfood3dadventure.world.WorldFeatureFlags
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 /**
  * Top-level application state for navigation.
@@ -51,6 +59,21 @@ class MainActivity : ComponentActivity() {
         GlobalSystemManager.initialize(this)
         ProgressionManager.initialize()
         PlayerProfile.initialize()
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                GameProgressManager.repository.state
+                    .map { it.settings }
+                    .distinctUntilChanged()
+                    .collect { settings ->
+                        GlobalSystemManager.applySettings(
+                            musicVolume = settings.musicVolume,
+                            sfxVolume = settings.sfxVolume,
+                            vibrationEnabled = settings.vibrationEnabled
+                        )
+                    }
+            }
+        }
 
         enableEdgeToEdge()
         setContent {
@@ -105,21 +128,39 @@ class MainActivity : ComponentActivity() {
                         ) { targetScreen ->
                             when (targetScreen) {
                                 AppScreen.WORLD_MAP_V2 -> {
-                                    WorldMapScreenV2(
-                                        onLevelSelected = { countryId, levelNum ->
-                                            selectedLevelId = countryId
-                                            selectedMatch3Level = levelNum
-                                            currentScreen = AppScreen.PREMIUM_ADVENTURE
-                                        },
-                                        onTabSelected = { tab ->
-                                            currentScreen = when (tab) {
-                                                "book" -> AppScreen.FOOD_BOOK
-                                                "rewards" -> AppScreen.REWARDS
-                                                "profile" -> AppScreen.PROFILE
-                                                else -> AppScreen.WORLD_MAP_V2
+                                    if (WorldFeatureFlags.ENABLE_EXPERIMENTAL_GLOBE) {
+                                        Globe3DScreen(
+                                            onLevelSelected = { countryId, levelNum ->
+                                                selectedLevelId = countryId
+                                                selectedMatch3Level = levelNum
+                                                currentScreen = AppScreen.PREMIUM_ADVENTURE
+                                            },
+                                            onTabSelected = { tab ->
+                                                currentScreen = when (tab) {
+                                                    "book" -> AppScreen.FOOD_BOOK
+                                                    "rewards" -> AppScreen.REWARDS
+                                                    "profile" -> AppScreen.PROFILE
+                                                    else -> AppScreen.WORLD_MAP_V2
+                                                }
                                             }
-                                        }
-                                    )
+                                        )
+                                    } else {
+                                        WorldMapScreenV2(
+                                            onLevelSelected = { countryId, levelNum ->
+                                                selectedLevelId = countryId
+                                                selectedMatch3Level = levelNum
+                                                currentScreen = AppScreen.PREMIUM_ADVENTURE
+                                            },
+                                            onTabSelected = { tab ->
+                                                currentScreen = when (tab) {
+                                                    "book" -> AppScreen.FOOD_BOOK
+                                                    "rewards" -> AppScreen.REWARDS
+                                                    "profile" -> AppScreen.PROFILE
+                                                    else -> AppScreen.WORLD_MAP_V2
+                                                }
+                                            }
+                                        )
+                                    }
                                 }
                                 AppScreen.PREMIUM_ADVENTURE -> {
                                     PremiumAdventureScreen(
@@ -189,5 +230,15 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         GlobalSystemManager.release()
+    }
+
+    override fun onStop() {
+        GlobalSystemManager.onAppBackground()
+        super.onStop()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        GlobalSystemManager.onAppForeground()
     }
 }
