@@ -338,27 +338,65 @@ fun DrawScope.drawSunlight(cx: Float, cy: Float, r: Float) {
 }
 
 /**
- * Night-side hemisphere shadow with a stronger, deeper blue-black terminator.
+ * Night-side hemisphere shadow with a clear, soft day/night terminator.
+ *
+ * Two-pass strategy:
+ * 1. Primary shadow — large radial covering the night hemisphere; deepest at
+ *    the anti-sun centre, fading to transparent near the terminator line.
+ * 2. Terminator accent — a narrow annular ring at the transition boundary
+ *    adds a subtle blue tint that sharpens the perceived terminator edge
+ *    without a harsh step.
+ *
+ * Continent and marker visibility on the night side is preserved because the
+ * maximum opacity is moderate (~0x82), leaving enough contrast in the dark
+ * hemisphere for coloured shapes to still read.
+ *
+ * Sun is fixed at upper-left: shadow centre is lower-right (+x, +y in screen).
  */
 fun DrawScope.drawNightSide(cx: Float, cy: Float, r: Float) {
     if (r <= 0f) return
     val nx = cx + r * 0.32f
     val ny = cy + r * 0.30f
-    val nr = r * 0.98f
-    if (nr <= 0f) return
-    drawCircle(
-        brush = Brush.radialGradient(
-            colors = listOf(
-                Color(0x00000000),
-                Color(0x12000A20),
-                Color(0x38000C26),
-                Color(0x62000818),
-                Color(0x70000610)
+
+    // Pass 1 — primary hemisphere shadow
+    // Non-linear colour stops push the dark region further from the terminator,
+    // creating a cleaner bright-to-dark boundary.
+    val nr = r * 1.05f
+    if (nr > 0f) {
+        drawCircle(
+            brush = Brush.radialGradient(
+                colorStops = arrayOf(
+                    0.00f to Color(0x00000000),
+                    0.28f to Color(0x16000B1E),
+                    0.50f to Color(0x38000C22),
+                    0.68f to Color(0x58000A1C),
+                    0.82f to Color(0x72000816),
+                    0.93f to Color(0x82000612),
+                    1.00f to Color(0x00000000)
+                ),
+                center = Offset(nx, ny), radius = nr
             ),
-            center = Offset(nx, ny), radius = nr
-        ),
-        radius = nr, center = Offset(nx, ny)
-    )
+            radius = nr, center = Offset(nx, ny)
+        )
+    }
+
+    // Pass 2 — narrow terminator-zone accent (subtle blue tint ring)
+    val tr = nr * 0.82f
+    if (tr > 0f) {
+        drawCircle(
+            brush = Brush.radialGradient(
+                colorStops = arrayOf(
+                    0.00f to Color.Transparent,
+                    0.68f to Color.Transparent,
+                    0.80f to Color(0x1A000840),
+                    0.90f to Color(0x0E000530),
+                    1.00f to Color.Transparent
+                ),
+                center = Offset(nx, ny), radius = tr
+            ),
+            radius = tr, center = Offset(nx, ny)
+        )
+    }
 }
 
 /**

@@ -243,6 +243,7 @@ fun Globe3DScreen(
             drawCloudLayer(rotY, rotX, cx, cy, r, cloudRotY)
             drawSunlight(cx, cy, r)
             drawNightSide(cx, cy, r)
+            drawCityLights(rotY, rotX, cx, cy, r)
             drawAtmosphereRim(cx, cy, r)
         }
 

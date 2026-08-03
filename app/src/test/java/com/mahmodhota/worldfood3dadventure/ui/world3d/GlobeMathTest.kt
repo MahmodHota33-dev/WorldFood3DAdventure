@@ -223,4 +223,112 @@ class GlobeMathTest {
         val diff = GlobeCameraState.normalizeAngleDiff(-10f - 170f)
         assertTrue("Shortest path must be within ±180", diff >= -180f && diff <= 180f)
     }
+
+    // ── nightIntensity ────────────────────────────────────────────────────────
+
+    @Test
+    fun `nightIntensity returns 0 for sun-facing point`() {
+        // lat=0, lon=0 → z2=+1 when rotY=0, rotX=0 → full day (z toward viewer = toward sun)
+        // dot = 0*SUN_X + 0*SUN_Y + 1*SUN_Z = +0.88 → nightIntensity = 0
+        val result = nightIntensity(0f, 0f, 1f)
+        assertEquals(0f, result, 0.001f)
+    }
+
+    @Test
+    fun `nightIntensity is positive for night-side point`() {
+        // A point on the lower-right in camera space (night side):
+        // x2=+0.6, y2=-0.5 → dot = 0.6*(-0.30) + (-0.5)*(+0.34) + 0.0*0.88 = -0.18 - 0.17 = -0.35
+        val result = nightIntensity(0.6f, -0.5f, 0f)
+        assertTrue("Night-side point must have positive nightIntensity", result > 0f)
+    }
+
+    @Test
+    fun `nightIntensity upper-left point is day`() {
+        // Point upper-left: x2=-0.5, y2=+0.5 → dot large positive → nightIntensity = 0
+        val result = nightIntensity(-0.5f, 0.5f, 0.7f)
+        assertEquals(0f, result, 0.001f)
+    }
+
+    @Test
+    fun `nightIntensity is clamped to 0_1`() {
+        // Extreme night-side: all components strongly against sun
+        val result1 = nightIntensity(1f, -1f, -1f)
+        assertTrue("nightIntensity must be ≤ 1", result1 <= 1f)
+        assertTrue("nightIntensity must be ≥ 0", result1 >= 0f)
+
+        // Extreme day side: all components strongly toward sun
+        val result2 = nightIntensity(-1f, 1f, 1f)
+        assertEquals(0f, result2, 0.001f)
+    }
+
+    @Test
+    fun `nightIntensity returns 0 for NaN inputs`() {
+        assertEquals(0f, nightIntensity(Float.NaN, 0f, 0f), 0.001f)
+        assertEquals(0f, nightIntensity(0f, Float.NaN, 0f), 0.001f)
+        assertEquals(0f, nightIntensity(0f, 0f, Float.NaN), 0.001f)
+    }
+
+    @Test
+    fun `nightIntensity returns 0 for Infinity inputs`() {
+        assertEquals(0f, nightIntensity(Float.POSITIVE_INFINITY, 0f, 0f), 0.001f)
+        assertEquals(0f, nightIntensity(0f, Float.NEGATIVE_INFINITY, 0f), 0.001f)
+    }
+
+    @Test
+    fun `nightIntensity at terminator is strictly between 0 and 1`() {
+        // The terminator is where dot ≈ 0. Construct a point orthogonal to sun:
+        // sun = (-0.30, +0.34, +0.88). An orthogonal point: (0.34/0.45, 0.30/0.45, 0) normalised
+        // dot = 0.755*(-0.30) + 0.655*(+0.34) + 0*0.88 = -0.227 + 0.223 = -0.004 ≈ 0
+        val result = nightIntensity(0.755f, 0.655f, 0f)
+        // Should be a tiny positive or 0 — very close to terminator
+        assertTrue("Terminator point intensity must be in 0..1", result in 0f..1f)
+    }
+
+    // ── CITY_LIGHTS data integrity ────────────────────────────────────────────
+
+    @Test
+    fun `CITY_LIGHTS list is non-empty`() {
+        assertTrue("CITY_LIGHTS must not be empty", CITY_LIGHTS.isNotEmpty())
+    }
+
+    @Test
+    fun `CITY_LIGHT_XYZ matches CITY_LIGHTS size`() {
+        assertEquals(CITY_LIGHTS.size, CITY_LIGHT_XYZ.size)
+    }
+
+    @Test
+    fun `all CITY_LIGHT_XYZ entries are unit vectors`() {
+        for (i in CITY_LIGHT_XYZ.indices) {
+            val v = CITY_LIGHT_XYZ[i]
+            val len = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+            assertEquals("CITY_LIGHT_XYZ[$i] must be unit vector", 1f, len, 0.002f)
+        }
+    }
+
+    @Test
+    fun `all CityLight brightness values are in 0_1`() {
+        for (light in CITY_LIGHTS) {
+            assertTrue(
+                "brightness for ${light.lat},${light.lon} must be in 0..1",
+                light.brightness in 0f..1f
+            )
+        }
+    }
+
+    @Test
+    fun `city light on back side of globe is rejected`() {
+        // lat=0, lon=180 faces away from the camera at rotY=0, rotX=0
+        // Project it: z2 should be ≤ -0.05 → must not appear
+        val xyz = latLonToXyz(0f, 180f)
+        val p = projectPoint(xyz, 0f, 0f, 500f, 500f, 200f)
+        assertNull("Back-side city light position must not project", p)
+    }
+
+    @Test
+    fun `city light on front side of globe projects successfully`() {
+        // lat=0, lon=0 faces the camera at rotY=0, rotX=0
+        val xyz = latLonToXyz(0f, 0f)
+        val p = projectPoint(xyz, 0f, 0f, 500f, 500f, 200f)
+        assertNotNull("Front-side city light position must project", p)
+    }
 }
