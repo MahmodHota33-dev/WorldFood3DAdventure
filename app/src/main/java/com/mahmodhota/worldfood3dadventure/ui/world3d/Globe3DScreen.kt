@@ -4,6 +4,7 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +31,10 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -38,9 +43,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionManager
@@ -174,6 +181,9 @@ fun Globe3DScreen(
 ) {
     val camera = remember { GlobeCameraState() }
     var cloudRotY  by remember { mutableFloatStateOf(0f) }
+    var cloudDepthRotY by remember { mutableFloatStateOf(19f) }
+    var sunPhase by remember { mutableFloatStateOf(0f) }
+    var oceanPhase by remember { mutableFloatStateOf(0f) }
     var pulsePhase by remember { mutableFloatStateOf(0f) }
     var selectedCountry by remember { mutableStateOf<GlobeCountry?>(null) }
     var currentCountryId by remember { mutableStateOf("germany") }
@@ -217,6 +227,7 @@ fun Globe3DScreen(
     // Single frame loop — inertia, fly-to, cloud drift and marker pulse
     // Frame rate: 60fps when camera is active; ~20fps when fully idle.
     LaunchedEffect(Unit) {
+        var sunAccumulatorMs = 0f
         while (isActive) {
             val motionActive = camera.isFlyingTo ||
                 flightAnimator.isActive ||
@@ -252,6 +263,13 @@ fun Globe3DScreen(
             // Adjust step to keep real-time speed regardless of frame delay
             val step = if (motionActive) 1f else 3f
             cloudRotY  = (cloudRotY  + 0.012f * step) % 360f
+            cloudDepthRotY = (cloudDepthRotY + 0.0085f * step) % 360f
+            oceanPhase = (oceanPhase + 0.0042f * step) % TWO_PI
+            sunAccumulatorMs += frameMs
+            if (sunAccumulatorMs >= 120f) {
+                sunPhase = (sunPhase + 0.00032f * sunAccumulatorMs) % TWO_PI
+                sunAccumulatorMs = 0f
+            }
             pulsePhase = (pulsePhase + 0.022f * step) % TWO_PI
         }
     }
@@ -266,19 +284,20 @@ fun Globe3DScreen(
             val r    = (minOf(size.width, size.height) * 0.38f * camera.zoom).coerceAtLeast(1f)
             val rotY = camera.rotationY
             val rotX = camera.rotationX
+            val lighting = GlobeLighting.forCycle(sunPhase)
 
             drawSpaceBackground(STAR_POSITIONS, STAR_COLORS)
-            drawAtmosphereGlow(cx, cy, r)
-            drawOceanSphere(cx, cy, r)
-            drawContinents(rotY, rotX, cx, cy, r)
+            drawAtmosphereGlow(cx, cy, r, lighting)
+            drawOceanSphere(cx, cy, r, lighting, oceanPhase)
+            drawContinents(rotY, rotX, cx, cy, r, lighting)
             drawIceCaps(rotY, rotX, cx, cy, r)
-            drawCloudLayer(rotY, rotX, cx, cy, r, cloudRotY)
-            drawSunlight(cx, cy, r)
-            drawNightSide(cx, cy, r)
-            drawCityLights(rotY, rotX, cx, cy, r)
+            drawCloudLayer(rotY, rotX, cx, cy, r, cloudRotY + cloudDepthRotY * 0.15f, lighting)
+            drawSunlight(cx, cy, r, lighting)
+            drawNightSide(cx, cy, r, lighting)
+            drawCityLights(rotY, rotX, cx, cy, r, lighting)
             drawFlightPath(flightAnimator, rotY, rotX, cx, cy, r, flightRoutePath)
             drawFlightAirplane(flightAnimator, rotY, rotX, cx, cy, r, flightPlanePath)
-            drawAtmosphereRim(cx, cy, r)
+            drawAtmosphereRim(cx, cy, r, lighting)
         }
 
         // ── Marker rendering canvas (also writes to markerCache) ──────────
@@ -617,18 +636,100 @@ private fun BoxScope.GlobeCountryCard(
                     }
 
                     // ── Play button ────────────────────────────────────────
-                    Button(
-                        onClick = { onPlayLevel(nextLevel) },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1856B8)),
-                        shape = RoundedCornerShape(16.dp)
+                    val playButtonInteraction = remember { MutableInteractionSource() }
+                    val isPlayPressed by playButtonInteraction.collectIsPressedAsState()
+                    val playScale by animateFloatAsState(
+                        targetValue = if (isPlayPressed) 0.975f else 1f,
+                        animationSpec = tween(durationMillis = 110),
+                        label = "playButtonScale"
+                    )
+                    val glowStrength by animateFloatAsState(
+                        targetValue = if (isPlayPressed) 0.66f else 0.96f,
+                        animationSpec = tween(durationMillis = 140),
+                        label = "playButtonGlow"
+                    )
+                    val playShape = RoundedCornerShape(18.dp)
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer {
+                                scaleX = playScale
+                                scaleY = playScale
+                            }
+                            .shadow(
+                                elevation = if (isPlayPressed) 12.dp else 22.dp,
+                                shape = playShape,
+                                ambientColor = Color(0xFF2476FF).copy(alpha = 0.58f * glowStrength),
+                                spotColor = Color(0xFF00D6FF).copy(alpha = 0.72f * glowStrength)
+                            )
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(Color(0xFF245BFF), Color(0xFF00D2FF))
+                                ),
+                                shape = playShape
+                            )
+                            .border(
+                                width = 1.3.dp,
+                                color = Color.White.copy(alpha = 0.55f),
+                                shape = playShape
+                            )
                     ) {
-                        Text(
-                            text = if (completedLevels == 0) "▶  Start Adventure"
-                                   else "▶  Continue · Level $nextLevel",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .fillMaxWidth()
+                                .height(9.dp)
+                                .background(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.40f),
+                                            Color.Transparent
+                                        )
+                                    ),
+                                    shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
+                                )
                         )
+                        Button(
+                            onClick = { onPlayLevel(nextLevel) },
+                            interactionSource = playButtonInteraction,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(58.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Transparent,
+                                contentColor = Color.White
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 0.dp,
+                                pressedElevation = 0.dp,
+                                focusedElevation = 0.dp,
+                                hoveredElevation = 0.dp,
+                                disabledElevation = 0.dp
+                            ),
+                            shape = playShape,
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = "▶",
+                                    color = Color.White,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                                Text(
+                                    text = if (completedLevels == 0) "Start Adventure"
+                                    else "Continue · Level $nextLevel",
+                                    color = Color.White,
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            }
+                        }
                     }
 
                 } else {
