@@ -7,18 +7,6 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.PI
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Sun direction (camera-space) — matches drawSunlight / drawNightSide offsets.
-// Sun is at upper-left in screen: x_screen = cx - r*0.30, y_screen = cy - r*0.34
-// In 3D camera space: screen_x = cx + x2*r  → x2 = -0.30
-//                     screen_y = cy - y2*r  → y2 = +0.34
-// z points toward viewer, sun is on the viewer's side.
-// ──────────────────────────────────────────────────────────────────────────────
-internal const val GLOBE_SUN_X = -0.30f
-internal const val GLOBE_SUN_Y = +0.34f
-internal const val GLOBE_SUN_Z = +0.88f
-// Magnitude ≈ sqrt(0.09 + 0.1156 + 0.7744) = sqrt(0.98) ≈ 0.99 — treat as unit
-
 private const val CL_DEG2RAD = (PI / 180.0).toFloat()
 
 // Minimum night intensity before a city light becomes visible (0..1).
@@ -154,9 +142,11 @@ internal val CITY_LIGHT_XYZ: Array<FloatArray> = Array(CITY_LIGHTS.size) { i ->
  * Night = dot product with sun is negative → nightIntensity = clamp(-dot, 0, 1).
  */
 fun nightIntensity(x2: Float, y2: Float, z2: Float): Float {
-    if (!x2.isFinite() || !y2.isFinite() || !z2.isFinite()) return 0f
-    val dot = x2 * GLOBE_SUN_X + y2 * GLOBE_SUN_Y + z2 * GLOBE_SUN_Z
-    return (-dot).coerceIn(0f, 1f)
+    return GlobeLighting.nightIntensity(x2, y2, z2, GlobeLighting.defaultState())
+}
+
+fun nightIntensity(x2: Float, y2: Float, z2: Float, lighting: GlobeLightingState): Float {
+    return GlobeLighting.nightIntensity(x2, y2, z2, lighting)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -180,7 +170,8 @@ fun nightIntensity(x2: Float, y2: Float, z2: Float): Float {
 fun DrawScope.drawCityLights(
     rotY: Float, rotX: Float,
     cx: Float,   cy: Float,
-    r: Float
+    r: Float,
+    lighting: GlobeLightingState = GlobeLighting.defaultState()
 ) {
     if (r <= 0f) return
 
@@ -189,7 +180,7 @@ fun DrawScope.drawCityLights(
     val rxRad = rotX * CL_DEG2RAD
     val cosRx = cos(rxRad); val sinRx = sin(rxRad)
 
-    for (i in CITY_LIGHT_XYZ.indices) {
+    for (i in CITY_LIGHT_XYZ.indices step 2) {
         val xyz = CITY_LIGHT_XYZ[i]
         val px = xyz[0]; val py = xyz[1]; val pz = xyz[2]
 
@@ -206,7 +197,7 @@ fun DrawScope.drawCityLights(
         if (!z2.isFinite() || z2 <= -0.05f) continue
 
         // Night intensity — skip day side
-        val ni = nightIntensity(x2, y2, z2)
+        val ni = nightIntensity(x2, y2, z2, lighting)
         if (ni < CITY_LIGHT_THRESHOLD) continue
 
         // Project to screen space

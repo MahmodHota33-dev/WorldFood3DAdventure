@@ -1,6 +1,7 @@
 package com.mahmodhota.worldfood3dadventure.ui.world3d
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -87,6 +88,15 @@ private val CLOUD_BANDS: List<CloudBandSpec> = listOf(
     CloudBandSpec(coords, style.first, style.second, centroid)
 }
 
+// Reused mutable paths to avoid per-frame Path allocations.
+private val CONTINENT_PATH_CACHE = Array(GlobeContinentData.allPolygons.size) { Path() }
+private val CLOUD_PATH_CACHE_A = Array(CLOUD_BANDS.size) { Path() }
+private val CLOUD_PATH_CACHE_B = Array(CLOUD_BANDS.size) { Path() }
+private val ICE_PATH_OUTER = Array(2) { Path() }
+private val ICE_PATH_CORE = Array(2) { Path() }
+private val ICE_CAP_BASE_LAT = floatArrayOf(70f, -60f)
+private val ICE_CAP_CORE_SHIFT = floatArrayOf(9f, -9f)
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Projection math — UNCHANGED from Phase 2
 // ──────────────────────────────────────────────────────────────────────────────
@@ -149,6 +159,18 @@ fun buildContinentPath(
 ): Path? {
     if (coords.size < 4) return null
     val path = Path()
+    return if (buildContinentPathInto(coords, rotY, rotX, cx, cy, r, path)) path else null
+}
+
+fun buildContinentPathInto(
+    coords: FloatArray,
+    rotY: Float, rotX: Float,
+    cx: Float, cy: Float,
+    r: Float,
+    outPath: Path
+): Boolean {
+    if (coords.size < 4) return false
+    outPath.reset()
     var first = true
     var anyVisible = false
     val n = coords.size / 2
@@ -157,15 +179,15 @@ fun buildContinentPath(
         val pt = projectLatLon(coords[i * 2], coords[i * 2 + 1], rotY, rotX, cx, cy, r)
         if (pt != null) {
             anyVisible = true
-            if (first) { path.moveTo(pt.x, pt.y); first = false }
-            else path.lineTo(pt.x, pt.y)
+            if (first) { outPath.moveTo(pt.x, pt.y); first = false }
+            else outPath.lineTo(pt.x, pt.y)
         } else if (!first) {
             first = true
         }
         i++
     }
-    path.close()
-    return if (anyVisible) path else null
+    outPath.close()
+    return anyVisible
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -231,7 +253,7 @@ fun DrawScope.drawSpaceBackground(stars: FloatArray, starColors: Array<Color>) {
 
     // ── Stars — radius varies with brightness ──────────────────────────────
     val n = minOf(stars.size / 2, starColors.size)
-    for (i in 0 until n) {
+    for (i in 0 until n step 2) {
         val sx = stars[i * 2]     * w
         val sy = stars[i * 2 + 1] * h
         val brightness = starColors[i].red
@@ -245,7 +267,12 @@ fun DrawScope.drawSpaceBackground(stars: FloatArray, starColors: Array<Color>) {
  * Multi-layer atmospheric halo: wide outer haze + tight bright horizon ring
  * + subtle warm tint on the sun-facing (upper-left) side.
  */
-fun DrawScope.drawAtmosphereGlow(cx: Float, cy: Float, r: Float) {
+fun DrawScope.drawAtmosphereGlow(
+    cx: Float,
+    cy: Float,
+    r: Float,
+    lighting: GlobeLightingState
+) {
     if (r <= 0f) return
 
     // Layer 1: Wide diffuse blue haze
@@ -281,10 +308,12 @@ fun DrawScope.drawAtmosphereGlow(cx: Float, cy: Float, r: Float) {
         )
     }
 
-    // Layer 3: Warm yellow tint on sunlit side (upper-left)
+    // Layer 3: Warm yellow tint on sunlit side
     val warmR = r * 0.96f
     if (warmR > 0f) {
-        val wx = cx - r * 0.30f; val wy = cy - r * 0.32f
+        val wx = cx + r * lighting.sunX * 0.98f
+        val wy = cy - r * lighting.sunY * 0.98f
+        if (!wx.isFinite() || !wy.isFinite()) return
         drawCircle(
             brush = Brush.radialGradient(
                 0f    to Color(0x16FFE38F),
@@ -301,11 +330,24 @@ fun DrawScope.drawAtmosphereGlow(cx: Float, cy: Float, r: Float) {
  * Premium ocean sphere: deep navy-blue base with subtle lighting gradient.
  * Avoids overly cyan tropical tones in favour of a more refined deep-sea palette.
  */
-fun DrawScope.drawOceanSphere(cx: Float, cy: Float, r: Float) {
+fun DrawScope.drawOceanSphere(
+    cx: Float,
+    cy: Float,
+    r: Float,
+    lighting: GlobeLightingState,
+    oceanPhase: Float
+) {
     if (r <= 0f) return
 
-    // Base ocean — highlight offset creates natural top-left sun illumination
-    val hlOffset = Offset(cx - r * 0.22f, cy - r * 0.29f)
+    val driftX = sin(oceanPhase) * r * 0.04f
+    val driftY = cos(oceanPhase * 0.83f) * r * 0.03f
+
+    // Base ocean — highlight offset tracks sun direction with subtle drift.
+    val hlOffset = Offset(
+        cx + r * lighting.sunX * 0.72f + driftX,
+        cy - r * lighting.sunY * 0.74f + driftY
+    )
+    if (!hlOffset.x.isFinite() || !hlOffset.y.isFinite()) return
     val gradR = r * 1.68f
     if (gradR > 0f) {
         drawCircle(
@@ -326,6 +368,11 @@ fun DrawScope.drawOceanSphere(cx: Float, cy: Float, r: Float) {
     // Tropical/turquoise coast tint near the lit side
     val coastR = r * 0.72f
     if (coastR > 0f) {
+        val coastCenter = Offset(
+            cx + r * lighting.sunX * 0.42f + driftX * 0.65f,
+            cy - r * lighting.sunY * 0.46f + driftY * 0.65f
+        )
+        if (!coastCenter.x.isFinite() || !coastCenter.y.isFinite()) return
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
@@ -334,7 +381,7 @@ fun DrawScope.drawOceanSphere(cx: Float, cy: Float, r: Float) {
                     Color(0x08248CB0),
                     Color.Transparent
                 ),
-                center = Offset(cx - r * 0.14f, cy - r * 0.16f), radius = coastR
+                center = coastCenter, radius = coastR
             ),
             radius = r, center = Offset(cx, cy)
         )
@@ -358,15 +405,65 @@ fun DrawScope.drawOceanSphere(cx: Float, cy: Float, r: Float) {
             center = Offset(cx, cy)
         )
     }
+
+    // Soft elongated reflective streak. Drawn before continents so land stays readable.
+    val reflW = r * 0.78f
+    val reflH = r * 0.24f
+    val reflR = reflW * 0.54f
+    val reflCenter = Offset(
+        cx + r * lighting.sunX * 0.48f + driftX * 0.45f,
+        cy - r * lighting.sunY * 0.50f + driftY * 0.45f
+    )
+    if (reflW > 0f && reflH > 0f && reflR > 0f && reflCenter.x.isFinite() && reflCenter.y.isFinite()) {
+        drawOval(
+            brush = Brush.radialGradient(
+                colorStops = arrayOf(
+                    0f to Color(0x46F8FFFF),
+                    0.42f to Color(0x20B9F8FF),
+                    0.82f to Color(0x0A65CDE8),
+                    1f to Color.Transparent
+                ),
+                center = reflCenter,
+                radius = reflR
+            ),
+            topLeft = Offset(reflCenter.x - reflW * 0.5f, reflCenter.y - reflH * 0.5f),
+            size = Size(reflW, reflH)
+        )
+    }
+
+    // Additional very low-amplitude movement pattern to suggest slow water light motion.
+    val flowR = r * 0.40f
+    if (flowR > 0f) {
+        val flowCenter = Offset(
+            cx + sin(oceanPhase * 0.41f) * r * 0.22f,
+            cy + cos(oceanPhase * 0.37f) * r * 0.16f
+        )
+        if (flowCenter.x.isFinite() && flowCenter.y.isFinite()) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color(0x0D63E5EF),
+                        Color(0x0754C9DD),
+                        Color.Transparent
+                    ),
+                    center = flowCenter,
+                    radius = flowR
+                ),
+                radius = r,
+                center = Offset(cx, cy)
+            )
+        }
+    }
 }
 
 /**
  * Two-layer sunlight: outer wide glow + inner specular hotspot (upper-left).
  */
-fun DrawScope.drawSunlight(cx: Float, cy: Float, r: Float) {
+fun DrawScope.drawSunlight(cx: Float, cy: Float, r: Float, lighting: GlobeLightingState) {
     if (r <= 0f) return
-    val sx = cx - r * 0.30f
-    val sy = cy - r * 0.34f
+    val sx = cx + r * lighting.sunX
+    val sy = cy - r * lighting.sunY
+    if (!sx.isFinite() || !sy.isFinite()) return
 
     // Outer wide glow
     val outerR = r * 0.68f
@@ -410,10 +507,11 @@ fun DrawScope.drawSunlight(cx: Float, cy: Float, r: Float) {
  *
  * Sun is fixed at upper-left: shadow centre is lower-right (+x, +y in screen).
  */
-fun DrawScope.drawNightSide(cx: Float, cy: Float, r: Float) {
+fun DrawScope.drawNightSide(cx: Float, cy: Float, r: Float, lighting: GlobeLightingState) {
     if (r <= 0f) return
-    val nx = cx + r * 0.32f
-    val ny = cy + r * 0.30f
+    val nx = cx - r * lighting.sunX * 1.04f
+    val ny = cy + r * lighting.sunY * 1.04f
+    if (!nx.isFinite() || !ny.isFinite()) return
 
     // Pass 1 — primary hemisphere shadow
     // Non-linear colour stops push the dark region further from the terminator,
@@ -459,7 +557,7 @@ fun DrawScope.drawNightSide(cx: Float, cy: Float, r: Float) {
 /**
  * Four-layer atmospheric rim: outer haze → mid band → sharp limb → warm lit edge.
  */
-fun DrawScope.drawAtmosphereRim(cx: Float, cy: Float, r: Float) {
+fun DrawScope.drawAtmosphereRim(cx: Float, cy: Float, r: Float, lighting: GlobeLightingState) {
     if (r <= 0f) return
     val c = Offset(cx, cy)
     // Outermost faint haze
@@ -470,7 +568,12 @@ fun DrawScope.drawAtmosphereRim(cx: Float, cy: Float, r: Float) {
     drawCircle(color = Color(0x5A9EE7FF), radius = r,       center = c, style = Stroke(width = 3.0f))
     // Warm highlight arc on sunlit side — approximately upper-left 120° arc
     // Approximated as a slightly offset lighter circle with a clipping mask effect
-    drawCircle(color = Color(0x2CFFE39B), radius = r + 1.5f, center = Offset(cx - 3f, cy - 3f), style = Stroke(width = 3.0f))
+    drawCircle(
+        color = Color(0x2CFFE39B),
+        radius = r + 1.5f,
+        center = Offset(cx + lighting.sunX * 4f, cy - lighting.sunY * 4f),
+        style = Stroke(width = 3.0f)
+    )
 }
 
 /**
@@ -480,9 +583,12 @@ fun DrawScope.drawAtmosphereRim(cx: Float, cy: Float, r: Float) {
 fun DrawScope.drawContinents(
     rotY: Float, rotX: Float,
     cx: Float, cy: Float,
-    r: Float
+    r: Float,
+    lighting: GlobeLightingState
 ) {
     if (r <= 0f) return
+    val sunDx = lighting.sunX * r * 1.8f
+    val sunDy = -lighting.sunY * r * 1.8f
     val sunBrush = Brush.linearGradient(
         colorStops = arrayOf(
             0.00f to Color(0x24FFF6DD),
@@ -490,19 +596,18 @@ fun DrawScope.drawContinents(
             0.70f to Color.Transparent,
             1.00f to Color.Transparent
         ),
-        start = Offset(cx - r * 0.70f, cy - r * 0.72f),
-        end = Offset(cx + r * 0.80f, cy + r * 0.90f)
+        start = Offset(cx + sunDx, cy + sunDy),
+        end = Offset(cx - sunDx * 0.72f, cy - sunDy * 0.72f)
     )
     GlobeContinentData.allPolygons.forEachIndexed { idx, poly ->
-        val path = buildContinentPath(poly, rotY, rotX, cx, cy, r) ?: return@forEachIndexed
+        val path = CONTINENT_PATH_CACHE[idx]
+        if (!buildContinentPathInto(poly, rotY, rotX, cx, cy, r, path)) return@forEachIndexed
         val fill  = CONTINENT_FILLS.getOrElse(idx)  { Color(0xFF4D8E52) }
         val coast = CONTINENT_COASTS.getOrElse(idx) { Color(0xFF2A6A38) }
         val mountain = CONTINENT_MOUNTAIN_TINT.getOrElse(idx) { Color(0x142B313A) }
         drawPath(path, color = fill)
         drawPath(path, brush = sunBrush)
-        drawPath(path, color = mountain)
         drawPath(path, color = coast, style = Stroke(width = 1.2f, cap = StrokeCap.Round))
-        drawPath(path, color = Color(0x18EAF8FF), style = Stroke(width = 0.8f, cap = StrokeCap.Round))
     }
 }
 
@@ -517,22 +622,22 @@ fun DrawScope.drawIceCaps(
 ) {
     if (r <= 0f) return
 
-    data class IceCap(val latBase: Float, val irregular: Float, val coreShift: Float)
-    val caps = listOf(
-        IceCap(70f, +4f, +9f),   // Arctic — above 70°, core at +9°
-        IceCap(-60f, -4f, -9f)   // Antarctic — below -60°, core at -9°
-    )
-
-    for (cap in caps) {
-        val outerPath = Path(); var firstO = true
-        val corePath  = Path(); var firstC = true
+    for (capIdx in 0..1) {
+        val latBase = ICE_CAP_BASE_LAT[capIdx]
+        val coreShift = ICE_CAP_CORE_SHIFT[capIdx]
+        val outerPath = ICE_PATH_OUTER[capIdx]
+        val corePath = ICE_PATH_CORE[capIdx]
+        outerPath.reset()
+        corePath.reset()
+        var firstO = true
+        var firstC = true
 
         for (deg in 0..360 step 8) {
             val lonF = deg.toFloat()
             // Slightly irregular outer boundary
             val wobble = sin(lonF * DEG2RAD * 2.3f) * 2f
-            val latO = cap.latBase + wobble
-            val latC = cap.latBase + cap.coreShift + wobble * 0.4f
+            val latO = latBase + wobble
+            val latC = latBase + coreShift + wobble * 0.4f
 
             val ptO = projectLatLon(latO, lonF, rotY, rotX, cx, cy, r)
             val ptC = projectLatLon(latC, lonF, rotY, rotX, cx, cy, r)
@@ -561,31 +666,40 @@ fun DrawScope.drawCloudLayer(
     rotY: Float, rotX: Float,
     cx: Float, cy: Float,
     r: Float,
-    cloudRotY: Float
+    cloudRotY: Float,
+    lighting: GlobeLightingState
 ) {
     if (r <= 0f) return
 
-    val ry = (rotY + cloudRotY) * DEG2RAD
-    val cosRy = cos(ry); val sinRy = sin(ry)
     val rx = rotX * DEG2RAD
     val cosRx = cos(rx); val sinRx = sin(rx)
 
-    for (band in CLOUD_BANDS) {
+    for (i in CLOUD_BANDS.indices) {
+        val band = CLOUD_BANDS[i]
         val p = band.centroidXyz
-        val x1 = p[0] * cosRy + p[2] * sinRy
-        val z1 = -p[0] * sinRy + p[2] * cosRy
-        val y2 = p[1] * cosRx - z1 * sinRx
-        val z2 = p[1] * sinRx + z1 * cosRx
-        val cloudNight = nightIntensity(x1, y2, z2)
-        val path = buildContinentPath(band.coords, rotY + cloudRotY, rotX, cx, cy, r + 1.8f) ?: continue
 
-        // Brighter and denser on day side; softer/dimmer on night side.
-        val litFactor = 1f - cloudNight
-        val alpha = (band.baseAlpha * (0.62f + litFactor * 0.60f)).coerceIn(0.06f, 0.30f)
-        val tintR = (band.tint.red   * (0.86f + litFactor * 0.14f)).coerceIn(0f, 1f)
-        val tintG = (band.tint.green * (0.88f + litFactor * 0.12f)).coerceIn(0f, 1f)
-        val tintB = (band.tint.blue  * (0.90f + litFactor * 0.10f)).coerceIn(0f, 1f)
-        drawPath(path, color = Color(tintR, tintG, tintB, alpha))
+        // Layer A (nearer cloud deck)
+        val ryA = (rotY + cloudRotY) * DEG2RAD
+        val cosRyA = cos(ryA); val sinRyA = sin(ryA)
+        val x1A = p[0] * cosRyA + p[2] * sinRyA
+        val z1A = -p[0] * sinRyA + p[2] * cosRyA
+        val y2A = p[1] * cosRx - z1A * sinRx
+        val z2A = p[1] * sinRx + z1A * cosRx
+        val cloudNightA = nightIntensity(x1A, y2A, z2A, lighting)
+        val pathA = CLOUD_PATH_CACHE_A[i]
+        if (buildContinentPathInto(band.coords, rotY + cloudRotY, rotX, cx, cy, r + 1.9f, pathA)) {
+            val litA = 1f - cloudNightA
+            val alphaA = (band.baseAlpha * (0.58f + litA * 0.56f)).coerceIn(0.05f, 0.26f)
+            val tintA = Color(
+                red = band.tint.red,
+                green = band.tint.green,
+                blue = band.tint.blue,
+                alpha = alphaA
+            )
+            drawPath(pathA, color = tintA)
+        }
+
+        // Layer B intentionally removed for lower draw-call budget on low-end GPUs.
     }
 }
 

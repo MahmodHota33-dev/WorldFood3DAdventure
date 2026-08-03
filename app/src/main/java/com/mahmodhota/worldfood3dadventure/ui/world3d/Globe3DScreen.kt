@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
@@ -134,7 +135,7 @@ internal class MarkerPositionCache {
 // Pre-computed star field (no per-frame allocation)
 // ──────────────────────────────────────────────────────────────────────────────
 
-private const val STAR_COUNT = 240
+private const val STAR_COUNT = 120
 
 private val STAR_POSITIONS: FloatArray = FloatArray(STAR_COUNT * 2).also { arr ->
     var seed = 0x7F3A1C42L
@@ -193,6 +194,15 @@ fun Globe3DScreen(
     val flightRoutePath = remember { Path() }
     val flightPlanePath = remember { Path() }
     val flightAnimator = remember { FlightAnimator() }
+    val progressMap = ProgressionManager.progressMap
+    val density = LocalDensity.current
+    val pinNormPx = with(density) { 10.dp.toPx() }
+    val pinSelPx = with(density) { 15.dp.toPx() }
+    val ptrNormPx = with(density) { 7.dp.toPx() }
+    val ptrSelPx = with(density) { 10.dp.toPx() }
+    val strokeWPx = with(density) { 1.5.dp.toPx() }
+    val starGapPx = with(density) { 12.dp.toPx() }
+    val hitRadiusPx = with(density) { HIT_RADIUS_DP.dp.toPx() }
 
     // Pre-allocate Paint objects for marker labels — never reallocated after first composition
     val codePaint = remember {
@@ -224,8 +234,8 @@ fun Globe3DScreen(
         }
     }
 
-    // Single frame loop — inertia, fly-to, cloud drift and marker pulse
-    // Frame rate: 60fps when camera is active; ~20fps when fully idle.
+    // Single frame loop — inertia, fly-to, cloud drift and marker pulse.
+    // Kept at 60fps target to avoid idle-frame throttling jank on device profiling.
     LaunchedEffect(Unit) {
         var sunAccumulatorMs = 0f
         while (isActive) {
@@ -234,7 +244,7 @@ fun Globe3DScreen(
                 flightAnimator.hasVisiblePath ||
                 kotlin.math.abs(camera.velY) > 0.05f ||
                 kotlin.math.abs(camera.velX) > 0.05f
-            val frameMs = if (motionActive) 16f else 48f
+            val frameMs = 16f
             delay(frameMs.toLong())
 
             camera.tickInertia()
@@ -260,8 +270,8 @@ fun Globe3DScreen(
                 }
             }
 
-            // Adjust step to keep real-time speed regardless of frame delay
-            val step = if (motionActive) 1f else 3f
+            // Fixed-step updates tuned for 60fps cadence.
+            val step = 1f
             cloudRotY  = (cloudRotY  + 0.012f * step) % 360f
             cloudDepthRotY = (cloudDepthRotY + 0.0085f * step) % 360f
             oceanPhase = (oceanPhase + 0.0042f * step) % TWO_PI
@@ -276,7 +286,7 @@ fun Globe3DScreen(
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF040810))) {
 
-        // ── Globe rendering canvas ────────────────────────────────────────
+        // ── Globe + marker rendering canvas (single pass reduces overdraw) ──
         Canvas(modifier = Modifier.fillMaxSize()) {
             if (size.width <= 0f || size.height <= 0f) return@Canvas
             val cx   = size.width  * 0.5f
@@ -285,6 +295,7 @@ fun Globe3DScreen(
             val rotY = camera.rotationY
             val rotX = camera.rotationX
             val lighting = GlobeLighting.forCycle(sunPhase)
+            val selId = selectedCountry?.id
 
             drawSpaceBackground(STAR_POSITIONS, STAR_COLORS)
             drawAtmosphereGlow(cx, cy, r, lighting)
@@ -298,26 +309,6 @@ fun Globe3DScreen(
             drawFlightPath(flightAnimator, rotY, rotX, cx, cy, r, flightRoutePath)
             drawFlightAirplane(flightAnimator, rotY, rotX, cx, cy, r, flightPlanePath)
             drawAtmosphereRim(cx, cy, r, lighting)
-        }
-
-        // ── Marker rendering canvas (also writes to markerCache) ──────────
-        val selId = selectedCountry?.id
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            if (size.width <= 0f || size.height <= 0f) return@Canvas
-
-            val cx   = size.width  * 0.5f
-            val cy   = size.height * 0.46f
-            val r    = (minOf(size.width, size.height) * 0.38f * camera.zoom).coerceAtLeast(1f)
-            val rotY = camera.rotationY
-            val rotX = camera.rotationX
-
-            // Pin dimensions (all in px)
-            val pinNorm   = 10.dp.toPx()    // circle radius normal
-            val pinSel    = 15.dp.toPx()    // circle radius selected
-            val ptrNorm   = 7.dp.toPx()     // pointer length normal
-            val ptrSel    = 10.dp.toPx()    // pointer length selected
-            val strokeW   = 1.5.dp.toPx()
-            val starGap   = 12.dp.toPx()
 
             visibleIdsBuffer.clear()
 
@@ -327,15 +318,17 @@ fun Globe3DScreen(
                     ?: continue
 
                 val isSelected  = country.id == selId
-                val progress    = ProgressionManager.getCountryProgress(country.id)
+                val progress = progressMap[country.id]
+                val isUnlocked = progress?.isUnlocked == true
+                val totalStars = progress?.totalStars ?: 0
                 val arrivalBoost = flightAnimator.arrivalBoostFor(country.id)
                 val selectedScale = when {
                     isSelected -> 1f + 0.07f * (0.5f + 0.5f * sin(pulsePhase * 1.4f))
                     arrivalBoost > 0f -> 1f + 0.09f * arrivalBoost
                     else -> 1f
                 }
-                val pinR   = (if (isSelected) pinSel else pinNorm) * selectedScale
-                val ptrLen = (if (isSelected) ptrSel else ptrNorm) * selectedScale
+                val pinR   = (if (isSelected) pinSelPx else pinNormPx) * selectedScale
+                val ptrLen = (if (isSelected) ptrSelPx else ptrNormPx) * selectedScale
 
                 // Circle center = above the geographic tip
                 val circCenter = Offset(tipPos.x, tipPos.y - ptrLen - pinR)
@@ -344,7 +337,7 @@ fun Globe3DScreen(
                 markerCache.update(country, circCenter)   // hit-test targets visible circle body
 
                 // ── Pulse glow (unlocked, non-selected) ──────────────────────────
-                if (progress.isUnlocked && !isSelected) {
+                if (isUnlocked && !isSelected) {
                     val pulse = 0.12f + 0.14f * (0.5f + 0.5f * sin(pulsePhase))
                     val glowR  = pinR * 2.35f
                     if (glowR > 0f) drawCircle(Color(1f, 0.83f, 0.20f, pulse), radius = glowR, center = circCenter)
@@ -363,12 +356,12 @@ fun Globe3DScreen(
                 // ── Pin fill and stroke colors ────────────────────────────────────
                 val pinFill = when {
                     isSelected          -> Color(0xFFFFE88A)   // premium selected gold
-                    progress.isUnlocked -> Color(0xFFF8E09A)   // warm premium gold
+                    isUnlocked          -> Color(0xFFF8E09A)   // warm premium gold
                     else                -> Color(0xFFC6CED8)   // silver lock body
                 }
                 val pinStroke = when {
                     isSelected          -> Color(0xFFFFCA36)
-                    progress.isUnlocked -> Color(0xFFE3B14A)
+                    isUnlocked          -> Color(0xFFE3B14A)
                     else                -> Color(0xFF8B98A7)
                 }
 
@@ -383,17 +376,17 @@ fun Globe3DScreen(
                     pointerPath.close()
                     drawPath(pointerPath, color = pinFill)
                     drawPath(pointerPath, color = pinStroke,
-                        style = Stroke(width = strokeW, cap = StrokeCap.Round))
+                        style = Stroke(width = strokeWPx, cap = StrokeCap.Round))
                 }
 
                 // ── Circle body ───────────────────────────────────────────────────
                 drawCircle(color = pinFill,   radius = pinR, center = circCenter)
                 drawCircle(color = pinStroke, radius = pinR, center = circCenter,
-                    style = Stroke(width = strokeW))
+                    style = Stroke(width = strokeWPx))
 
                 // ── Label inside circle ───────────────────────────────────────────
-                val labelText  = if (progress.isUnlocked) country.isoCode else "🔒"
-                val labelPaint = if (progress.isUnlocked) codePaint else lockPaint
+                val labelText  = if (isUnlocked) country.isoCode else "🔒"
+                val labelPaint = if (isUnlocked) codePaint else lockPaint
                 drawContext.canvas.nativeCanvas.drawText(
                     labelText,
                     circCenter.x,
@@ -402,11 +395,11 @@ fun Globe3DScreen(
                 )
 
                 // ── Star count below pin tip ──────────────────────────────────────
-                if (progress.isUnlocked && progress.totalStars > 0) {
+                if (isUnlocked && totalStars > 0) {
                     drawContext.canvas.nativeCanvas.drawText(
-                        "★${progress.totalStars}",
+                        "★$totalStars",
                         tipPos.x,
-                        tipPos.y + starGap,
+                        tipPos.y + starGapPx,
                         starPaint
                     )
                 }
@@ -429,7 +422,6 @@ fun Globe3DScreen(
                     }
                 }
                 .pointerInput(Unit) {
-                    val hitR = HIT_RADIUS_DP * density
                     detectTapGestures(
                         onDoubleTap = {
                             flightAnimator.clear()
@@ -438,7 +430,7 @@ fun Globe3DScreen(
                         }
                     ) { tapPos ->
                         if (flightAnimator.isActive) return@detectTapGestures
-                        val hit = markerCache.findNearest(tapPos, hitR)
+                        val hit = markerCache.findNearest(tapPos, hitRadiusPx)
                         if (hit != null) {
                             // Toggle: tapping the already-selected country deselects it
                             if (selectedCountry?.id == hit.id) {
