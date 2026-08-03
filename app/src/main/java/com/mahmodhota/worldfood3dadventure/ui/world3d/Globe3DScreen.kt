@@ -44,10 +44,14 @@ import com.mahmodhota.worldfood3dadventure.ui.match3.components.BottomNavigation
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.TopStatusBar
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlin.math.PI
+import kotlin.math.sin
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Country metadata (immutable file-level constants — never reallocated)
 // ──────────────────────────────────────────────────────────────────────────────
+
+private val TWO_PI = (PI * 2).toFloat()
 
 internal data class GlobeCountry(
     val id: String,
@@ -150,7 +154,8 @@ fun Globe3DScreen(
     onTabSelected: (String) -> Unit
 ) {
     val camera = remember { GlobeCameraState() }
-    var cloudRotY by remember { mutableFloatStateOf(0f) }
+    var cloudRotY  by remember { mutableFloatStateOf(0f) }
+    var pulsePhase by remember { mutableFloatStateOf(0f) }
     var selectedCountry by remember { mutableStateOf<GlobeCountry?>(null) }
     val markerCache = remember { MarkerPositionCache() }
 
@@ -190,7 +195,8 @@ fun Globe3DScreen(
             delay(16L)
             camera.tickInertia()
             camera.tickFlyTo()
-            cloudRotY += 0.024f   // 1.5°/s at 60 fps
+            cloudRotY  = (cloudRotY  + 0.024f) % 360f       // 1.5°/s at 60 fps
+            pulsePhase = (pulsePhase + 0.022f) % TWO_PI     // ≈4.5 s period
         }
     }
 
@@ -247,11 +253,24 @@ fun Globe3DScreen(
                 val progress    = ProgressionManager.getCountryProgress(country.id)
                 val dotR        = if (isSelected) dotSel else dotNorm
 
+                // Pulsing golden glow for unlocked, non-selected markers
+                if (progress.isUnlocked && !isSelected) {
+                    val pulse = 0.18f + 0.22f * (0.5f + 0.5f * sin(pulsePhase))
+                    val pulseR = dotR * 2.8f
+                    if (pulseR > 0f) {
+                        drawCircle(
+                            color = Color(1f, 0.84f, 0f, pulse),
+                            radius = pulseR, center = pos
+                        )
+                    }
+                }
+
                 // Glow ring for selected marker
                 if (isSelected) {
                     val glowR = dotR * glowScale
                     if (glowR > 0f) {
-                        drawCircle(color = Color(0x44FFD700), radius = glowR, center = pos)
+                        drawCircle(color = Color(0x66FFD700), radius = glowR * 1.5f, center = pos)
+                        drawCircle(color = Color(0x44FFD700), radius = glowR,        center = pos)
                     }
                 }
 

@@ -109,7 +109,7 @@ class GlobeCameraState(
     fun tickFlyTo() {
         if (!isFlyingTo) return
         flyProgress = (flyProgress + FLY_STEP).coerceAtMost(1f)
-        val t = easeOutCubic(flyProgress)
+        val t = easeOutBack(flyProgress)
         rotationY = flyFromY + (flyTargetY - flyFromY) * t
         rotationX = flyFromX + (flyTargetX - flyFromX) * t
         if (flyProgress >= 1f) isFlyingTo = false
@@ -125,14 +125,30 @@ class GlobeCameraState(
         /** Frames to reach destination (≈600 ms at 60 fps). */
         const val FLY_STEP = 1f / 36f
 
-        /** Smooth deceleration curve: fast start → gentle arrival. */
+        /**
+         * Ease-out cubic: smooth deceleration without overshoot.
+         * Used by tests; [tickFlyTo] now uses [easeOutBack].
+         */
         fun easeOutCubic(t: Float): Float {
             val c = 1f - t.coerceIn(0f, 1f)
             return 1f - c * c * c
         }
 
         /**
-         * Normalise a longitude difference to the range [−180, 180] so the
+         * Ease-out back: smooth deceleration with a tiny (≈4%) overshoot
+         * that creates a premium "spring settle" feel.
+         * f(0)=0, f(1)=1, brief peak ≈1.04 near t≈0.65.
+         */
+        fun easeOutBack(t: Float): Float {
+            val c = t.coerceIn(0f, 1f)
+            val c1 = 1.10f            // overshoot magnitude (tiny)
+            val c3 = c1 + 1f
+            val s  = c - 1f
+            return 1f + c3 * s * s * s + c1 * s * s
+        }
+
+        /**
+         * Normalise a longitude difference to [−180, 180] so the
          * camera always takes the shortest arc.
          */
         fun normalizeAngleDiff(diff: Float): Float {
