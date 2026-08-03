@@ -7,7 +7,7 @@ import androidx.compose.runtime.setValue
 import kotlin.math.abs
 
 /**
- * Mutable camera state for the experimental 3D globe.
+ * Mutable camera state for the 3D globe world screen.
  *
  * [rotationY] pans left/right (longitude rotation, degrees).
  * [rotationX] tilts up/down (latitude rotation, degrees), clamped to ±80°.

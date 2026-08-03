@@ -10,9 +10,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -30,7 +33,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
@@ -119,7 +125,7 @@ internal class MarkerPositionCache {
 // Pre-computed star field (no per-frame allocation)
 // ──────────────────────────────────────────────────────────────────────────────
 
-private const val STAR_COUNT = 180
+private const val STAR_COUNT = 240
 
 private val STAR_POSITIONS: FloatArray = FloatArray(STAR_COUNT * 2).also { arr ->
     var seed = 0x7F3A1C42L
@@ -131,8 +137,19 @@ private val STAR_POSITIONS: FloatArray = FloatArray(STAR_COUNT * 2).also { arr -
 }
 
 private val STAR_COLORS: Array<Color> = Array(STAR_COUNT) { i ->
-    val b = if (i % 4 == 0) 0.9f else if (i % 3 == 0) 0.6f else 0.4f
-    Color(b, b, b, b * 0.9f)
+    // Mix of warm and cool star tones for natural variety
+    val b = when {
+        i % 7 == 0 -> 0.95f  // rare bright
+        i % 4 == 0 -> 0.75f  // medium-bright
+        i % 3 == 0 -> 0.55f  // medium
+        else       -> 0.38f  // faint
+    }
+    // Slight warm/cool tint on a small subset of stars
+    when {
+        i % 11 == 0 -> Color(b, b * 0.92f, b * 0.80f, b * 0.95f)  // warm yellow
+        i % 13 == 0 -> Color(b * 0.85f, b * 0.92f, b, b * 0.95f)  // cool blue
+        else        -> Color(b, b, b, b * 0.90f)
+    }
 }
 
 // Tap hit-radius in dp
@@ -143,10 +160,10 @@ private const val HIT_RADIUS_DP = 44f
 // ──────────────────────────────────────────────────────────────────────────────
 
 /**
- * Experimental 3D Globe world screen — Phase 2.
+ * Production 3D Globe world screen.
  *
- * Only rendered when [com.mahmodhota.worldfood3dadventure.world.WorldFeatureFlags.ENABLE_EXPERIMENTAL_GLOBE]
- * is true. The production 2D World Map is unmodified and remains the default.
+ * Shows the stylised spinning planet with country markers, country selection,
+ * and the existing progression/level-selection flow.
  */
 @Composable
 fun Globe3DScreen(
@@ -189,14 +206,21 @@ fun Globe3DScreen(
         }
     }
 
-    // Single frame loop — inertia, fly-to, and cloud drift
+    // Single frame loop — inertia, fly-to, cloud drift and marker pulse
+    // Frame rate: 60fps when camera is active; ~20fps when fully idle.
     LaunchedEffect(Unit) {
         while (isActive) {
-            delay(16L)
+            val motionActive = camera.isFlyingTo ||
+                kotlin.math.abs(camera.velY) > 0.05f ||
+                kotlin.math.abs(camera.velX) > 0.05f
+            delay(if (motionActive) 16L else 48L)
+
             camera.tickInertia()
             camera.tickFlyTo()
-            cloudRotY  = (cloudRotY  + 0.024f) % 360f       // 1.5°/s at 60 fps
-            pulsePhase = (pulsePhase + 0.022f) % TWO_PI     // ≈4.5 s period
+            // Adjust step to keep real-time speed regardless of frame delay
+            val step = if (motionActive) 1f else 3f
+            cloudRotY  = (cloudRotY  + 0.024f * step) % 360f
+            pulsePhase = (pulsePhase + 0.022f * step) % TWO_PI
         }
     }
 
@@ -233,75 +257,93 @@ fun Globe3DScreen(
             val rotY = camera.rotationY
             val rotX = camera.rotationX
 
-            val dotNorm   = 12.dp.toPx()
-            val dotSel    = 18.dp.toPx()
-            val strokeW   = 2.dp.toPx()
-            val labelGap  = 4.dp.toPx()
-            val starGap   = 16.dp.toPx()
-            val glowScale = 2.6f
+            // Pin dimensions (all in px)
+            val pinNorm   = 10.dp.toPx()    // circle radius normal
+            val pinSel    = 15.dp.toPx()    // circle radius selected
+            val ptrNorm   = 7.dp.toPx()     // pointer length normal
+            val ptrSel    = 10.dp.toPx()    // pointer length selected
+            val strokeW   = 1.5.dp.toPx()
+            val starGap   = 12.dp.toPx()
 
             val visibleIds = HashSet<String>(6)
 
             for (country in GLOBE_COUNTRIES) {
-                val pos = projectLatLon(country.latDeg, country.lonDeg, rotY, rotX, cx, cy, r)
+                // tipPos = geographic coordinate = bottom of pin pointer
+                val tipPos = projectLatLon(country.latDeg, country.lonDeg, rotY, rotX, cx, cy, r)
                     ?: continue
-
-                visibleIds.add(country.id)
-                markerCache.update(country, pos)
 
                 val isSelected  = country.id == selId
                 val progress    = ProgressionManager.getCountryProgress(country.id)
-                val dotR        = if (isSelected) dotSel else dotNorm
+                val pinR   = if (isSelected) pinSel  else pinNorm
+                val ptrLen = if (isSelected) ptrSel  else ptrNorm
 
-                // Pulsing golden glow for unlocked, non-selected markers
+                // Circle center = above the geographic tip
+                val circCenter = Offset(tipPos.x, tipPos.y - ptrLen - pinR)
+
+                visibleIds.add(country.id)
+                markerCache.update(country, circCenter)   // hit-test targets visible circle body
+
+                // ── Pulse glow (unlocked, non-selected) ──────────────────────────
                 if (progress.isUnlocked && !isSelected) {
-                    val pulse = 0.18f + 0.22f * (0.5f + 0.5f * sin(pulsePhase))
-                    val pulseR = dotR * 2.8f
-                    if (pulseR > 0f) {
-                        drawCircle(
-                            color = Color(1f, 0.84f, 0f, pulse),
-                            radius = pulseR, center = pos
-                        )
-                    }
+                    val pulse = 0.13f + 0.18f * (0.5f + 0.5f * sin(pulsePhase))
+                    val glowR  = pinR * 2.5f
+                    if (glowR > 0f) drawCircle(Color(1f, 0.84f, 0f, pulse), radius = glowR, center = circCenter)
                 }
 
-                // Glow ring for selected marker
+                // ── Selected glow ────────────────────────────────────────────────
                 if (isSelected) {
-                    val glowR = dotR * glowScale
-                    if (glowR > 0f) {
-                        drawCircle(color = Color(0x66FFD700), radius = glowR * 1.5f, center = pos)
-                        drawCircle(color = Color(0x44FFD700), radius = glowR,        center = pos)
+                    if (pinR * 3.5f > 0f) drawCircle(Color(0x44FFD700), radius = pinR * 3.5f, center = circCenter)
+                    if (pinR * 2.0f > 0f) drawCircle(Color(0x66FFD700), radius = pinR * 2.0f, center = circCenter)
+                }
+
+                // ── Pin fill and stroke colors ────────────────────────────────────
+                val pinFill = when {
+                    isSelected          -> Color(0xFFFFE640)   // bright gold
+                    progress.isUnlocked -> Color(0xFFEEF6FF)   // clean white-blue
+                    else                -> Color(0xFF3C5470)   // muted slate-blue
+                }
+                val pinStroke = when {
+                    isSelected          -> Color(0xFFFFD000)
+                    progress.isUnlocked -> Color(0xFF7AB8F5)
+                    else                -> Color(0xFF2A3C54)
+                }
+
+                // ── Pointer triangle ─────────────────────────────────────────────
+                val halfBase = pinR * 0.54f
+                val ptrBase  = circCenter.y + pinR * 0.70f
+                if (ptrBase < tipPos.y) {  // safety: only draw if there's room
+                    val ptrPath = Path().apply {
+                        moveTo(circCenter.x - halfBase, ptrBase)
+                        lineTo(circCenter.x,             tipPos.y)
+                        lineTo(circCenter.x + halfBase,  ptrBase)
+                        close()
                     }
+                    drawPath(ptrPath, color = pinFill)
+                    drawPath(ptrPath, color = pinStroke,
+                        style = Stroke(width = strokeW, cap = StrokeCap.Round))
                 }
 
-                // Marker fill + stroke
-                val fillColor = when {
-                    isSelected          -> Color(0xFFFFE040)
-                    progress.isUnlocked -> Color(0xCCFFFFFF)
-                    else                -> Color(0x77AABBCC)
-                }
-                val ringColor = if (isSelected) Color(0xFFFFD700) else Color(0xAAFFFFFF)
-
-                drawCircle(color = fillColor, radius = dotR, center = pos)
-                drawCircle(color = ringColor, radius = dotR, center = pos,
+                // ── Circle body ───────────────────────────────────────────────────
+                drawCircle(color = pinFill,   radius = pinR, center = circCenter)
+                drawCircle(color = pinStroke, radius = pinR, center = circCenter,
                     style = Stroke(width = strokeW))
 
-                // Label above marker: ISO code (unlocked) or lock emoji (locked)
-                val labelText = if (progress.isUnlocked) country.isoCode else "🔒"
+                // ── Label inside circle ───────────────────────────────────────────
+                val labelText  = if (progress.isUnlocked) country.isoCode else "🔒"
                 val labelPaint = if (progress.isUnlocked) codePaint else lockPaint
                 drawContext.canvas.nativeCanvas.drawText(
                     labelText,
-                    pos.x,
-                    pos.y - dotR - labelGap,
+                    circCenter.x,
+                    circCenter.y + labelPaint.textSize * 0.36f,
                     labelPaint
                 )
 
-                // Star count below marker for countries with any progress
+                // ── Star count below pin tip ──────────────────────────────────────
                 if (progress.isUnlocked && progress.totalStars > 0) {
                     drawContext.canvas.nativeCanvas.drawText(
                         "★${progress.totalStars}",
-                        pos.x,
-                        pos.y + dotR + starGap,
+                        tipPos.x,
+                        tipPos.y + starGap,
                         starPaint
                     )
                 }
@@ -393,103 +435,171 @@ private fun BoxScope.GlobeCountryCard(
         modifier = Modifier
             .align(Alignment.BottomCenter)
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 100.dp),
-        shape = RoundedCornerShape(20.dp),
-        color = Color(0xF0101825),
-        tonalElevation = 12.dp
+            .padding(horizontal = 12.dp)
+            .padding(bottom = 96.dp),
+        shape = RoundedCornerShape(22.dp),
+        color = Color(0xF2080F1E),
+        tonalElevation = 16.dp
     ) {
-        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
-
-            // ── Header ────────────────────────────────────────────────────
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+        Column {
+            // ── Header gradient banner ─────────────────────────────────────
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(Color(0xFF0E1F40), Color(0xFF0A1830))
+                        )
+                    )
+                    .padding(horizontal = 20.dp, vertical = 14.dp)
             ) {
-                Text(
-                    text = "${country.flag}  ${country.displayName}",
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                TextButton(onClick = onDismiss, contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp)) {
-                    Text("✕", color = Color(0xFF7788AA), fontSize = 18.sp)
-                }
-            }
-
-            // ── Travel description ─────────────────────────────────────────
-            val desc = metadata?.travelDescription?.takeIf { it.isNotBlank() }
-            if (desc != null) {
-                Text(
-                    text = desc,
-                    color = Color(0xFFAABBCC),
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(bottom = 14.dp)
-                )
-            } else {
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(bottom = 8.dp))
-            }
-
-            if (progress.isUnlocked) {
-                // ── Progress stats ────────────────────────────────────────
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(28.dp)
-                ) {
-                    Column {
-                        Text("⭐ Stars",  color = Color(0xFF7788AA), fontSize = 11.sp)
-                        Text(
-                            "${progress.totalStars} / $maxStars",
-                            color = Color(0xFFFFD700),
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    Column {
-                        Text("✓ Levels", color = Color(0xFF7788AA), fontSize = 11.sp)
-                        Text(
-                            "$completedLevels / $totalLevels",
-                            color = Color(0xFF88DDAA),
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-
-                // ── Play button ───────────────────────────────────────────
-                Button(
-                    onClick = { onPlayLevel(nextLevel) },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A4A99)),
-                    shape = RoundedCornerShape(14.dp)
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (completedLevels == 0) "▶  Start Adventure"
-                               else "▶  Continue · Level $nextLevel",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
+                        text = country.flag,
+                        fontSize = 32.sp,
+                        modifier = Modifier.padding(end = 12.dp)
                     )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = country.displayName,
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (!progress.isUnlocked) {
+                            Text(
+                                text = "🔒  Locked destination",
+                                color = Color(0xFF6688AA),
+                                fontSize = 12.sp
+                            )
+                        } else {
+                            Text(
+                                text = "✈  Available for exploration",
+                                color = Color(0xFF4AADCC),
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                    TextButton(
+                        onClick = onDismiss,
+                        contentPadding = PaddingValues(4.dp)
+                    ) {
+                        Text("✕", color = Color(0xFF556677), fontSize = 18.sp)
+                    }
+                }
+            }
+
+            // ── Divider line ───────────────────────────────────────────────
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Color(0x1AFFFFFF))
+            )
+
+            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
+
+                // ── Travel description ─────────────────────────────────────
+                val desc = metadata?.travelDescription?.takeIf { it.isNotBlank() }
+                if (desc != null) {
+                    Text(
+                        text = desc,
+                        color = Color(0xFF8EA8C0),
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        modifier = Modifier.padding(bottom = 14.dp)
+                    )
+                } else {
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
 
-            } else {
-                // ── Locked state ──────────────────────────────────────────
-                Text(
-                    text = "🔒  Requires $starsNeeded ⭐ to unlock",
-                    color = Color(0xFF7788AA),
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(bottom = 14.dp)
-                )
-                Button(
-                    onClick = {},
-                    enabled = false,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(disabledContainerColor = Color(0xFF222A38)),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Text("🔒  Locked", color = Color(0xFF445566), fontSize = 15.sp)
+                if (progress.isUnlocked) {
+                    // ── Progress stats ─────────────────────────────────────
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        // Stars stat box
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF101C2E),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                                Text("⭐  Stars",  color = Color(0xFF5A7090), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                Text(
+                                    "${progress.totalStars} / $maxStars",
+                                    color = Color(0xFFFFD700),
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        // Levels stat box
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF101C2E),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                                Text("✓  Levels", color = Color(0xFF5A7090), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                Text(
+                                    "$completedLevels / $totalLevels",
+                                    color = Color(0xFF55D494),
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    // ── Play button ────────────────────────────────────────
+                    Button(
+                        onClick = { onPlayLevel(nextLevel) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1856B8)),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(
+                            text = if (completedLevels == 0) "▶  Start Adventure"
+                                   else "▶  Continue · Level $nextLevel",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                } else {
+                    // ── Locked state ───────────────────────────────────────
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF101824),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("🔒", fontSize = 22.sp, modifier = Modifier.padding(end = 12.dp))
+                            Column {
+                                Text("Destination locked", color = Color(0xFF6688AA), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Collect $starsNeeded ⭐ to unlock", color = Color(0xFF445566), fontSize = 12.sp)
+                            }
+                        }
+                    }
+                    Button(
+                        onClick = {},
+                        enabled = false,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(disabledContainerColor = Color(0xFF1A2030)),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text("🔒  Locked", color = Color(0xFF3A4C64), fontSize = 15.sp)
+                    }
                 }
             }
         }

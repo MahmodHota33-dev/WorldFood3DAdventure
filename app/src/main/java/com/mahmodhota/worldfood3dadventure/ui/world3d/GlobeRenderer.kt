@@ -24,33 +24,33 @@ private const val DEG2RAD = (PI / 180.0).toFloat()
  * 5=Asia, 6=Asia-FE, 7=India, 8=Australia, 9=Greenland, 10=Japan, 11=NZ
  */
 private val CONTINENT_FILLS = arrayOf(
-    Color(0xFF4D8E52),  // N. America — temperate forest
-    Color(0xFF2A8440),  // S. America — tropical
-    Color(0xFF6AA85E),  // Europe — lighter temperate
-    Color(0xFF6CB062),  // Scandinavia — boreal
-    Color(0xFF9A983A),  // Africa — savanna/bush (olive)
-    Color(0xFF3E8848),  // Asia main
-    Color(0xFF3E8848),  // Asia far east
-    Color(0xFF5A8C48),  // India — subtropical
-    Color(0xFFC09040),  // Australia — arid ochre
-    Color(0xFFD8ECF5),  // Greenland — ice white
-    Color(0xFF3E8848),  // Japan
-    Color(0xFF5A9858)   // New Zealand
+    Color(0xFF4A8F50),  // N. America — temperate forest/plains mix
+    Color(0xFF237840),  // S. America — dense tropical
+    Color(0xFF5C9E52),  // Europe — lighter temperate green
+    Color(0xFF5CA055),  // Scandinavia — boreal/conifer
+    Color(0xFF8F8C2A),  // Africa — warm savanna/grassland
+    Color(0xFF376040),  // Asia main — mixed forest
+    Color(0xFF376040),  // Asia far east — mixed forest
+    Color(0xFF4E7C38),  // India — subtropical
+    Color(0xFFB8843A),  // Australia — arid red-ochre
+    Color(0xFFD4E8F5),  // Greenland — glacial blue-white
+    Color(0xFF376040),  // Japan
+    Color(0xFF50906A)   // New Zealand — lush green
 )
 
 private val CONTINENT_COASTS = arrayOf(
-    Color(0xFF2A6A38),  // N. America
-    Color(0xFF18602E),  // S. America
-    Color(0xFF3A7840),  // Europe
-    Color(0xFF3A7840),  // Scandinavia
-    Color(0xFF6A6820),  // Africa — olive coast
-    Color(0xFF1C5E30),  // Asia main
-    Color(0xFF1C5E30),  // Asia far east
-    Color(0xFF2C6A36),  // India
-    Color(0xFF8C6E28),  // Australia — ochre coast
-    Color(0xFFAAC8DC),  // Greenland — ice coast
-    Color(0xFF1C5E30),  // Japan
-    Color(0xFF3A7840)   // New Zealand
+    Color(0xFF28603A),  // N. America
+    Color(0xFF14582C),  // S. America — dark jungle
+    Color(0xFF347040),  // Europe
+    Color(0xFF347040),  // Scandinavia
+    Color(0xFF5E5C1A),  // Africa — ochre-olive coast
+    Color(0xFF1A5228),  // Asia main — deep jungle coast
+    Color(0xFF1A5228),  // Asia far east
+    Color(0xFF285E2C),  // India
+    Color(0xFF7A5828),  // Australia — burnt ochre coast
+    Color(0xFFA0C4DC),  // Greenland — faint blue coast
+    Color(0xFF1A5228),  // Japan
+    Color(0xFF347040)   // New Zealand
 )
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -208,20 +208,21 @@ fun DrawScope.drawSpaceBackground(stars: FloatArray, starColors: Array<Color>) {
 }
 
 /**
- * Multi-layer atmospheric halo: wide outer haze + tight bright horizon ring.
+ * Multi-layer atmospheric halo: wide outer haze + tight bright horizon ring
+ * + subtle warm tint on the sun-facing (upper-left) side.
  */
 fun DrawScope.drawAtmosphereGlow(cx: Float, cy: Float, r: Float) {
     if (r <= 0f) return
 
-    // Layer 1: Wide diffuse haze
-    val haloR = r * 1.46f
+    // Layer 1: Wide diffuse blue haze
+    val haloR = r * 1.50f
     if (haloR > 0f) {
         drawCircle(
             brush = Brush.radialGradient(
                 0f      to Color.Transparent,
-                0.78f   to Color.Transparent,
-                0.88f   to Color(0x1C3399DD),
-                0.95f   to Color(0x3344AAFE),
+                0.76f   to Color.Transparent,
+                0.87f   to Color(0x203399EE),
+                0.94f   to Color(0x3855BBFF),
                 1f      to Color.Transparent,
                 center = Offset(cx, cy), radius = haloR
             ),
@@ -229,39 +230,55 @@ fun DrawScope.drawAtmosphereGlow(cx: Float, cy: Float, r: Float) {
         )
     }
 
-    // Layer 2: Bright inner horizon glow
-    val innerR = r * 1.13f
+    // Layer 2: Bright inner horizon ring
+    val innerR = r * 1.11f
     if (innerR > 0f) {
         drawCircle(
             brush = Brush.radialGradient(
                 0f    to Color.Transparent,
-                0.86f to Color.Transparent,
-                0.94f to Color(0x4A66CCFF),
+                0.87f to Color.Transparent,
+                0.94f to Color(0x5577DDFF),
                 1f    to Color.Transparent,
                 center = Offset(cx, cy), radius = innerR
             ),
             radius = innerR, center = Offset(cx, cy)
         )
     }
+
+    // Layer 3: Warm yellow tint on sunlit side (upper-left)
+    val warmR = r * 0.88f
+    if (warmR > 0f) {
+        val wx = cx - r * 0.28f; val wy = cy - r * 0.30f
+        drawCircle(
+            brush = Brush.radialGradient(
+                0f    to Color(0x14FFE080),
+                0.55f to Color(0x08FFD060),
+                1f    to Color.Transparent,
+                center = Offset(wx, wy), radius = warmR
+            ),
+            radius = r, center = Offset(cx, cy)
+        )
+    }
 }
 
 /**
- * Premium ocean sphere: deep-blue base + tropical highlight + subtle coastal tint.
+ * Premium ocean sphere: deep navy-blue base with subtle lighting gradient.
+ * Avoids overly cyan tropical tones in favour of a more refined deep-sea palette.
  */
 fun DrawScope.drawOceanSphere(cx: Float, cy: Float, r: Float) {
     if (r <= 0f) return
 
-    // Base ocean — off-centre highlight creates natural top-left lighting
-    val hlOffset = Offset(cx - r * 0.18f, cy - r * 0.22f)
-    val gradR = r * 1.55f
+    // Base ocean — highlight offset creates natural top-left sun illumination
+    val hlOffset = Offset(cx - r * 0.20f, cy - r * 0.26f)
+    val gradR = r * 1.60f
     if (gradR > 0f) {
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    Color(0xFF5DCCE8),   // Tropical bright
-                    Color(0xFF2282BB),   // Mid-depth blue
-                    Color(0xFF0E4C78),   // Deep ocean
-                    Color(0xFF071C30)    // Abyss (night edge)
+                    Color(0xFF4AAAD8),   // Illuminated surface (moderate cyan-blue)
+                    Color(0xFF1870AA),   // Mid-depth navy blue
+                    Color(0xFF0A3D6E),   // Deep ocean
+                    Color(0xFF051828)    // Dark abyss / night edge
                 ),
                 center = hlOffset, radius = gradR
             ),
@@ -269,13 +286,17 @@ fun DrawScope.drawOceanSphere(cx: Float, cy: Float, r: Float) {
         )
     }
 
-    // Coastal warm-blue tint overlay (tropical shallows)
-    val coastR = r * 0.75f
+    // Subtle coastal tint — very light, only noticeable near illuminated shore
+    val coastR = r * 0.60f
     if (coastR > 0f) {
         drawCircle(
             brush = Brush.radialGradient(
-                colors = listOf(Color(0x0830CCEE), Color(0x1240AACC), Color(0x00000000)),
-                center = Offset(cx + r * 0.08f, cy - r * 0.05f), radius = coastR
+                colors = listOf(
+                    Color(0x0C40BBDD),
+                    Color(0x0F2896BE),
+                    Color(0x00000000)
+                ),
+                center = Offset(cx - r * 0.10f, cy - r * 0.12f), radius = coastR
             ),
             radius = r, center = Offset(cx, cy)
         )
@@ -317,21 +338,22 @@ fun DrawScope.drawSunlight(cx: Float, cy: Float, r: Float) {
 }
 
 /**
- * Night-side hemisphere shadow (lower-right) with soft terminator.
+ * Night-side hemisphere shadow with a stronger, deeper blue-black terminator.
  */
 fun DrawScope.drawNightSide(cx: Float, cy: Float, r: Float) {
     if (r <= 0f) return
-    val nx = cx + r * 0.30f
-    val ny = cy + r * 0.28f
-    val nr = r * 0.95f
+    val nx = cx + r * 0.32f
+    val ny = cy + r * 0.30f
+    val nr = r * 0.98f
     if (nr <= 0f) return
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
                 Color(0x00000000),
-                Color(0x15000818),
-                Color(0x40000C22),
-                Color(0x60000814)
+                Color(0x12000A20),
+                Color(0x38000C26),
+                Color(0x62000818),
+                Color(0x70000610)
             ),
             center = Offset(nx, ny), radius = nr
         ),
@@ -340,17 +362,20 @@ fun DrawScope.drawNightSide(cx: Float, cy: Float, r: Float) {
 }
 
 /**
- * Three-layer atmospheric rim: faint outer haze → mid ring → sharp inner edge.
+ * Four-layer atmospheric rim: outer haze → mid band → sharp limb → warm lit edge.
  */
 fun DrawScope.drawAtmosphereRim(cx: Float, cy: Float, r: Float) {
     if (r <= 0f) return
     val c = Offset(cx, cy)
-    // Outermost faint haze ring
-    drawCircle(color = Color(0x1855AAFF), radius = r + 10f, center = c, style = Stroke(width = 20f))
+    // Outermost faint haze
+    drawCircle(color = Color(0x1455AAFF), radius = r + 12f, center = c, style = Stroke(width = 24f))
     // Mid atmosphere band
-    drawCircle(color = Color(0x2C77BBFF), radius = r + 3f,  center = c, style = Stroke(width = 7f))
-    // Sharp limb line
-    drawCircle(color = Color(0x4088DDFF), radius = r,       center = c, style = Stroke(width = 2.5f))
+    drawCircle(color = Color(0x2A6EC2FF), radius = r + 4f,  center = c, style = Stroke(width = 9f))
+    // Sharp bright limb
+    drawCircle(color = Color(0x4890DEFF), radius = r,       center = c, style = Stroke(width = 2.8f))
+    // Warm highlight arc on sunlit side — approximately upper-left 120° arc
+    // Approximated as a slightly offset lighter circle with a clipping mask effect
+    drawCircle(color = Color(0x22FFDC80), radius = r + 1f,  center = Offset(cx - 2f, cy - 2f), style = Stroke(width = 2.8f))
 }
 
 /**
