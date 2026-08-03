@@ -31,7 +31,13 @@ object LevelRegistry {
         // Italy
         register(CountryDefinition(
             id = "italy",
-            metadata = CountryMetadata("italy", "Italy", "IT", "🇮🇹", "Discover the Mediterranean soul."),
+            metadata = CountryMetadata(
+                "italy",
+                "Italy",
+                "IT",
+                "🇮🇹",
+                "From Rome to the Amalfi Coast, savor timeless flavors and café culture."
+            ),
             levels = ItalyMatch3Levels.levels.map { it.withBalancedThresholds() }
         ))
 

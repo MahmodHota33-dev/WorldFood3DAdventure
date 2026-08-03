@@ -86,6 +86,9 @@ internal val GLOBE_COUNTRIES = listOf(
 )
 
 private val GLOBE_COUNTRIES_BY_ID = GLOBE_COUNTRIES.associateBy { it.id }
+private val COUNTRY_FEATURED_FOODS = mapOf(
+    "italy" to listOf("Pizza Margherita", "Pasta Carbonara", "Gelato", "Espresso")
+)
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Marker position cache
@@ -489,6 +492,7 @@ private fun BoxScope.GlobeCountryCard(
     val progress  = ProgressionManager.getCountryProgress(country.id)
     val spec      = remember(country.id) { CountryProgressionChain.getSpec(country.id) }
     val metadata  = remember(country.id) { LevelRegistry.getCountry(country.id)?.metadata }
+    val featuredFoods = remember(country.id) { COUNTRY_FEATURED_FOODS[country.id].orEmpty() }
 
     val totalLevels     = spec?.totalLevels ?: maxOf(progress.levels.size, 1)
     val completedLevels = progress.levels.count { it.isCompleted }
@@ -583,6 +587,23 @@ private fun BoxScope.GlobeCountryCard(
                     )
                 } else {
                     Spacer(modifier = Modifier.height(4.dp))
+                }
+
+                if (featuredFoods.isNotEmpty()) {
+                    Text(
+                        text = "Signature Foods",
+                        color = Color(0xFF6F8FB0),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+                    Text(
+                        text = featuredFoods.joinToString(" • "),
+                        color = Color(0xFFDCE7F3),
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        modifier = Modifier.padding(bottom = 14.dp)
+                    )
                 }
 
                 if (progress.isUnlocked) {

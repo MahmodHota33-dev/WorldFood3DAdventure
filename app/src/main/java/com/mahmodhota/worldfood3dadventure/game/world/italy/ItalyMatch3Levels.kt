@@ -5,7 +5,7 @@ import com.mahmodhota.worldfood3dadventure.game.match3.model.LevelGoal
 import com.mahmodhota.worldfood3dadventure.game.match3.model.Match3LevelDefinition
 
 /**
- * 10 Playable Match-3 levels for the Italy chapter.
+ * 15 playable Match-3 levels for the Italy chapter.
  */
 object ItalyMatch3Levels {
     

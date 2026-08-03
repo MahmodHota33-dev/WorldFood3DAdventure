@@ -36,6 +36,12 @@ class CountryProgressionChainTest {
     }
 
     @Test
+    fun testGermanyItalyFranceChainOrder() {
+        val ids = CountryProgressionChain.UNLOCK_ORDER.map { it.countryId }
+        assertEquals(listOf("germany", "italy", "france"), ids.take(3))
+    }
+
+    @Test
     fun testCanUnlockWithZeroStars() {
         assertTrue("Germany should be unlockable with 0 stars", CountryProgressionChain.canUnlock("germany", 0))
     }
