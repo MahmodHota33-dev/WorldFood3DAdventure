@@ -1,5 +1,7 @@
 package com.mahmodhota.worldfood3dadventure.game.world.model
 
+import com.mahmodhota.worldfood3dadventure.game.world.LevelRegistry
+
 /**
  * Defines unlock requirements, progression order, and completion rules for each country.
  * This is the authoritative source for country progression logic.
@@ -52,10 +54,20 @@ object CountryProgressionChain {
             rewardXpOnCompletion = 500
         ),
         CountryUnlockSpec(
+            countryId = "spain",
+            displayName = "Spain",
+            unlockedInitially = false,
+            requiredStarsToUnlock = 180,
+            totalLevels = 0,
+            completionRequirement = 0,
+            rewardCoinsOnCompletion = 0,
+            rewardXpOnCompletion = 0
+        ),
+        CountryUnlockSpec(
             countryId = "japan",
             displayName = "Japan",
             unlockedInitially = false,
-            requiredStarsToUnlock = 90,
+            requiredStarsToUnlock = 210,
             totalLevels = 10,
             completionRequirement = 10,
             rewardCoinsOnCompletion = 150,
@@ -65,7 +77,7 @@ object CountryProgressionChain {
             countryId = "mexico",
             displayName = "Mexico",
             unlockedInitially = false,
-            requiredStarsToUnlock = 120,
+            requiredStarsToUnlock = 240,
             totalLevels = 10,
             completionRequirement = 10,
             rewardCoinsOnCompletion = 150,
@@ -75,7 +87,7 @@ object CountryProgressionChain {
             countryId = "sudan",
             displayName = "Sudan",
             unlockedInitially = false,
-            requiredStarsToUnlock = 150,
+            requiredStarsToUnlock = 270,
             totalLevels = 10,
             completionRequirement = 10,
             rewardCoinsOnCompletion = 200,
@@ -87,6 +99,7 @@ object CountryProgressionChain {
 
     fun canUnlock(countryId: String, currentTotalStars: Int): Boolean {
         val spec = getSpec(countryId) ?: return false
+        if (LevelRegistry.getCountry(countryId)?.isComingSoon == true) return false
         return currentTotalStars >= spec.requiredStarsToUnlock
     }
 

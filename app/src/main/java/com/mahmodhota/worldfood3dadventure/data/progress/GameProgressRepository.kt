@@ -197,18 +197,21 @@ class GameProgressRepository(private val context: Context) {
                     val nextIndex = levelChain.indexOf(countryId) + 1
                     if (nextIndex in levelChain.indices) {
                         val nextId = levelChain[nextIndex]
-                        prefs[GameKeys.countryUnlocked(nextId)] = true
-                        prefs[GameKeys.levelUnlocked(nextId, 1)] = true
-                        Match3Telemetry.log(
-                            event = Match3TelemetryEvent.WORLD_UNLOCK,
-                            levelId = Match3Telemetry.levelId(countryId, levelNumber),
-                            countryId = nextId,
-                            remainingMoves = 0,
-                            score = score,
-                            comboCount = stars,
-                            cascadeCount = 0,
-                            detail = "countryUnlockFrom=$countryId"
-                        )
+                        val nextCountryDef = LevelRegistry.getCountry(nextId)
+                        if (nextCountryDef?.isComingSoon != true) {
+                            prefs[GameKeys.countryUnlocked(nextId)] = true
+                            prefs[GameKeys.levelUnlocked(nextId, 1)] = true
+                            Match3Telemetry.log(
+                                event = Match3TelemetryEvent.WORLD_UNLOCK,
+                                levelId = Match3Telemetry.levelId(countryId, levelNumber),
+                                countryId = nextId,
+                                remainingMoves = 0,
+                                score = score,
+                                comboCount = stars,
+                                cascadeCount = 0,
+                                detail = "countryUnlockFrom=$countryId"
+                            )
+                        }
                     } else if (countryId == "sudan") {
                         // Chapter 1 Finale
                         prefs[GameKeys.CHAPTER_1_COMPLETED] = true

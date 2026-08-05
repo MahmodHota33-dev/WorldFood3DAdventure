@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,11 +15,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.MonetizationOn
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -31,12 +37,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mahmodhota.worldfood3dadventure.game.progress.PlayerLevelProgression
 import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionQuery
+import com.mahmodhota.worldfood3dadventure.game.world.france.FrancePresentation
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.BottomNavigationBar
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumColors
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumGameBackdrop
@@ -54,9 +63,14 @@ fun ProfileScreenV2(
     val stats = gameState.stats
     val completedLevels = ProgressionQuery.totalLevelsCompleted(gameState)
     val totalCountries = ProgressionQuery.totalCountries().coerceAtLeast(1)
+    val visitedCountries = ProgressionQuery.visitedCountries(gameState)
     val completedCountries = ProgressionQuery.completedCountries(gameState)
+    val franceCompletion = ProgressionQuery.completionPercentageForCountry(gameState, "france")
+    val favoriteFood = FrancePresentation.favoriteFood(gameState)
+    val playTimeText = formatPlayTime(stats.totalPlayTimeMillis)
     val xpSnapshot = PlayerLevelProgression.snapshot(totalXp = player.xp, storedLevel = player.level)
-    val travelRank = rememberTravelRank(xpSnapshot.level)
+    val travelRank = travelRankForLevel(xpSnapshot.level)
+    val xpProgress = (xpSnapshot.xpIntoCurrentLevel.toFloat() / xpSnapshot.xpForNextLevel.toFloat()).coerceIn(0f, 1f)
 
     Scaffold(
         topBar = { TopStatusBar(onSettingsClick = {}) },
@@ -70,52 +84,76 @@ fun ProfileScreenV2(
         ) {
             PremiumGameBackdrop()
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
-                item {
-                    ProfileHeroCard(
-                        username = player.username,
-                        level = xpSnapshot.level,
-                        xp = xpSnapshot.xpIntoCurrentLevel,
-                        xpToNext = xpSnapshot.xpForNextLevel,
-                        travelRank = travelRank,
-                        completedLevels = completedLevels,
-                        completedCountries = completedCountries,
-                        totalCountries = totalCountries
-                    )
-                }
-                item {
-                    Text(
-                        text = "PLAYER STATISTICS",
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.3.sp
-                    )
-                }
-                item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                        ProfileStatCard("Stars", player.totalStars.toString(), Icons.Default.Star, PremiumColors.Gold, Modifier.weight(1f))
-                        ProfileStatCard("Coins", player.coins.toString(), Icons.Default.Star, Color(0xFF72A8FF), Modifier.weight(1f))
+                val compact = maxWidth < 390.dp
+                val metricGap = if (compact) 8.dp else 10.dp
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .widthIn(max = 840.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(bottom = 8.dp)
+                ) {
+                    item {
+                        ProfileHeroCard(
+                            username = player.username,
+                            level = xpSnapshot.level,
+                            xp = xpSnapshot.xpIntoCurrentLevel,
+                            xpToNext = xpSnapshot.xpForNextLevel,
+                            xpProgress = xpProgress,
+                            travelRank = travelRank,
+                            visitedCountries = visitedCountries,
+                            completedCountries = completedCountries,
+                            totalCountries = totalCountries,
+                            compact = compact
+                        )
                     }
-                }
-                item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                        ProfileStatCard("Levels", completedLevels.toString(), Icons.Default.EmojiEvents, Color(0xFF81C784), Modifier.weight(1f))
-                        ProfileStatCard("Countries", "$completedCountries/$totalCountries", Icons.Default.EmojiEvents, PremiumColors.GoldLight, Modifier.weight(1f))
+                    item {
+                        Text(
+                            text = "PLAYER DASHBOARD",
+                            color = Color.White,
+                            fontSize = if (compact) 12.sp else 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.2.sp
+                        )
                     }
-                }
-                item {
-                    ProfileSummaryCard(
-                        completedLevels = completedLevels,
-                        completedCountries = completedCountries,
-                        totalCountries = totalCountries,
-                        highestCombo = stats.highestCombo,
-                        rank = travelRank
-                    )
+                    item {
+                        Row(horizontalArrangement = Arrangement.spacedBy(metricGap), modifier = Modifier.fillMaxWidth()) {
+                            ProfileStatCard("Stars", player.totalStars.toString(), Icons.Default.Star, PremiumColors.Gold, Modifier.weight(1f), compact)
+                            ProfileStatCard("Coins", player.coins.toString(), Icons.Default.MonetizationOn, Color(0xFF72A8FF), Modifier.weight(1f), compact)
+                        }
+                    }
+                    item {
+                        Row(horizontalArrangement = Arrangement.spacedBy(metricGap), modifier = Modifier.fillMaxWidth()) {
+                            ProfileStatCard("Lives", player.lives.toString(), Icons.Default.Favorite, Color(0xFFFF6A7A), Modifier.weight(1f), compact)
+                            ProfileStatCard("Levels", completedLevels.toString(), Icons.Default.EmojiEvents, Color(0xFF81C784), Modifier.weight(1f), compact)
+                        }
+                    }
+                    item {
+                        Row(horizontalArrangement = Arrangement.spacedBy(metricGap), modifier = Modifier.fillMaxWidth()) {
+                            ProfileStatCard("Visited", "$visitedCountries/$totalCountries", Icons.Default.Public, PremiumColors.GoldLight, Modifier.weight(1f), compact)
+                            ProfileStatCard("Completed", completedCountries.toString(), Icons.Default.EmojiEvents, Color(0xFF66D19D), Modifier.weight(1f), compact)
+                        }
+                    }
+                    item {
+                        ProfileSummaryCard(
+                            completedLevels = completedLevels,
+                            visitedCountries = visitedCountries,
+                            completedCountries = completedCountries,
+                            totalCountries = totalCountries,
+                            highestCombo = stats.highestCombo,
+                            franceCompletion = franceCompletion,
+                            favoriteFood = favoriteFood,
+                            playTimeText = playTimeText,
+                            rank = travelRank,
+                            compact = compact
+                        )
+                    }
                 }
             }
         }
@@ -128,10 +166,12 @@ private fun ProfileHeroCard(
     level: Int,
     xp: Int,
     xpToNext: Int,
+    xpProgress: Float,
     travelRank: String,
-    completedLevels: Int,
+    visitedCountries: Int,
     completedCountries: Int,
-    totalCountries: Int
+    totalCountries: Int,
+    compact: Boolean
 ) {
     Surface(
         modifier = Modifier
@@ -141,19 +181,19 @@ private fun ProfileHeroCard(
         color = Color.Transparent
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(if (compact) 14.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(92.dp)
+                        .size(if (compact) 80.dp else 92.dp)
                         .clip(CircleShape)
                         .background(Brush.radialGradient(listOf(PremiumColors.Gold, PremiumColors.GoldDark)))
                         .border(2.dp, PremiumColors.GoldLight.copy(alpha = 0.7f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("👨‍🍳", fontSize = 40.sp)
+                    Text("👨‍🍳", fontSize = if (compact) 34.sp else 40.sp)
                 }
                 Spacer(Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -161,21 +201,39 @@ private fun ProfileHeroCard(
                         text = username.uppercase(),
                         color = Color.White,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 22.sp,
-                        letterSpacing = 1.2.sp
+                        fontSize = if (compact) 18.sp else 22.sp,
+                        letterSpacing = 1.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = "TRAVEL RANK · $travelRank",
                         color = PremiumColors.Gold,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        letterSpacing = 0.8.sp
+                        fontSize = if (compact) 11.sp else 12.sp,
+                        letterSpacing = 0.8.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        text = "Level $level  •  XP $xp / $xpToNext",
-                        color = Color.White.copy(alpha = 0.75f),
-                        fontSize = 12.sp
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Level $level",
+                            color = Color.White.copy(alpha = 0.84f),
+                            fontSize = if (compact) 11.sp else 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "XP $xp / $xpToNext",
+                            color = Color.White.copy(alpha = 0.72f),
+                            fontSize = if (compact) 10.sp else 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -185,7 +243,7 @@ private fun ProfileHeroCard(
                     ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth((xp.toFloat() / xpToNext.toFloat()).coerceIn(0f, 1f))
+                                .fillMaxWidth(xpProgress)
                                 .fillMaxSize()
                                 .clip(CircleShape)
                                 .background(Brush.horizontalGradient(listOf(PremiumColors.GoldLight, PremiumColors.Gold)))
@@ -194,9 +252,9 @@ private fun ProfileHeroCard(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                ProfileBadge("Traveler", travelRank)
-                ProfileBadge("Wins", completedLevels.toString())
-                ProfileBadge("Countries", "$completedCountries/$totalCountries")
+                ProfileBadge("Visited", "$visitedCountries/$totalCountries", Modifier.weight(1f))
+                ProfileBadge("Completed", completedCountries.toString(), Modifier.weight(1f))
+                ProfileBadge("Level", level.toString(), Modifier.weight(1f))
             }
         }
     }
@@ -206,9 +264,10 @@ private fun ProfileHeroCard(
 private fun ProfileStatCard(
     label: String,
     value: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     color: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    compact: Boolean
 ) {
     Surface(
         modifier = modifier,
@@ -223,12 +282,19 @@ private fun ProfileStatCard(
                         listOf(PremiumColors.DarkSlate.copy(alpha = 0.96f), PremiumColors.DeepNavy.copy(alpha = 0.96f))
                     )
                 )
-                .padding(16.dp)
+                .padding(if (compact) 12.dp else 14.dp)
         ) {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.height(10.dp))
-            Text(text = value, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 25.sp)
-            Text(text = label.uppercase(), color = Color.White.copy(alpha = 0.72f), fontWeight = FontWeight.Bold, fontSize = 9.sp, letterSpacing = 1.sp)
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(if (compact) 20.dp else 24.dp))
+            Spacer(Modifier.height(8.dp))
+            Text(text = value, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = if (compact) 18.sp else 23.sp, maxLines = 1)
+            Text(
+                text = label.uppercase(),
+                color = Color.White.copy(alpha = 0.72f),
+                fontWeight = FontWeight.Bold,
+                fontSize = 9.sp,
+                letterSpacing = 1.sp,
+                maxLines = 1
+            )
         }
     }
 }
@@ -236,10 +302,15 @@ private fun ProfileStatCard(
 @Composable
 private fun ProfileSummaryCard(
     completedLevels: Int,
+    visitedCountries: Int,
     completedCountries: Int,
     totalCountries: Int,
     highestCombo: Int,
-    rank: String
+    franceCompletion: Int,
+    favoriteFood: String,
+    playTimeText: String,
+    rank: String,
+    compact: Boolean
 ) {
     Surface(
         modifier = Modifier
@@ -248,25 +319,30 @@ private fun ProfileSummaryCard(
             .border(1.dp, PremiumColors.WhiteLow.copy(alpha = 0.25f), PremiumShapes.PanelShape),
         color = Color.Transparent
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(modifier = Modifier.padding(if (compact) 14.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
-                text = "ACHIEVEMENT SNAPSHOT",
+                text = "PROFILE SUMMARY",
                 color = PremiumColors.Gold,
-                fontSize = 13.sp,
+                fontSize = if (compact) 12.sp else 13.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.sp
             )
             SummaryLine("Levels completed", completedLevels.toString())
-            SummaryLine("Countries unlocked", "$completedCountries / $totalCountries")
+            SummaryLine("France completion", "$franceCompletion%")
+            SummaryLine("Countries visited", "$visitedCountries / $totalCountries")
+            SummaryLine("Countries completed", completedCountries.toString())
             SummaryLine("Highest combo", highestCombo.toString())
+            SummaryLine("Favorite food", favoriteFood)
+            SummaryLine("Play time", playTimeText)
             SummaryLine("Travel rank", rank)
         }
     }
 }
 
 @Composable
-private fun ProfileBadge(title: String, value: String) {
+private fun ProfileBadge(title: String, value: String, modifier: Modifier = Modifier) {
     Surface(
+        modifier = modifier,
         shape = RoundedCornerShape(50),
         color = Color.White.copy(alpha = 0.08f),
         border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.14f))
@@ -276,8 +352,15 @@ private fun ProfileBadge(title: String, value: String) {
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = title, color = Color.White.copy(alpha = 0.58f), fontSize = 9.sp, letterSpacing = 0.8.sp)
-            Text(text = value, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text(text = title, color = Color.White.copy(alpha = 0.58f), fontSize = 9.sp, letterSpacing = 0.8.sp, maxLines = 1)
+            Text(
+                text = value,
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -286,15 +369,36 @@ private fun ProfileBadge(title: String, value: String) {
 private fun SummaryLine(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(text = label, color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp)
-        Text(text = value, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = value,
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
-private fun rememberTravelRank(level: Int): String {
+private fun travelRankForLevel(level: Int): String {
     return when {
         level >= 30 -> "World Legend"
         level >= 20 -> "Globe Master"
         level >= 10 -> "Explorer"
         else -> "Rising Chef"
+    }
+}
+
+private fun formatPlayTime(totalPlayTimeMillis: Long): String {
+    val totalSeconds = (totalPlayTimeMillis / 1000L).coerceAtLeast(0L)
+    val minutes = totalSeconds / 60L
+    val seconds = totalSeconds % 60L
+    val hours = minutes / 60L
+    val displayMinutes = minutes % 60L
+    return if (hours > 0L) {
+        String.format("%dh %02dm", hours, displayMinutes)
+    } else {
+        String.format("%dm %02ds", displayMinutes, seconds)
     }
 }

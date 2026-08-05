@@ -3,6 +3,7 @@ package com.mahmodhota.worldfood3dadventure.game.world
 import com.mahmodhota.worldfood3dadventure.game.world.model.CountryDefinition
 import com.mahmodhota.worldfood3dadventure.game.world.model.CountryMetadata
 import com.mahmodhota.worldfood3dadventure.game.world.germany.GermanyMatch3Levels
+import com.mahmodhota.worldfood3dadventure.game.world.france.FranceFoodBookEntries
 import com.mahmodhota.worldfood3dadventure.game.world.italy.ItalyMatch3Levels
 import com.mahmodhota.worldfood3dadventure.game.world.france.FranceMatch3Levels
 import com.mahmodhota.worldfood3dadventure.game.world.japan.JapanMatch3Levels
@@ -44,8 +45,37 @@ object LevelRegistry {
         // France
         register(CountryDefinition(
             id = "france",
-            metadata = CountryMetadata("france", "France", "FR", "🇫🇷", "Indulge in elegant pastries."),
-            levels = FranceMatch3Levels.levels.map { it.withBalancedThresholds() }
+            metadata = CountryMetadata(
+                "france",
+                "France",
+                "FR",
+                "🇫🇷",
+                "Explore the elegance of France, famous for its cuisine, culture, cafés and world-famous landmarks."
+            ),
+            levels = FranceMatch3Levels.levels.map { it.withBalancedThresholds() },
+            foodEntries = FranceFoodBookEntries.entries.map {
+                com.mahmodhota.worldfood3dadventure.game.world.model.UnifiedFoodEntry(
+                    id = it.id,
+                    name = it.name,
+                    country = it.country,
+                    description = it.description
+                )
+            }
+        ))
+
+        // Spain placeholder
+        register(CountryDefinition(
+            id = "spain",
+            metadata = CountryMetadata(
+                levelId = "spain",
+                displayName = "Spain",
+                countryCode = "ES",
+                flagEmoji = "🇪🇸",
+                travelDescription = "A future Mediterranean adventure is on the horizon.",
+                comingSoonText = "Coming soon after France."
+            ),
+            levels = emptyList(),
+            isComingSoon = true
         ))
 
         // Japan

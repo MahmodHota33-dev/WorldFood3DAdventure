@@ -1,5 +1,6 @@
 package com.mahmodhota.worldfood3dadventure.ui.match3
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -11,11 +12,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionManager
+import com.mahmodhota.worldfood3dadventure.game.world.LevelRegistry
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.*
 
 @Composable
@@ -25,6 +30,8 @@ fun LevelSelectionScreen(
     onBackToMap: () -> Unit
 ) {
     val progress = ProgressionManager.getCountryProgress(countryId)
+    val country = LevelRegistry.getCountry(countryId)
+    val comingSoon = country?.isComingSoon == true || progress.levels.isEmpty()
 
     Scaffold(
         topBar = { TopStatusBar(onSettingsClick = {}) },
@@ -48,21 +55,76 @@ fun LevelSelectionScreen(
             
             Spacer(Modifier.height(32.dp))
 
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 100.dp),
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                contentPadding = PaddingValues(bottom = 32.dp)
-            ) {
-                items(progress.levels) { level ->
-                    LevelCard(
-                        levelNumber = level.levelNumber,
-                        stars = level.stars,
-                        isUnlocked = level.isUnlocked,
-                        onClick = { onLevelSelected(level.levelNumber) }
-                    )
+            if (comingSoon) {
+                ComingSoonCountryCard(
+                    countryName = country?.metadata?.displayName ?: countryId.replaceFirstChar { it.uppercase() },
+                    message = country?.metadata?.comingSoonText ?: "This destination is being prepared and will unlock later.",
+                    onBackToMap = onBackToMap
+                )
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 100.dp),
+                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentPadding = PaddingValues(bottom = 32.dp)
+                ) {
+                    items(progress.levels) { level ->
+                        LevelCard(
+                            levelNumber = level.levelNumber,
+                            stars = level.stars,
+                            isUnlocked = level.isUnlocked,
+                            onClick = { onLevelSelected(level.levelNumber) }
+                        )
+                    }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ComingSoonCountryCard(
+    countryName: String,
+    message: String,
+    onBackToMap: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = Color.Transparent,
+        border = androidx.compose.foundation.BorderStroke(1.dp, PremiumColors.WhiteLow)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Brush.verticalGradient(listOf(PremiumColors.DarkSlate, PremiumColors.DeepNavy)))
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("🇪🇸", fontSize = 56.sp)
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = countryName.uppercase(),
+                color = PremiumColors.Gold,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = message,
+                color = Color.White.copy(alpha = 0.78f),
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(18.dp))
+            Button(
+                onClick = onBackToMap,
+                colors = ButtonDefaults.buttonColors(containerColor = PremiumColors.Gold, contentColor = Color(0xFF1D1A12))
+            ) {
+                Text("Back to World", fontWeight = FontWeight.Bold)
             }
         }
     }

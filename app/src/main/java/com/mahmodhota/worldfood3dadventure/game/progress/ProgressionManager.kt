@@ -104,6 +104,10 @@ object ProgressionManager {
         val currentIndex = levelChain.indexOf(currentId)
         if (currentIndex != -1 && currentIndex < levelChain.size - 1) {
             val nextId = levelChain[currentIndex + 1]
+            val nextCountryDef = LevelRegistry.getCountry(nextId)
+            if (nextCountryDef?.isComingSoon == true) {
+                return
+            }
             val nextCountry = getCountryProgress(nextId)
             if (!nextCountry.isUnlocked) {
                 val updatedLevels = nextCountry.levels.map { 

@@ -53,7 +53,7 @@ class ProgressionQueryTest {
 
     @Test
     fun testTotalCountries() {
-        assertEquals("Should have 6 countries", 6, ProgressionQuery.totalCountries())
+        assertEquals("Should have 7 countries", 7, ProgressionQuery.totalCountries())
     }
 
     @Test

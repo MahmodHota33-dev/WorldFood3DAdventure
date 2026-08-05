@@ -19,9 +19,23 @@ class RegistryTest {
         assertTrue(countries.any { it.levelId == "germany" })
         assertTrue(countries.any { it.levelId == "italy" })
         assertTrue(countries.any { it.levelId == "france" })
+        assertTrue(countries.any { it.levelId == "spain" })
         assertTrue(countries.any { it.levelId == "japan" })
         assertTrue(countries.any { it.levelId == "mexico" })
         assertTrue(countries.any { it.levelId == "sudan" })
+    }
+
+    @Test
+    fun testFranceAndSpainRegistration() {
+        val france = LevelRegistry.getCountry("france")
+        assertNotNull(france)
+        assertEquals("France", france?.metadata?.displayName)
+        assertEquals(15, france?.levels?.size)
+
+        val spain = LevelRegistry.getCountry("spain")
+        assertNotNull(spain)
+        assertTrue(spain?.isComingSoon == true)
+        assertTrue(spain?.levels?.isEmpty() == true)
     }
 
     @Test

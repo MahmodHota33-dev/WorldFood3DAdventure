@@ -21,6 +21,10 @@ class LevelContentQualityTest {
             requireNotNull(country)
 
             val sorted = country.levels.sortedBy { it.levelNumber }
+            if (country.isComingSoon) {
+                assertTrue("Coming soon country should have no playable levels: $countryId", sorted.isEmpty())
+                return@forEach
+            }
             sorted.forEachIndexed { index, level ->
                 assertEquals("Level numbers must be sequential for $countryId", index + 1, level.levelNumber)
                 assertEquals("Country id mismatch in level data", countryId, level.countryId)
@@ -33,7 +37,9 @@ class LevelContentQualityTest {
     @Test
     fun levelsUseBalancedAndValidGameplayParameters() {
         LevelRegistry.allCountryIds.forEach { countryId ->
-            val levels = requireNotNull(LevelRegistry.getCountry(countryId)).levels
+            val country = requireNotNull(LevelRegistry.getCountry(countryId))
+            if (country.isComingSoon) return@forEach
+            val levels = country.levels
             levels.forEach { level ->
                 val distinctTiles = level.allowedTiles.distinct()
 
@@ -72,7 +78,9 @@ class LevelContentQualityTest {
     @Test
     fun startBoardsAreStableAndPlayableForEveryLevel() {
         LevelRegistry.allCountryIds.forEach { countryId ->
-            val levels = requireNotNull(LevelRegistry.getCountry(countryId)).levels
+            val country = requireNotNull(LevelRegistry.getCountry(countryId))
+            if (country.isComingSoon) return@forEach
+            val levels = country.levels
             levels.forEach { level ->
                 var successfulGenerations = 0
                 repeat(5) { run ->

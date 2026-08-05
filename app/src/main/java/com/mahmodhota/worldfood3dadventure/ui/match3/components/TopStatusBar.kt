@@ -41,76 +41,108 @@ fun TopStatusBar(onSettingsClick: () -> Unit) {
     val player = gameState.player
     val xpSnapshot = PlayerLevelProgression.snapshot(totalXp = player.xp, storedLevel = player.level)
     val xpProgress = xpSnapshot.xpIntoCurrentLevel.toFloat() / xpSnapshot.xpForNextLevel.toFloat()
+    val xpLabel = "${xpSnapshot.xpIntoCurrentLevel}/${xpSnapshot.xpForNextLevel} XP"
 
     FixedOrderSurface {
-        Surface(modifier = Modifier.fillMaxWidth(), color = Color.Transparent) {
-            Row(
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val compact = maxWidth < 390.dp
+            val headerShape = RoundedCornerShape(if (compact) 24.dp else 28.dp)
+            Surface(
                 modifier = Modifier
-                    .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
-                    .clip(RoundedCornerShape(26.dp))
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                PremiumColors.DarkSlate.copy(alpha = 0.94f),
-                                PremiumColors.DeepNavy.copy(alpha = 0.96f)
+                    .fillMaxWidth()
+                    .widthIn(max = 760.dp),
+                color = Color.Transparent
+            ) {
+                Row(
+                    modifier = Modifier
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .padding(horizontal = if (compact) 10.dp else 14.dp, vertical = if (compact) 8.dp else 10.dp)
+                        .clip(headerShape)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    PremiumColors.DarkSlate.copy(alpha = 0.94f),
+                                    PremiumColors.DeepNavy.copy(alpha = 0.975f)
+                                )
                             )
                         )
-                    )
-                    .border(1.dp, PremiumColors.WhiteLow.copy(alpha = 0.32f), RoundedCornerShape(26.dp))
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    onClick = onSettingsClick,
-                    modifier = Modifier.size(54.dp),
-                    shape = CircleShape,
-                    color = PremiumColors.WhiteLow.copy(alpha = 0.08f),
-                    border = BorderStroke(1.dp, PremiumColors.WhiteLow.copy(alpha = 0.35f))
+                        .border(1.dp, PremiumColors.WhiteLow.copy(alpha = 0.32f), headerShape)
+                        .padding(horizontal = if (compact) 10.dp else 14.dp, vertical = if (compact) 9.dp else 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
+                    Surface(
+                        onClick = onSettingsClick,
+                        modifier = Modifier.size(if (compact) 50.dp else 56.dp),
+                        shape = CircleShape,
+                        color = PremiumColors.WhiteLow.copy(alpha = 0.08f),
+                        border = BorderStroke(1.dp, PremiumColors.WhiteLow.copy(alpha = 0.35f))
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.Settings,
+                                contentDescription = "Settings",
+                                tint = Color.White,
+                                modifier = Modifier.size(if (compact) 20.dp else 22.dp)
+                            )
+                        }
                     }
-                }
 
-                Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(if (compact) 10.dp else 12.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "LEVEL ${xpSnapshot.level}",
+                                color = PremiumColors.Gold,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = if (compact) 13.sp else 15.sp,
+                                letterSpacing = 1.1.sp
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "TRAVEL HQ",
+                                color = Color.White.copy(alpha = 0.52f),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = if (compact) 9.sp else 10.sp,
+                                letterSpacing = 1.2.sp
+                            )
+                        }
+                        Spacer(Modifier.height(5.dp))
+                        XpProgressBar(progress = xpProgress)
+                        Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "LEVEL ${xpSnapshot.level}",
-                            color = PremiumColors.Gold,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 14.sp,
-                            letterSpacing = 1.1.sp
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = "TRAVEL RANK",
-                            color = Color.White.copy(alpha = 0.52f),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp,
-                            letterSpacing = 1.2.sp
+                            text = xpLabel,
+                            color = Color.White.copy(alpha = 0.68f),
+                            fontWeight = FontWeight.Medium,
+                            fontSize = if (compact) 10.sp else 11.sp
                         )
                     }
-                    Spacer(Modifier.height(4.dp))
-                    XpProgressBar(progress = xpProgress)
-                }
 
-                Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(if (compact) 8.dp else 12.dp))
 
-                Column(horizontalAlignment = Alignment.End) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        StatCapsule(icon = Icons.Default.Star, value = player.totalStars.toString(), color = Color(0xFF72A8FF))
-                        StatCapsule(icon = Icons.Default.MonetizationOn, value = player.coins.toString(), color = PremiumColors.Gold)
+                    Column(horizontalAlignment = Alignment.End) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            StatCapsule(
+                                icon = Icons.Default.Star,
+                                value = player.totalStars.toString(),
+                                color = Color(0xFF72A8FF),
+                                compact = compact
+                            )
+                            StatCapsule(
+                                icon = Icons.Default.MonetizationOn,
+                                value = player.coins.toString(),
+                                color = PremiumColors.Gold,
+                                compact = compact
+                            )
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        StatCapsule(
+                            icon = Icons.Default.Favorite,
+                            value = player.lives.toString(),
+                            color = Color(0xFFFF5D6A),
+                            compact = compact
+                        )
                     }
-                    Spacer(Modifier.height(6.dp))
-                    StatCapsule(icon = Icons.Default.Favorite, value = player.lives.toString(), color = Color(0xFFFF5D6A))
                 }
             }
         }
@@ -118,7 +150,7 @@ fun TopStatusBar(onSettingsClick: () -> Unit) {
 }
 
 @Composable
-private fun StatCapsule(icon: ImageVector, value: String, color: Color) {
+private fun StatCapsule(icon: ImageVector, value: String, color: Color, compact: Boolean) {
     Row(
         modifier = Modifier
             .clip(PremiumShapes.CapsuleShape)
@@ -128,16 +160,21 @@ private fun StatCapsule(icon: ImageVector, value: String, color: Color) {
                 )
             )
             .border(1.dp, color.copy(alpha = 0.4f), PremiumShapes.CapsuleShape)
-            .padding(horizontal = 8.dp, vertical = 5.dp),
+            .padding(horizontal = if (compact) 8.dp else 10.dp, vertical = if (compact) 5.dp else 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(if (compact) 14.dp else 16.dp)
+        )
         Text(
             text = value, 
             color = Color.White, 
             fontWeight = FontWeight.Bold, 
-        fontSize = 13.sp,
+            fontSize = if (compact) 12.sp else 13.sp,
             maxLines = 1,
             modifier = Modifier.semantics { contentDescription = value }
         )

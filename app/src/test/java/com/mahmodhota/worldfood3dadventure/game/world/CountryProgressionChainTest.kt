@@ -18,7 +18,7 @@ class CountryProgressionChainTest {
 
     @Test
     fun testAllCountriesHaveSpecs() {
-        val countryIds = listOf("germany", "italy", "france", "japan", "mexico", "sudan")
+        val countryIds = listOf("germany", "italy", "france", "spain", "japan", "mexico", "sudan")
         for (id in countryIds) {
             assertNotNull("Country $id should have a spec", CountryProgressionChain.getSpec(id))
         }
@@ -38,7 +38,14 @@ class CountryProgressionChainTest {
     @Test
     fun testGermanyItalyFranceChainOrder() {
         val ids = CountryProgressionChain.UNLOCK_ORDER.map { it.countryId }
-        assertEquals(listOf("germany", "italy", "france"), ids.take(3))
+        assertEquals(listOf("germany", "italy", "france", "spain"), ids.take(4))
+    }
+
+    @Test
+    fun testSpainIsPlaceholderLocked() {
+        val spec = CountryProgressionChain.getSpec("spain")!!
+        assertEquals(0, spec.totalLevels)
+        assertFalse(CountryProgressionChain.canUnlock("spain", spec.requiredStarsToUnlock))
     }
 
     @Test
@@ -62,6 +69,7 @@ class CountryProgressionChainTest {
         assertEquals("Germany should have 15 levels", 15, CountryProgressionChain.getTotalLevels("germany"))
         assertEquals("Italy should have 15 levels", 15, CountryProgressionChain.getTotalLevels("italy"))
         assertEquals("France should have 15 levels", 15, CountryProgressionChain.getTotalLevels("france"))
+        assertEquals("Spain should have 0 levels", 0, CountryProgressionChain.getTotalLevels("spain"))
         assertEquals("Japan should have 10 levels", 10, CountryProgressionChain.getTotalLevels("japan"))
         assertEquals("Mexico should have 10 levels", 10, CountryProgressionChain.getTotalLevels("mexico"))
         assertEquals("Sudan should have 10 levels", 10, CountryProgressionChain.getTotalLevels("sudan"))

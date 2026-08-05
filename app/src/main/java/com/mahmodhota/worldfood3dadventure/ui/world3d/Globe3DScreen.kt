@@ -9,6 +9,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -54,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionManager
 import com.mahmodhota.worldfood3dadventure.game.world.LevelRegistry
 import com.mahmodhota.worldfood3dadventure.game.world.model.CountryProgressionChain
+import com.mahmodhota.worldfood3dadventure.game.world.france.FrancePresentation
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.BottomNavigationBar
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.TopStatusBar
 import kotlinx.coroutines.delay
@@ -87,7 +90,8 @@ internal val GLOBE_COUNTRIES = listOf(
 
 private val GLOBE_COUNTRIES_BY_ID = GLOBE_COUNTRIES.associateBy { it.id }
 private val COUNTRY_FEATURED_FOODS = mapOf(
-    "italy" to listOf("Pizza Margherita", "Pasta Carbonara", "Gelato", "Espresso")
+    "italy" to listOf("Pizza Margherita", "Pasta Carbonara", "Gelato", "Espresso"),
+    "france" to FrancePresentation.signatureFoods.map { "${it.emoji} ${it.name}" }
 )
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -504,27 +508,36 @@ private fun BoxScope.GlobeCountryCard(
         progress.levels.indexOfFirst { !it.isCompleted }.let { if (it >= 0) it + 1 else 1 }
     } else 1
 
-    Surface(
+    BoxWithConstraints(
         modifier = Modifier
             .align(Alignment.BottomCenter)
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
             .padding(bottom = 96.dp),
-        shape = RoundedCornerShape(22.dp),
-        color = Color(0xF2080F1E),
-        tonalElevation = 16.dp
+        contentAlignment = Alignment.Center
     ) {
-        Column {
+        val compact = maxWidth < 390.dp
+        val cardShape = RoundedCornerShape(if (compact) 20.dp else 24.dp)
+        val contentHorizontal = if (compact) 16.dp else 20.dp
+        val contentVertical = if (compact) 12.dp else 16.dp
+
+        Surface(
+            modifier = Modifier.fillMaxWidth().widthIn(max = 620.dp),
+            shape = cardShape,
+            color = Color(0xF2080F1E),
+            tonalElevation = 16.dp
+        ) {
+            Column {
             // ── Header gradient banner ─────────────────────────────────────
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
                         Brush.linearGradient(
-                            colors = listOf(Color(0xFF0E1F40), Color(0xFF0A1830))
+                            colors = listOf(Color(0xFF132A54), Color(0xFF0A1830))
                         )
                     )
-                    .padding(horizontal = 20.dp, vertical = 14.dp)
+                    .padding(horizontal = contentHorizontal, vertical = contentVertical)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -532,29 +545,28 @@ private fun BoxScope.GlobeCountryCard(
                 ) {
                     Text(
                         text = country.flag,
-                        fontSize = 32.sp,
+                        fontSize = if (compact) 30.sp else 34.sp,
                         modifier = Modifier.padding(end = 12.dp)
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = country.displayName,
-                            color = Color.White,
-                            fontSize = 20.sp,
+                            text = "EXPLORE DESTINATION",
+                            color = Color.White.copy(alpha = 0.55f),
+                            fontSize = if (compact) 9.sp else 10.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        if (!progress.isUnlocked) {
-                            Text(
-                                text = "🔒  Locked destination",
-                                color = Color(0xFF6688AA),
-                                fontSize = 12.sp
-                            )
-                        } else {
-                            Text(
-                                text = "✈  Available for exploration",
-                                color = Color(0xFF4AADCC),
-                                fontSize = 12.sp
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = country.displayName,
+                            color = Color.White,
+                            fontSize = if (compact) 19.sp else 22.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        CountryStatusChip(
+                            text = if (progress.isUnlocked) "Available for exploration" else "Locked destination",
+                            color = if (progress.isUnlocked) Color(0xFF4AADCC) else Color(0xFF6688AA)
+                        )
                     }
                     TextButton(
                         onClick = onDismiss,
@@ -573,7 +585,7 @@ private fun BoxScope.GlobeCountryCard(
                     .background(Color(0x1AFFFFFF))
             )
 
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
+            Column(modifier = Modifier.padding(horizontal = contentHorizontal, vertical = contentVertical)) {
 
                 // ── Travel description ─────────────────────────────────────
                 val desc = metadata?.travelDescription?.takeIf { it.isNotBlank() }
@@ -581,8 +593,8 @@ private fun BoxScope.GlobeCountryCard(
                     Text(
                         text = desc,
                         color = Color(0xFF8EA8C0),
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
+                        fontSize = if (compact) 13.sp else 14.sp,
+                        lineHeight = if (compact) 18.sp else 20.sp,
                         modifier = Modifier.padding(bottom = 14.dp)
                     )
                 } else {
@@ -600,8 +612,8 @@ private fun BoxScope.GlobeCountryCard(
                     Text(
                         text = featuredFoods.joinToString(" • "),
                         color = Color(0xFFDCE7F3),
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
+                        fontSize = if (compact) 13.sp else 14.sp,
+                        lineHeight = if (compact) 18.sp else 20.sp,
                         modifier = Modifier.padding(bottom = 14.dp)
                     )
                 }
@@ -612,40 +624,22 @@ private fun BoxScope.GlobeCountryCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(20.dp)
+                        horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp)
                     ) {
-                        // Stars stat box
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFF101C2E),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-                                Text("⭐  Stars",  color = Color(0xFF5A7090), fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                                Text(
-                                    "${progress.totalStars} / $maxStars",
-                                    color = Color(0xFFFFD700),
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                        // Levels stat box
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFF101C2E),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
-                                Text("✓  Levels", color = Color(0xFF5A7090), fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                                Text(
-                                    "$completedLevels / $totalLevels",
-                                    color = Color(0xFF55D494),
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
+                        CountryMetricCard(
+                            label = "Stars",
+                            value = "${progress.totalStars} / $maxStars",
+                            accent = Color(0xFFFFD700),
+                            modifier = Modifier.weight(1f),
+                            compact = compact
+                        )
+                        CountryMetricCard(
+                            label = "Levels",
+                            value = "$completedLevels / $totalLevels",
+                            accent = Color(0xFF55D494),
+                            modifier = Modifier.weight(1f),
+                            compact = compact
+                        )
                     }
 
                     // ── Play button ────────────────────────────────────────
@@ -773,7 +767,60 @@ private fun BoxScope.GlobeCountryCard(
                         Text("🔒  Locked", color = Color(0xFF3A4C64), fontSize = 15.sp)
                     }
                 }
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun CountryStatusChip(
+    text: String,
+    color: Color
+) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = color.copy(alpha = 0.12f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.28f))
+    ) {
+        Text(
+            text = text,
+            color = color,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+        )
+    }
+}
+
+@Composable
+private fun CountryMetricCard(
+    label: String,
+    value: String,
+    accent: Color,
+    modifier: Modifier = Modifier,
+    compact: Boolean
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        color = Color(0xFF101C2E),
+        border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.16f))
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = if (compact) 10.dp else 12.dp)) {
+            Text(
+                text = label.uppercase(),
+                color = Color(0xFF5A7090),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = value,
+                color = accent,
+                fontSize = if (compact) 17.sp else 19.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
