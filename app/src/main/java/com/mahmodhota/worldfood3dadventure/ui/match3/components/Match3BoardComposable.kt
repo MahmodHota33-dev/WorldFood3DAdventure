@@ -123,10 +123,10 @@ fun Match3BoardComposable(
         BoxWithConstraints(
             modifier = modifier
                 .fillMaxSize()
-                .padding(8.dp),
+                    .padding(4.dp),
             contentAlignment = Alignment.Center
         ) {
-            val boardPadding = 8.dp
+                val boardPadding = 4.dp
             val maxAvailableWidth = maxWidth - (boardPadding * 2)
             val maxAvailableHeight = maxHeight - (boardPadding * 2)
             val boardSize = minOf(maxAvailableWidth, maxAvailableHeight).coerceAtLeast(0.dp)
@@ -180,38 +180,46 @@ fun Match3BoardComposable(
                             )
                         )
                         .border(1.5.dp, PremiumColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(18.dp))
-                        .padding(4.dp)
+                        .padding(2.dp)
                         .clipToBounds()
                         .pointerInput(board, boardSize) {
                             val boardSizePx = boardSize.toPx()
+                            // Use local tracking variable so onDrag always has the correct
+                            // origin tile — avoids stale Composable parameter capture.
+                            var dragOrigin: BoardPosition? = null
                             detectDragGestures(
                                 onDragStart = { offset ->
                                     val col = (offset.x / (boardSizePx / board.columns)).toInt()
                                     val row = (offset.y / (boardSizePx / board.rows)).toInt()
                                     if (row in 0 until board.rows && col in 0 until board.columns) {
+                                        dragOrigin = BoardPosition(row, col)
                                         onTileClick(BoardPosition(row, col))
                                     }
                                 },
                                 onDrag = { change, dragAmount ->
                                     change.consume()
-                                    val threshold = boardSizePx / board.columns * 0.28f
-                                    if (selectedPosition != null) {
+                                    val origin = dragOrigin
+                                    if (origin != null) {
+                                        val threshold = boardSizePx / board.columns * 0.35f
                                         val targetPos = when {
-                                            dragAmount.x > threshold -> selectedPosition.copy(column = selectedPosition.column + 1)
-                                            dragAmount.x < -threshold -> selectedPosition.copy(column = selectedPosition.column - 1)
-                                            dragAmount.y > threshold -> selectedPosition.copy(row = selectedPosition.row + 1)
-                                            dragAmount.y < -threshold -> selectedPosition.copy(row = selectedPosition.row - 1)
+                                            dragAmount.x > threshold -> origin.copy(column = origin.column + 1)
+                                            dragAmount.x < -threshold -> origin.copy(column = origin.column - 1)
+                                            dragAmount.y > threshold -> origin.copy(row = origin.row + 1)
+                                            dragAmount.y < -threshold -> origin.copy(row = origin.row - 1)
                                             else -> null
                                         }
                                         if (targetPos != null && board.contains(targetPos)) {
+                                            dragOrigin = null // consume — prevent repeated triggers in one gesture
                                             onTileClick(targetPos)
                                         }
                                     }
-                                }
+                                },
+                                onDragEnd = { dragOrigin = null },
+                                onDragCancel = { dragOrigin = null }
                             )
                         }
                 ) {
-                    val innerBoardSize = boardSize - 8.dp
+                    val innerBoardSize = boardSize - 4.dp
                     val tileSize = innerBoardSize / board.columns
                     val density = LocalDensity.current
                     val tileSizePx = with(density) { tileSize.toPx() }

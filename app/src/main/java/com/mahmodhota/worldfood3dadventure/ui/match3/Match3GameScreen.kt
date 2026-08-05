@@ -84,7 +84,7 @@ fun Match3GameScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp),
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
@@ -112,7 +112,7 @@ fun Match3GameScreen(
                     InfoPanel(label = "Score", value = state.score.toString())
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(8.dp))
 
                 PremiumBoosterPanel(
                     inventory = state.boosterInventory,
@@ -123,9 +123,9 @@ fun Match3GameScreen(
                     enabled = !state.isAnimating && state.status == GameStatus.PLAYING
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(8.dp))
 
-                // Board
+                // Board — weight(1f) takes all remaining vertical space
                 Match3BoardComposable(
                     board = state.board,
                     selectedPosition = state.selectedPosition,
@@ -144,7 +144,7 @@ fun Match3GameScreen(
                     specialEffects = state.specialEffects
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(8.dp))
 
                 // Footer: Goals
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -154,7 +154,7 @@ fun Match3GameScreen(
                         currentScore = state.score
                     )
                     
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(10.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
