@@ -39,6 +39,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -73,7 +74,7 @@ fun PremiumAdventureScreen(
 
     var mapScale by remember { mutableStateOf(1f) }
     var mapOffset by remember { mutableStateOf(Offset.Zero) }
-    val transformState = androidx.compose.foundation.gestures.rememberTransformableState { zoomChange, offsetChange, _ ->
+    val transformState = androidx.compose.foundation.gestures.rememberTransformableState { _, zoomChange, offsetChange, _ ->
         mapScale = (mapScale * zoomChange).coerceIn(0.75f, 3f)
         mapOffset += offsetChange
     }
@@ -89,16 +90,16 @@ fun PremiumAdventureScreen(
                 .navigationBarsPadding()
         ) {
             val compactPhone = maxHeight < 760.dp
-            val mapHeight = if (compactPhone) 112.dp else 132.dp
-            val stripHeight = if (compactPhone) 70.dp else 78.dp
-            val boosterHeight = if (compactPhone) 72.dp else 78.dp
-            val quickActionsHeight = 46.dp
+            val mapHeight = if (compactPhone) 124.dp else 146.dp
+            val stripHeight = if (compactPhone) 72.dp else 80.dp
+            val boosterHeight = if (compactPhone) 70.dp else 76.dp
+            val quickActionsHeight = 44.dp
 
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 CompactAdventureMapHeader(
                     mapScale = mapScale,
@@ -176,8 +177,26 @@ private fun CompactAdventureMapHeader(
             .height(mapHeight)
             .clip(RoundedCornerShape(22.dp))
             .background(PremiumColors.DeepNavy)
-            .border(1.dp, PremiumColors.WhiteLow.copy(alpha = 0.5f), RoundedCornerShape(22.dp))
+            .border(1.3.dp, PremiumColors.WhiteLow.copy(alpha = 0.56f), RoundedCornerShape(22.dp))
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color(0x203BA3FF),
+                        Color.Transparent
+                    )
+                )
+            )
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(22.dp)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = 0.12f), Color.Transparent)
+                    )
+                )
+        )
         WorldMapComponent(
             mapScale = mapScale,
             offset = mapOffset,
@@ -233,87 +252,118 @@ private fun CompactGameplayInfoStrip(
         color = PremiumColors.DarkSlate,
         border = androidx.compose.foundation.BorderStroke(1.dp, PremiumColors.Gold.copy(alpha = 0.45f))
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "${countryName.uppercase()} • LEVEL $levelNumber",
-                    color = PremiumColors.Gold,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 11.sp,
-                    letterSpacing = 0.8.sp
-                )
-                Text(
-                    text = levelTitle,
-                    color = Color.White.copy(alpha = 0.9f),
-                    fontStyle = FontStyle.Italic,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val compactWidth = maxWidth < 380.dp
+            val titleFont = if (compactWidth) 10.sp else 11.sp
+            val subtitleFont = if (compactWidth) 11.sp else 12.sp
+            val movesValueFont = if (compactWidth) 18.sp else 20.sp
+            val goalProgressFont = if (compactWidth) 11.sp else 12.sp
+            val goalLabelFont = if (compactWidth) 8.sp else 9.sp
+            val horizontalInset = if (compactWidth) 8.dp else 10.dp
+            val verticalInset = if (compactWidth) 6.dp else 8.dp
 
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color.White.copy(alpha = 0.08f),
+            Row(
                 modifier = Modifier
-                    .width(72.dp)
-                    .semantics { contentDescription = "Moves remaining $movesRemaining" }
+                    .fillMaxSize()
+                    .heightIn(min = 68.dp)
+                    .padding(horizontal = horizontalInset, vertical = verticalInset),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier
+                        .weight(1.4f)
+                        .padding(end = 2.dp),
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    Text("MOVES", color = Color.White.copy(alpha = 0.7f), fontSize = 9.sp)
                     Text(
-                        text = movesRemaining.toString(),
-                        color = if (movesRemaining < 5) Color(0xFFFF6B6B) else Color.White,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 20.sp
+                        text = "${countryName.uppercase()} • LEVEL $levelNumber",
+                        color = PremiumColors.Gold,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = titleFont,
+                        letterSpacing = 0.8.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = levelTitle,
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontStyle = FontStyle.Italic,
+                        fontSize = subtitleFont,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
-            }
 
-            Spacer(Modifier.width(8.dp))
-
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color.White.copy(alpha = 0.08f),
-                modifier = Modifier
-                    .widthIn(min = 96.dp, max = 132.dp)
-                    .semantics { contentDescription = "Goal $goalLabel progress $goalProgress" }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.White.copy(alpha = 0.08f),
+                    modifier = Modifier
+                        .weight(0.78f)
+                        .widthIn(min = 72.dp)
+                        .semantics { contentDescription = "Moves remaining $movesRemaining" }
                 ) {
-                    if (goalIconType != null) {
-                        FoodIcon(type = goalIconType, size = 20.dp)
-                    } else {
-                        Text("⭐", fontSize = 14.sp)
-                    }
-                    Spacer(Modifier.width(6.dp))
-                    Column {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 6.dp, vertical = if (compactWidth) 4.dp else 5.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
                         Text(
-                            text = goalLabel,
-                            color = Color.White.copy(alpha = 0.78f),
-                            fontSize = 9.sp,
+                            "MOVES",
+                            color = Color.White.copy(alpha = 0.74f),
+                            fontSize = if (compactWidth) 8.sp else 9.sp,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = movesRemaining.toString(),
+                            color = if (movesRemaining < 5) Color(0xFFFF6B6B) else Color.White,
+                            fontWeight = FontWeight.Black,
+                            fontSize = movesValueFont,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            textAlign = TextAlign.Center
                         )
-                        Text(
-                            text = goalProgress,
-                            color = Color.White,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 12.sp
-                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.White.copy(alpha = 0.08f),
+                    modifier = Modifier
+                        .weight(1.1f)
+                        .widthIn(min = if (compactWidth) 108.dp else 116.dp)
+                        .semantics { contentDescription = "Goal $goalLabel progress $goalProgress" }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = if (compactWidth) 6.dp else 8.dp, vertical = if (compactWidth) 5.dp else 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (goalIconType != null) {
+                            FoodIcon(type = goalIconType, size = if (compactWidth) 18.dp else 20.dp)
+                        } else {
+                            Text("⭐", fontSize = if (compactWidth) 13.sp else 14.sp)
+                        }
+                        Spacer(Modifier.width(if (compactWidth) 4.dp else 6.dp))
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = goalLabel,
+                                color = Color.White.copy(alpha = 0.78f),
+                                fontSize = goalLabelFont,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = goalProgress,
+                                color = Color.White,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = goalProgressFont,
+                                maxLines = 1,
+                                overflow = TextOverflow.Clip
+                            )
+                        }
                     }
                 }
             }
