@@ -34,16 +34,23 @@ fun FoodIcon(
 }
 
 private fun DrawScope.drawFoodIcon(type: FoodTileType, s: Float) {
-    // Shared soft depth and gloss base.
+    // Directional drop shadow (bottom-right offset for 3-D lift).
     drawCircle(
-        color = Color.Black.copy(alpha = 0.12f),
-        radius = s * 0.42f,
-        center = Offset(s * 0.54f, s * 0.58f)
+        color = Color.Black.copy(alpha = 0.22f),
+        radius = s * 0.41f,
+        center = Offset(s * 0.56f, s * 0.60f)
     )
+    // Ambient occlusion rim (soft glow around the whole icon area).
     drawCircle(
-        color = Color.White.copy(alpha = 0.06f),
-        radius = s * 0.46f,
+        color = Color.Black.copy(alpha = 0.08f),
+        radius = s * 0.47f,
         center = Offset(s * 0.5f, s * 0.5f)
+    )
+    // Subtle cool-rim light on the lower edge (counterlight to the warm background).
+    drawCircle(
+        color = Color(0xFFB3D4FF).copy(alpha = 0.05f),
+        radius = s * 0.44f,
+        center = Offset(s * 0.44f, s * 0.56f)
     )
 
     when (type) {
@@ -107,6 +114,17 @@ private fun DrawScope.drawFoodIcon(type: FoodTileType, s: Float) {
         FoodTileType.SHAWAYA -> drawPremiumShawaya(s)
         FoodTileType.GURRASA -> drawPremiumGurrasa(s)
         FoodTileType.ASIDA -> drawPremiumAsida(s)
+
+        // Group 5: Spain
+        FoodTileType.PAELLA -> drawPremiumPaella(s)
+        FoodTileType.TORTILLA_ESPANOLA -> drawPremiumTortillaEspanola(s)
+        FoodTileType.JAMON_IBERICO -> drawPremiumJamonIberico(s)
+        FoodTileType.GAZPACHO -> drawPremiumGazpacho(s)
+        FoodTileType.CROQUETAS -> drawPremiumCroquetas(s)
+        FoodTileType.PATATAS_BRAVAS -> drawPremiumPatatasBravas(s)
+        FoodTileType.PULPO_A_LA_GALLEGA -> drawPremiumPulpo(s)
+        FoodTileType.SANGRIA -> drawPremiumSangria(s)
+        FoodTileType.CREMA_CATALANA -> drawPremiumCremaCatalana(s)
     }
 
     // Shared Premium Gloss Layer
@@ -116,114 +134,298 @@ private fun DrawScope.drawFoodIcon(type: FoodTileType, s: Float) {
 // --- Group 1: Core Foods ---
 
 private fun DrawScope.drawPremiumPizza(s: Float) {
-    drawCircle(brush = Brush.verticalGradient(listOf(Color(0xFFE67E22), Color(0xFFD35400))), radius = s * 0.46f)
-    drawCircle(brush = Brush.radialGradient(listOf(Color(0xFFF1C40F), Color(0xFFF39C12))), radius = s * 0.38f)
-    val toppingColor = Color(0xFFC0392B)
-    drawCircle(toppingColor, radius = s * 0.07f, center = Offset(s * 0.4f, s * 0.35f))
-    drawCircle(toppingColor, radius = s * 0.07f, center = Offset(s * 0.65f, s * 0.45f))
-    drawCircle(toppingColor, radius = s * 0.07f, center = Offset(s * 0.45f, s * 0.65f))
+    // Crust ring
+    drawCircle(brush = Brush.radialGradient(listOf(Color(0xFFD4875A), Color(0xFFAA5E2C))), radius = s * 0.46f)
+    // Cheese base
+    drawCircle(brush = Brush.radialGradient(listOf(Color(0xFFF5D96B), Color(0xFFD4A82A))), radius = s * 0.37f)
+    // Sauce peek
+    drawCircle(brush = Brush.radialGradient(listOf(Color(0xFFE85D34), Color(0xFFC0392B))), radius = s * 0.28f)
+    // More cheese specks
+    drawCircle(Color(0xFFF9F0C0), radius = s * 0.12f, center = Offset(s * 0.48f, s * 0.48f))
+    // Toppings
+    val pepperoni = Color(0xFFC0392B)
+    drawCircle(pepperoni, radius = s * 0.065f, center = Offset(s * 0.39f, s * 0.34f))
+    drawCircle(pepperoni, radius = s * 0.065f, center = Offset(s * 0.64f, s * 0.44f))
+    drawCircle(pepperoni, radius = s * 0.065f, center = Offset(s * 0.44f, s * 0.64f))
+    // Crust edge highlight
+    drawCircle(color = Color.White.copy(alpha = 0.18f), radius = s * 0.44f, style = Stroke(width = s * 0.03f))
 }
 
 private fun DrawScope.drawPremiumTomato(s: Float) {
-    drawCircle(brush = Brush.radialGradient(listOf(Color(0xFFFF5252), Color(0xFFD32F2F))), radius = s * 0.42f)
+    // Body with richer radial gradient
+    drawCircle(brush = Brush.radialGradient(
+        colors = listOf(Color(0xFFFF6B6B), Color(0xFFE53935), Color(0xFFB71C1C)),
+        center = Offset(s * 0.45f, s * 0.44f),
+        radius = s * 0.45f
+    ), radius = s * 0.42f)
+    // Stem
+    drawRoundRect(Color(0xFF2E7D32), topLeft = Offset(s * 0.472f, s * 0.10f), size = Size(s * 0.055f, s * 0.18f), cornerRadius = CornerRadius(s * 0.02f))
+    // Small calyx leaves
     val leafPath = Path().apply {
-        moveTo(s * 0.5f, s * 0.1f)
-        lineTo(s * 0.6f, s * 0.25f)
-        lineTo(s * 0.4f, s * 0.25f)
-        close()
+        moveTo(s * 0.50f, s * 0.18f)
+        quadraticTo(s * 0.64f, s * 0.10f, s * 0.66f, s * 0.24f)
+        quadraticTo(s * 0.56f, s * 0.24f, s * 0.50f, s * 0.18f)
     }
-    drawPath(leafPath, Color(0xFF27AE60))
+    drawPath(leafPath, Color(0xFF388E3C))
+    val leafPath2 = Path().apply {
+        moveTo(s * 0.50f, s * 0.18f)
+        quadraticTo(s * 0.36f, s * 0.10f, s * 0.34f, s * 0.24f)
+        quadraticTo(s * 0.44f, s * 0.24f, s * 0.50f, s * 0.18f)
+    }
+    drawPath(leafPath2, Color(0xFF43A047))
+    // Highlight spot
+    drawCircle(Color.White.copy(alpha = 0.28f), radius = s * 0.10f, center = Offset(s * 0.38f, s * 0.36f))
 }
 
 private fun DrawScope.drawPremiumCheese(s: Float) {
     val path = Path().apply {
-        moveTo(s * 0.2f, s * 0.75f)
-        lineTo(s * 0.85f, s * 0.75f)
-        lineTo(s * 0.55f, s * 0.25f)
+        moveTo(s * 0.18f, s * 0.76f)
+        lineTo(s * 0.86f, s * 0.76f)
+        lineTo(s * 0.86f, s * 0.52f)
+        lineTo(s * 0.56f, s * 0.22f)
+        lineTo(s * 0.18f, s * 0.52f)
         close()
     }
-    drawPath(brush = Brush.verticalGradient(listOf(Color(0xFFF1C40F), Color(0xFFF39C12))), path = path)
-    drawCircle(Color(0xFFD4AC0D), radius = s * 0.05f, center = Offset(s * 0.45f, s * 0.6f))
-    drawCircle(Color(0xFFD4AC0D), radius = s * 0.07f, center = Offset(s * 0.65f, s * 0.65f))
+    drawPath(brush = Brush.verticalGradient(
+        colors = listOf(Color(0xFFF9D84C), Color(0xFFE8B420), Color(0xFFCC9A0A)),
+        startY = s * 0.22f, endY = s * 0.76f
+    ), path = path)
+    // Holes
+    drawCircle(Color(0xFFD4A82A), radius = s * 0.055f, center = Offset(s * 0.44f, s * 0.60f))
+    drawCircle(Color(0xFFD4A82A), radius = s * 0.07f, center = Offset(s * 0.65f, s * 0.66f))
+    drawCircle(Color(0xFFD4A82A), radius = s * 0.045f, center = Offset(s * 0.36f, s * 0.50f))
+    // Edge highlight
+    drawPath(path = path, color = Color.White.copy(alpha = 0.15f), style = Stroke(width = s * 0.025f))
 }
 
 private fun DrawScope.drawPremiumSushi(s: Float) {
-    drawRoundRect(color = Color.White, topLeft = Offset(s * 0.15f, s * 0.45f), size = Size(s * 0.7f, s * 0.35f), cornerRadius = CornerRadius(s * 0.1f))
-    drawRoundRect(brush = Brush.linearGradient(listOf(Color(0xFFE74C3C), Color(0xFFFF7675))), topLeft = Offset(s * 0.15f, s * 0.35f), size = Size(s * 0.7f, s * 0.25f), cornerRadius = CornerRadius(s * 0.05f))
-    drawRect(color = Color(0xFF2D3436), topLeft = Offset(s * 0.42f, s * 0.35f), size = Size(s * 0.16f, s * 0.45f))
+    // Rice base
+    drawRoundRect(
+        brush = Brush.verticalGradient(listOf(Color(0xFFF8F8F2), Color(0xFFE8E8DC))),
+        topLeft = Offset(s * 0.14f, s * 0.44f), size = Size(s * 0.72f, s * 0.36f),
+        cornerRadius = CornerRadius(s * 0.10f)
+    )
+    // Fish topping (salmon)
+    drawRoundRect(
+        brush = Brush.linearGradient(listOf(Color(0xFFFF8C69), Color(0xFFE55B3C))),
+        topLeft = Offset(s * 0.14f, s * 0.30f), size = Size(s * 0.72f, s * 0.24f),
+        cornerRadius = CornerRadius(s * 0.07f)
+    )
+    // Nori (seaweed band)
+    drawRect(
+        color = Color(0xFF1B3A2D),
+        topLeft = Offset(s * 0.40f, s * 0.30f), size = Size(s * 0.20f, s * 0.50f)
+    )
+    // Fish highlight
+    drawLine(Color.White.copy(alpha = 0.3f), start = Offset(s * 0.22f, s * 0.36f), end = Offset(s * 0.55f, s * 0.36f), strokeWidth = s * 0.025f)
 }
 
 private fun DrawScope.drawPremiumApple(s: Float) {
-    drawCircle(brush = Brush.radialGradient(listOf(Color(0xFFFF7675), Color(0xFFD63031))), radius = s * 0.42f)
-    drawRect(Color(0xFF5D4037), topLeft = Offset(s * 0.48f, s * 0.1f), size = Size(s * 0.04f, s * 0.2f))
+    // Body with warm red gradient
+    drawCircle(brush = Brush.radialGradient(
+        colors = listOf(Color(0xFFFF8A80), Color(0xFFE53935), Color(0xFFC62828)),
+        center = Offset(s * 0.45f, s * 0.45f),
+        radius = s * 0.46f
+    ), radius = s * 0.42f)
+    // Stem
+    drawRoundRect(Color(0xFF5D4037), topLeft = Offset(s * 0.476f, s * 0.10f), size = Size(s * 0.048f, s * 0.22f), cornerRadius = CornerRadius(s * 0.02f))
+    // Leaf
     val leafPath = Path().apply {
-        moveTo(s * 0.5f, s * 0.15f)
-        quadraticTo(s * 0.7f, s * 0.05f, s * 0.75f, s * 0.2f)
-        quadraticTo(s * 0.6f, s * 0.25f, s * 0.5f, s * 0.15f)
+        moveTo(s * 0.50f, s * 0.16f)
+        quadraticTo(s * 0.70f, s * 0.06f, s * 0.74f, s * 0.20f)
+        quadraticTo(s * 0.62f, s * 0.28f, s * 0.50f, s * 0.16f)
     }
-    drawPath(leafPath, Color(0xFF27AE60))
+    drawPath(brush = Brush.linearGradient(listOf(Color(0xFF43A047), Color(0xFF2E7D32))), path = leafPath)
+    // Highlight spot
+    drawCircle(Color.White.copy(alpha = 0.30f), radius = s * 0.11f, center = Offset(s * 0.36f, s * 0.36f))
+    // Small secondary highlight
+    drawCircle(Color.White.copy(alpha = 0.15f), radius = s * 0.055f, center = Offset(s * 0.28f, s * 0.44f))
 }
 
 private fun DrawScope.drawPremiumPotato(s: Float) {
-    drawOval(brush = Brush.linearGradient(listOf(Color(0xFFE1B12C), Color(0xFFBCAA10))), topLeft = Offset(s * 0.2f, s * 0.3f), size = Size(s * 0.65f, s * 0.45f))
-    drawCircle(Color(0xFF8D6E63), radius = s * 0.02f, center = Offset(s * 0.4f, s * 0.45f))
-    drawCircle(Color(0xFF8D6E63), radius = s * 0.02f, center = Offset(s * 0.65f, s * 0.55f))
+    drawOval(
+        brush = Brush.radialGradient(
+            colors = listOf(Color(0xFFF0C84C), Color(0xFFC9A020), Color(0xFF9E7A10)),
+            center = Offset(s * 0.44f, s * 0.46f),
+            radius = s * 0.38f
+        ),
+        topLeft = Offset(s * 0.18f, s * 0.28f), size = Size(s * 0.66f, s * 0.46f)
+    )
+    // Eyes
+    drawCircle(Color(0xFF8D6E63), radius = s * 0.028f, center = Offset(s * 0.38f, s * 0.44f))
+    drawCircle(Color(0xFF8D6E63), radius = s * 0.022f, center = Offset(s * 0.60f, s * 0.54f))
+    drawCircle(Color(0xFF8D6E63), radius = s * 0.024f, center = Offset(s * 0.48f, s * 0.60f))
+    // Skin highlight
+    drawOval(color = Color.White.copy(alpha = 0.22f), topLeft = Offset(s * 0.26f, s * 0.30f), size = Size(s * 0.32f, s * 0.14f))
 }
 
 private fun DrawScope.drawPremiumBread(s: Float) {
-    drawRoundRect(brush = Brush.verticalGradient(listOf(Color(0xFFF39C12), Color(0xFFD35400))), topLeft = Offset(s * 0.15f, s * 0.4f), size = Size(s * 0.7f, s * 0.3f), cornerRadius = CornerRadius(s * 0.1f))
-    repeat(3) { i ->
-        drawRect(Color.White.copy(alpha = 0.3f), topLeft = Offset(s * (0.3f + i * 0.15f), s * 0.45f), size = Size(s * 0.05f, s * 0.2f))
+    // Loaf body
+    drawRoundRect(
+        brush = Brush.verticalGradient(
+            colors = listOf(Color(0xFFF5A623), Color(0xFFD4700A), Color(0xFFAA5000)),
+            startY = s * 0.36f, endY = s * 0.76f
+        ),
+        topLeft = Offset(s * 0.13f, s * 0.38f), size = Size(s * 0.74f, s * 0.38f),
+        cornerRadius = CornerRadius(s * 0.14f)
+    )
+    // Top crust dome
+    drawOval(
+        brush = Brush.radialGradient(
+            colors = listOf(Color(0xFFFFCB6B), Color(0xFFD4700A)),
+            center = Offset(s * 0.5f, s * 0.38f), radius = s * 0.38f
+        ),
+        topLeft = Offset(s * 0.13f, s * 0.28f), size = Size(s * 0.74f, s * 0.28f)
+    )
+    // Score lines (cuts on top)
+    repeat(2) { i ->
+        drawLine(Color(0xFF8B4513).copy(alpha = 0.55f),
+            start = Offset(s * (0.34f + i * 0.16f), s * 0.34f),
+            end = Offset(s * (0.38f + i * 0.16f), s * 0.60f),
+            strokeWidth = s * 0.028f)
     }
+    // Top highlight
+    drawOval(color = Color.White.copy(alpha = 0.20f), topLeft = Offset(s * 0.22f, s * 0.30f), size = Size(s * 0.32f, s * 0.12f))
 }
 
 private fun DrawScope.drawPremiumPretzel(s: Float) {
-    drawCircle(color = Color(0xFF8B4513), radius = s * 0.35f, style = Stroke(width = s * 0.12f))
-    drawCircle(Color.White, radius = s * 0.02f, center = Offset(s * 0.5f, s * 0.15f))
-    drawCircle(Color.White, radius = s * 0.02f, center = Offset(s * 0.3f, s * 0.4f))
-    drawCircle(Color.White, radius = s * 0.02f, center = Offset(s * 0.7f, s * 0.4f))
+    val brown = Color(0xFF8B4513)
+    val lightBrown = Color(0xFFAD6528)
+    // Main body ring (lower loops)
+    drawCircle(color = brown, radius = s * 0.22f, center = Offset(s * 0.38f, s * 0.58f), style = Stroke(width = s * 0.12f))
+    drawCircle(color = brown, radius = s * 0.22f, center = Offset(s * 0.62f, s * 0.58f), style = Stroke(width = s * 0.12f))
+    // Top arch
+    drawArc(color = lightBrown, startAngle = 200f, sweepAngle = -220f, useCenter = false,
+        topLeft = Offset(s * 0.22f, s * 0.18f), size = Size(s * 0.56f, s * 0.56f),
+        style = Stroke(width = s * 0.12f))
+    // Salt dots
+    drawCircle(Color.White, radius = s * 0.025f, center = Offset(s * 0.38f, s * 0.30f))
+    drawCircle(Color.White, radius = s * 0.020f, center = Offset(s * 0.55f, s * 0.26f))
+    drawCircle(Color.White, radius = s * 0.022f, center = Offset(s * 0.64f, s * 0.38f))
+    drawCircle(Color.White, radius = s * 0.020f, center = Offset(s * 0.30f, s * 0.50f))
 }
 
 // --- Group 2: European Foods ---
 
 private fun DrawScope.drawPremiumPasta(s: Float) {
-    val yellow = Color(0xFFF1C40F)
+    // Bowl
+    drawArc(
+        brush = Brush.verticalGradient(listOf(Color(0xFFE8EAED), Color(0xFFBDC3C7))),
+        startAngle = 0f, sweepAngle = 180f, useCenter = true,
+        topLeft = Offset(s * 0.14f, s * 0.44f), size = Size(s * 0.72f, s * 0.44f)
+    )
+    // Pasta noodles (penne-style)
+    val yellow = Color(0xFFF5D76E)
+    val yellowDark = Color(0xFFD4A520)
     repeat(3) { i ->
-        drawRoundRect(color = yellow, topLeft = Offset(s * 0.2f, s * (0.3f + i * 0.15f)), size = Size(s * 0.6f, s * 0.1f), cornerRadius = CornerRadius(s * 0.02f))
+        val yOff = s * (0.36f + i * 0.12f)
+        drawRoundRect(
+            brush = Brush.verticalGradient(listOf(yellow, yellowDark), startY = yOff, endY = yOff + s * 0.10f),
+            topLeft = Offset(s * 0.22f, yOff),
+            size = Size(s * 0.56f, s * 0.10f),
+            cornerRadius = CornerRadius(s * 0.03f)
+        )
     }
+    // Sauce dot
+    drawCircle(Color(0xFFE74C3C), radius = s * 0.06f, center = Offset(s * 0.62f, s * 0.40f))
 }
 
 private fun DrawScope.drawPremiumGelato(s: Float) {
-    drawCircle(brush = Brush.radialGradient(listOf(Color(0xFFF06292), Color(0xFFE91E63))), radius = s * 0.25f, center = Offset(s * 0.5f, s * 0.35f))
+    // Waffle cone
     val conePath = Path().apply {
-        moveTo(s * 0.35f, s * 0.45f)
-        lineTo(s * 0.65f, s * 0.45f)
-        lineTo(s * 0.5f, s * 0.85f)
+        moveTo(s * 0.34f, s * 0.46f)
+        lineTo(s * 0.66f, s * 0.46f)
+        lineTo(s * 0.50f, s * 0.88f)
         close()
     }
-    drawPath(conePath, Color(0xFFD2691E))
+    drawPath(
+        brush = Brush.verticalGradient(listOf(Color(0xFFE8B56A), Color(0xFFA0622A)),
+            startY = s * 0.46f, endY = s * 0.88f),
+        path = conePath
+    )
+    // Cone grid lines
+    repeat(3) { i ->
+        drawLine(Color(0xFF8B5E3C).copy(alpha = 0.35f),
+            start = Offset(s * 0.36f, s * (0.50f + i * 0.10f)),
+            end = Offset(s * (0.64f - i * 0.08f), s * (0.50f + i * 0.10f)),
+            strokeWidth = s * 0.018f)
+    }
+    // Two scoops
+    drawCircle(
+        brush = Brush.radialGradient(listOf(Color(0xFFF8BBD0), Color(0xFFE91E63))),
+        radius = s * 0.22f, center = Offset(s * 0.40f, s * 0.34f)
+    )
+    drawCircle(
+        brush = Brush.radialGradient(listOf(Color(0xFFA5D6A7), Color(0xFF388E3C))),
+        radius = s * 0.20f, center = Offset(s * 0.60f, s * 0.33f)
+    )
+    // Scoop highlights
+    drawCircle(Color.White.copy(alpha = 0.28f), radius = s * 0.065f, center = Offset(s * 0.34f, s * 0.26f))
+    drawCircle(Color.White.copy(alpha = 0.24f), radius = s * 0.055f, center = Offset(s * 0.54f, s * 0.25f))
 }
 
 private fun DrawScope.drawPremiumBasil(s: Float) {
-    val leafPath = Path().apply {
-        moveTo(s * 0.5f, s * 0.8f)
-        quadraticTo(s * 0.2f, s * 0.5f, s * 0.5f, s * 0.2f)
-        quadraticTo(s * 0.8f, s * 0.5f, s * 0.5f, s * 0.8f)
+    // Main leaf (big, centered)
+    val mainLeaf = Path().apply {
+        moveTo(s * 0.50f, s * 0.82f)
+        quadraticTo(s * 0.12f, s * 0.54f, s * 0.50f, s * 0.18f)
+        quadraticTo(s * 0.88f, s * 0.54f, s * 0.50f, s * 0.82f)
     }
-    drawPath(leafPath, Color(0xFF27AE60))
+    drawPath(brush = Brush.verticalGradient(
+        colors = listOf(Color(0xFF66BB6A), Color(0xFF388E3C), Color(0xFF1B5E20)),
+        startY = s * 0.18f, endY = s * 0.82f
+    ), path = mainLeaf)
+    // Stem
+    drawLine(Color(0xFF2E7D32), start = Offset(s * 0.50f, s * 0.82f), end = Offset(s * 0.50f, s * 0.90f), strokeWidth = s * 0.04f)
+    // Vein
+    drawLine(Color(0xFF81C784).copy(alpha = 0.55f), start = Offset(s * 0.50f, s * 0.22f), end = Offset(s * 0.50f, s * 0.78f), strokeWidth = s * 0.025f)
+    // Side veins
+    drawLine(Color(0xFF81C784).copy(alpha = 0.35f), start = Offset(s * 0.50f, s * 0.44f), end = Offset(s * 0.26f, s * 0.54f), strokeWidth = s * 0.018f)
+    drawLine(Color(0xFF81C784).copy(alpha = 0.35f), start = Offset(s * 0.50f, s * 0.44f), end = Offset(s * 0.74f, s * 0.54f), strokeWidth = s * 0.018f)
 }
 
 private fun DrawScope.drawPremiumSpaghetti(s: Float) {
-    val color = Color(0xFFF4D03F)
+    // Bowl
+    drawArc(
+        brush = Brush.verticalGradient(listOf(Color(0xFFECF0F1), Color(0xFFBDC3C7))),
+        startAngle = 0f, sweepAngle = 180f, useCenter = true,
+        topLeft = Offset(s * 0.14f, s * 0.42f), size = Size(s * 0.72f, s * 0.46f)
+    )
+    // Spaghetti strands (wavy)
+    val yellow = Color(0xFFF4D03F)
     repeat(5) { i ->
-        drawLine(color = color, start = Offset(s * 0.2f, s * (0.3f + i * 0.1f)), end = Offset(s * 0.8f, s * (0.3f + i * 0.1f)), strokeWidth = s * 0.03f)
+        val yBase = s * (0.30f + i * 0.08f)
+        drawLine(yellow,
+            start = Offset(s * 0.20f, yBase),
+            end = Offset(s * 0.48f, yBase + s * 0.06f),
+            strokeWidth = s * 0.028f
+        )
+        drawLine(yellow,
+            start = Offset(s * 0.48f, yBase + s * 0.06f),
+            end = Offset(s * 0.80f, yBase),
+            strokeWidth = s * 0.028f
+        )
     }
+    // Sauce
+    drawCircle(Color(0xFFE74C3C), radius = s * 0.08f, center = Offset(s * 0.52f, s * 0.40f))
 }
 
 private fun DrawScope.drawPremiumLasagne(s: Float) {
-    drawRect(Color(0xFF8B4513), topLeft = Offset(s * 0.2f, s * 0.3f), size = Size(s * 0.6f, s * 0.4f))
-    drawRect(Color(0xFFFDFEFE), topLeft = Offset(s * 0.2f, s * 0.4f), size = Size(s * 0.6f, s * 0.1f))
-    drawRect(Color(0xFFC0392B), topLeft = Offset(s * 0.2f, s * 0.5f), size = Size(s * 0.6f, s * 0.1f))
+    // Baking dish outline
+    drawRoundRect(Color(0xFF7B4A12), topLeft = Offset(s * 0.16f, s * 0.26f), size = Size(s * 0.68f, s * 0.52f), cornerRadius = CornerRadius(s * 0.06f))
+    // Pasta layers
+    val layers = listOf(
+        Color(0xFFF5CBA7),
+        Color(0xFFE8A87C),
+        Color(0xFFC0392B),
+        Color(0xFFFEFEFE),
+        Color(0xFF9B4021)
+    )
+    layers.forEachIndexed { i, color ->
+        drawRect(color, topLeft = Offset(s * 0.18f, s * (0.30f + i * 0.08f)), size = Size(s * 0.64f, s * 0.07f))
+    }
+    // Cheese topping highlight
+    drawRoundRect(Color(0xFFF9E79F).copy(alpha = 0.80f), topLeft = Offset(s * 0.18f, s * 0.30f), size = Size(s * 0.64f, s * 0.06f), cornerRadius = CornerRadius(s * 0.02f))
 }
 
 private fun DrawScope.drawPremiumRavioli(s: Float) {
@@ -244,23 +446,91 @@ private fun DrawScope.drawPremiumTiramisu(s: Float) {
 }
 
 private fun DrawScope.drawPremiumBratwurst(s: Float) {
-    drawRoundRect(brush = Brush.linearGradient(listOf(Color(0xFF6E2C00), Color(0xFF3E2723))), topLeft = Offset(s * 0.1f, s * 0.4f), size = Size(s * 0.8f, s * 0.2f), cornerRadius = CornerRadius(s * 0.1f))
+    // Sausage body with rich gradient
+    drawRoundRect(
+        brush = Brush.linearGradient(
+            colors = listOf(Color(0xFF8D4004), Color(0xFF5C2700), Color(0xFF3E1A00)),
+            start = Offset(s * 0.10f, s * 0.38f), end = Offset(s * 0.10f, s * 0.62f)
+        ),
+        topLeft = Offset(s * 0.08f, s * 0.38f), size = Size(s * 0.84f, s * 0.24f),
+        cornerRadius = CornerRadius(s * 0.12f)
+    )
+    // Grill marks
+    repeat(3) { i ->
+        drawLine(Color.Black.copy(alpha = 0.30f),
+            start = Offset(s * (0.26f + i * 0.18f), s * 0.38f),
+            end = Offset(s * (0.28f + i * 0.18f), s * 0.62f),
+            strokeWidth = s * 0.04f)
+    }
+    // Top highlight
+    drawRoundRect(color = Color(0xFFD4700A).copy(alpha = 0.40f),
+        topLeft = Offset(s * 0.10f, s * 0.38f), size = Size(s * 0.80f, s * 0.08f),
+        cornerRadius = CornerRadius(s * 0.04f))
 }
 
 private fun DrawScope.drawPremiumCake(s: Float) {
-    drawRect(Color(0xFF2C3E50), topLeft = Offset(s * 0.25f, s * 0.4f), size = Size(s * 0.5f, s * 0.3f))
-    drawRect(Color.White, topLeft = Offset(s * 0.25f, s * 0.45f), size = Size(s * 0.5f, s * 0.05f))
-    drawCircle(Color.Red, radius = s * 0.08f, center = Offset(s * 0.5f, s * 0.3f))
+    // Cake body (Black Forest)
+    drawRoundRect(
+        brush = Brush.verticalGradient(
+            colors = listOf(Color(0xFF4A235A), Color(0xFF1A0A28)),
+            startY = s * 0.34f, endY = s * 0.76f
+        ),
+        topLeft = Offset(s * 0.20f, s * 0.34f), size = Size(s * 0.60f, s * 0.42f),
+        cornerRadius = CornerRadius(s * 0.06f)
+    )
+    // Cream layer
+    drawRect(Color.White.copy(alpha = 0.88f), topLeft = Offset(s * 0.20f, s * 0.46f), size = Size(s * 0.60f, s * 0.06f))
+    // Dark chocolate layer
+    drawRect(Color(0xFF1C0A00), topLeft = Offset(s * 0.20f, s * 0.56f), size = Size(s * 0.60f, s * 0.06f))
+    // Cherry on top
+    drawCircle(brush = Brush.radialGradient(listOf(Color(0xFFE53935), Color(0xFF880E2F))), radius = s * 0.09f, center = Offset(s * 0.50f, s * 0.28f))
+    // Cherry stem
+    drawLine(Color(0xFF2E7D32), start = Offset(s * 0.50f, s * 0.20f), end = Offset(s * 0.50f, s * 0.34f), strokeWidth = s * 0.025f)
+    // Cherry highlight
+    drawCircle(Color.White.copy(alpha = 0.30f), radius = s * 0.03f, center = Offset(s * 0.46f, s * 0.24f))
 }
 
 // --- Group 3: France & Japan ---
 
 private fun DrawScope.drawPremiumCroissant(s: Float) {
-    drawRoundRect(brush = Brush.horizontalGradient(listOf(Color(0xFFFFD93D), Color(0xFFF39C12))), topLeft = Offset(s * 0.2f, s * 0.35f), size = Size(s * 0.6f, s * 0.3f), cornerRadius = CornerRadius(s * 0.15f))
+    // Crescent main body
+    drawRoundRect(
+        brush = Brush.linearGradient(
+            colors = listOf(Color(0xFFFFE082), Color(0xFFFFAB00), Color(0xFFE65100)),
+            start = Offset(s * 0.20f, s * 0.30f), end = Offset(s * 0.80f, s * 0.70f)
+        ),
+        topLeft = Offset(s * 0.14f, s * 0.30f), size = Size(s * 0.72f, s * 0.38f),
+        cornerRadius = CornerRadius(s * 0.19f)
+    )
+    // Score / layering lines
+    repeat(4) { i ->
+        drawLine(Color(0xFFBF360C).copy(alpha = 0.30f),
+            start = Offset(s * (0.22f + i * 0.14f), s * 0.30f),
+            end = Offset(s * (0.20f + i * 0.14f), s * 0.68f),
+            strokeWidth = s * 0.022f)
+    }
+    // Top highlight
+    drawOval(color = Color.White.copy(alpha = 0.24f), topLeft = Offset(s * 0.22f, s * 0.30f), size = Size(s * 0.40f, s * 0.12f))
 }
 
 private fun DrawScope.drawPremiumBaguette(s: Float) {
-    drawRoundRect(color = Color(0xFFD2691E), topLeft = Offset(s * 0.1f, s * 0.4f), size = Size(s * 0.8f, s * 0.2f), cornerRadius = CornerRadius(s * 0.05f))
+    drawRoundRect(
+        brush = Brush.linearGradient(
+            colors = listOf(Color(0xFFFFE0B2), Color(0xFFD2691E), Color(0xFF8D4004)),
+            start = Offset(s * 0.10f, s * 0.38f), end = Offset(s * 0.10f, s * 0.62f)
+        ),
+        topLeft = Offset(s * 0.08f, s * 0.38f), size = Size(s * 0.84f, s * 0.24f),
+        cornerRadius = CornerRadius(s * 0.08f)
+    )
+    // Score cuts on top
+    repeat(4) { i ->
+        drawLine(Color(0xFF5D3A1A).copy(alpha = 0.45f),
+            start = Offset(s * (0.22f + i * 0.16f), s * 0.38f),
+            end = Offset(s * (0.28f + i * 0.16f), s * 0.50f),
+            strokeWidth = s * 0.025f)
+    }
+    // Top highlight
+    drawRoundRect(Color.White.copy(alpha = 0.20f), topLeft = Offset(s * 0.10f, s * 0.38f), size = Size(s * 0.80f, s * 0.07f), cornerRadius = CornerRadius(s * 0.03f))
 }
 
 private fun DrawScope.drawPremiumFrenchCheese(s: Float) {
@@ -279,9 +549,24 @@ private fun DrawScope.drawPremiumCrepe(s: Float) {
 }
 
 private fun DrawScope.drawPremiumMacaron(s: Float) {
-    drawRoundRect(Color(0xFFF48FB1), topLeft = Offset(s * 0.25f, s * 0.3f), size = Size(s * 0.5f, s * 0.15f), cornerRadius = CornerRadius(s * 0.05f))
-    drawRect(Color.White, topLeft = Offset(s * 0.25f, s * 0.45f), size = Size(s * 0.5f, s * 0.05f))
-    drawRoundRect(Color(0xFFF48FB1), topLeft = Offset(s * 0.25f, s * 0.5f), size = Size(s * 0.5f, s * 0.15f), cornerRadius = CornerRadius(s * 0.05f))
+    val pink = Color(0xFFF48FB1)
+    val pinkDark = Color(0xFFE91E63)
+    // Bottom shell
+    drawRoundRect(
+        brush = Brush.verticalGradient(colors = listOf(pink, pinkDark), startY = s * 0.50f, endY = s * 0.68f),
+        topLeft = Offset(s * 0.22f, s * 0.50f), size = Size(s * 0.56f, s * 0.20f),
+        cornerRadius = CornerRadius(s * 0.08f)
+    )
+    // Filling
+    drawRoundRect(Color(0xFFFFF9C4), topLeft = Offset(s * 0.22f, s * 0.46f), size = Size(s * 0.56f, s * 0.07f), cornerRadius = CornerRadius(s * 0.02f))
+    // Top shell
+    drawRoundRect(
+        brush = Brush.verticalGradient(colors = listOf(Color(0xFFFCE4EC), pink), startY = s * 0.28f, endY = s * 0.48f),
+        topLeft = Offset(s * 0.22f, s * 0.28f), size = Size(s * 0.56f, s * 0.20f),
+        cornerRadius = CornerRadius(s * 0.08f)
+    )
+    // Top shell highlight
+    drawOval(color = Color.White.copy(alpha = 0.30f), topLeft = Offset(s * 0.30f, s * 0.29f), size = Size(s * 0.22f, s * 0.07f))
 }
 
 private fun DrawScope.drawPremiumRatatouille(s: Float) {
@@ -305,8 +590,32 @@ private fun DrawScope.drawPremiumTarteTatin(s: Float) {
 }
 
 private fun DrawScope.drawPremiumRamen(s: Float) {
-    drawCircle(Color(0xFFE67E22), radius = s * 0.4f)
-    drawCircle(Color(0xFFF4D03F), radius = s * 0.3f)
+    // Bowl body
+    drawArc(
+        brush = Brush.verticalGradient(listOf(Color(0xFFECEFF1), Color(0xFFB0BEC5))),
+        startAngle = 0f, sweepAngle = 180f, useCenter = true,
+        topLeft = Offset(s * 0.12f, s * 0.40f), size = Size(s * 0.76f, s * 0.52f)
+    )
+    // Broth
+    drawOval(
+        brush = Brush.radialGradient(
+            colors = listOf(Color(0xFFFFCCBC), Color(0xFFE64A19)),
+            center = Offset(s * 0.5f, s * 0.5f), radius = s * 0.38f
+        ),
+        topLeft = Offset(s * 0.14f, s * 0.30f), size = Size(s * 0.72f, s * 0.42f)
+    )
+    // Noodles
+    repeat(3) { i ->
+        drawLine(Color(0xFFF9E79F),
+            start = Offset(s * 0.20f, s * (0.40f + i * 0.07f)),
+            end = Offset(s * 0.80f, s * (0.38f + i * 0.07f)),
+            strokeWidth = s * 0.026f)
+    }
+    // Egg halve
+    drawCircle(Color(0xFFFFF176), radius = s * 0.09f, center = Offset(s * 0.66f, s * 0.42f))
+    drawCircle(Color(0xFFF57F17), radius = s * 0.055f, center = Offset(s * 0.66f, s * 0.42f))
+    // Nori slice
+    drawRect(Color(0xFF1B3A2D), topLeft = Offset(s * 0.22f, s * 0.34f), size = Size(s * 0.10f, s * 0.22f))
 }
 
 private fun DrawScope.drawPremiumTempura(s: Float) {
@@ -315,19 +624,44 @@ private fun DrawScope.drawPremiumTempura(s: Float) {
 
 private fun DrawScope.drawPremiumOnigiri(s: Float) {
     val path = Path().apply {
-        moveTo(s * 0.5f, s * 0.2f)
-        lineTo(s * 0.8f, s * 0.7f)
-        lineTo(s * 0.2f, s * 0.7f)
+        moveTo(s * 0.50f, s * 0.16f)
+        lineTo(s * 0.82f, s * 0.72f)
+        quadraticTo(s * 0.50f, s * 0.80f, s * 0.18f, s * 0.72f)
         close()
     }
-    drawPath(path, Color.White)
-    drawRect(Color(0xFF2D3436), topLeft = Offset(s * 0.4f, s * 0.6f), size = Size(s * 0.2f, s * 0.15f))
+    drawPath(
+        brush = Brush.verticalGradient(listOf(Color(0xFFF8F8F2), Color(0xFFE0E0D8)),
+            startY = s * 0.16f, endY = s * 0.80f),
+        path = path
+    )
+    // Nori band
+    drawRoundRect(Color(0xFF1B3A2D), topLeft = Offset(s * 0.34f, s * 0.60f), size = Size(s * 0.32f, s * 0.18f), cornerRadius = CornerRadius(s * 0.03f))
+    // Sesame seeds
+    drawCircle(Color(0xFFD4AC0D), radius = s * 0.020f, center = Offset(s * 0.38f, s * 0.44f))
+    drawCircle(Color(0xFFD4AC0D), radius = s * 0.018f, center = Offset(s * 0.56f, s * 0.38f))
+    // Edge highlight
+    drawPath(path = path, color = Color.White.copy(alpha = 0.20f), style = Stroke(width = s * 0.022f))
 }
 
 private fun DrawScope.drawPremiumMochi(s: Float) {
-    repeat(3) { i ->
-        val color = when(i) { 0 -> Color(0xFFF48FB1); 1 -> Color.White; else -> Color(0xFFC5E1A5) }
-        drawCircle(color, radius = s * 0.12f, center = Offset(s * (0.3f + i * 0.2f), s * 0.5f))
+    val colors = listOf(Color(0xFFF48FB1), Color(0xFFFFFFFF), Color(0xFFC5E1A5))
+    val centerXs = listOf(s * 0.30f, s * 0.50f, s * 0.70f)
+    colors.forEachIndexed { i, color ->
+        // Shadow under each ball
+        drawCircle(Color.Black.copy(alpha = 0.14f), radius = s * 0.13f, center = Offset(centerXs[i] + s * 0.02f, s * 0.56f))
+        // Ball body
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    Color(red = (color.red + 0.2f).coerceAtMost(1f), green = (color.green + 0.2f).coerceAtMost(1f), blue = (color.blue + 0.2f).coerceAtMost(1f), alpha = 0.90f),
+                    color
+                ),
+                center = Offset(centerXs[i] - s * 0.04f, s * 0.40f), radius = s * 0.14f
+            ),
+            radius = s * 0.13f, center = Offset(centerXs[i], s * 0.50f)
+        )
+        // Highlight
+        drawCircle(Color.White.copy(alpha = 0.28f), radius = s * 0.04f, center = Offset(centerXs[i] - s * 0.05f, s * 0.42f))
     }
 }
 
@@ -342,7 +676,20 @@ private fun DrawScope.drawPremiumUdon(s: Float) {
 }
 
 private fun DrawScope.drawPremiumMatcha(s: Float) {
-    drawRoundRect(Color(0xFF27AE60), topLeft = Offset(s * 0.3f, s * 0.4f), size = Size(s * 0.4f, s * 0.3f), cornerRadius = CornerRadius(s * 0.05f))
+    // Cup / bowl
+    drawRoundRect(
+        brush = Brush.verticalGradient(
+            colors = listOf(Color(0xFF81C784), Color(0xFF388E3C), Color(0xFF1B5E20)),
+            startY = s * 0.36f, endY = s * 0.74f
+        ),
+        topLeft = Offset(s * 0.26f, s * 0.36f), size = Size(s * 0.48f, s * 0.38f),
+        cornerRadius = CornerRadius(s * 0.08f)
+    )
+    // Froth swirl
+    drawCircle(Color(0xFFA5D6A7).copy(alpha = 0.70f), radius = s * 0.14f, center = Offset(s * 0.50f, s * 0.48f))
+    drawCircle(Color(0xFFC8E6C9).copy(alpha = 0.50f), radius = s * 0.07f, center = Offset(s * 0.50f, s * 0.46f))
+    // Cup rim highlight
+    drawRoundRect(Color.White.copy(alpha = 0.22f), topLeft = Offset(s * 0.26f, s * 0.36f), size = Size(s * 0.48f, s * 0.06f), cornerRadius = CornerRadius(s * 0.04f))
 }
 
 private fun DrawScope.drawPremiumDorayaki(s: Float) {
@@ -353,8 +700,29 @@ private fun DrawScope.drawPremiumDorayaki(s: Float) {
 // --- Group 4: Mexico & Sudan ---
 
 private fun DrawScope.drawPremiumTaco(s: Float) {
-    drawArc(Color(0xFFF1C40F), startAngle = 180f, sweepAngle = 180f, useCenter = true, topLeft = Offset(s * 0.1f, s * 0.3f), size = Size(s * 0.8f, s * 0.4f))
-    drawCircle(Color.Red, radius = s * 0.05f, center = Offset(s * 0.4f, s * 0.35f))
+    // Shell
+    val shellPath = Path().apply {
+        moveTo(s * 0.08f, s * 0.72f)
+        quadraticTo(s * 0.18f, s * 0.32f, s * 0.50f, s * 0.28f)
+        quadraticTo(s * 0.82f, s * 0.32f, s * 0.92f, s * 0.72f)
+        close()
+    }
+    drawPath(
+        brush = Brush.verticalGradient(
+            colors = listOf(Color(0xFFFFE082), Color(0xFFFFA000), Color(0xFFE65100)),
+            startY = s * 0.28f, endY = s * 0.72f
+        ),
+        path = shellPath
+    )
+    // Lettuce
+    drawOval(Color(0xFF66BB6A), topLeft = Offset(s * 0.22f, s * 0.42f), size = Size(s * 0.56f, s * 0.14f))
+    // Meat
+    drawOval(Color(0xFF6D4C41), topLeft = Offset(s * 0.26f, s * 0.50f), size = Size(s * 0.48f, s * 0.12f))
+    // Tomato
+    drawCircle(Color(0xFFE53935), radius = s * 0.055f, center = Offset(s * 0.42f, s * 0.48f))
+    drawCircle(Color(0xFFE53935), radius = s * 0.055f, center = Offset(s * 0.60f, s * 0.50f))
+    // Shell highlight
+    drawPath(path = shellPath, color = Color.White.copy(alpha = 0.15f), style = Stroke(width = s * 0.022f))
 }
 
 private fun DrawScope.drawPremiumBurrito(s: Float) {
@@ -362,8 +730,29 @@ private fun DrawScope.drawPremiumBurrito(s: Float) {
 }
 
 private fun DrawScope.drawPremiumGuacamole(s: Float) {
-    drawCircle(Color(0xFF27AE60), radius = s * 0.35f)
-    drawCircle(Color(0xFF1D8348), radius = s * 0.1f, center = Offset(s * 0.4f, s * 0.4f))
+    // Avocado body
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(Color(0xFF81C784), Color(0xFF388E3C), Color(0xFF1B5E20)),
+            center = Offset(s * 0.44f, s * 0.46f), radius = s * 0.38f
+        ),
+        radius = s * 0.36f
+    )
+    // Guac inside (lighter)
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(Color(0xFFA5D6A7), Color(0xFF66BB6A)),
+            center = Offset(s * 0.46f, s * 0.48f), radius = s * 0.22f
+        ),
+        radius = s * 0.22f, center = Offset(s * 0.50f, s * 0.52f)
+    )
+    // Pit
+    drawCircle(
+        brush = Brush.radialGradient(listOf(Color(0xFF795548), Color(0xFF3E2723))),
+        radius = s * 0.09f, center = Offset(s * 0.52f, s * 0.54f)
+    )
+    // Rim highlight
+    drawCircle(color = Color.White.copy(alpha = 0.18f), radius = s * 0.35f, style = Stroke(width = s * 0.025f))
 }
 
 private fun DrawScope.drawPremiumNachos(s: Float) {
@@ -457,16 +846,93 @@ private fun DrawScope.drawPremiumAsida(s: Float) {
     drawCircle(Color(0xFF7B241C), radius = s * 0.15f, center = Offset(s * 0.5f, s * 0.5f))
 }
 
+private fun DrawScope.drawPremiumPaella(s: Float) {
+    drawCircle(brush = Brush.radialGradient(listOf(Color(0xFFF7DC6F), Color(0xFFE67E22))), radius = s * 0.38f)
+    drawCircle(Color(0xFF7D6608), radius = s * 0.3f, style = Stroke(width = s * 0.06f))
+    drawCircle(Color(0xFF1E8449), radius = s * 0.05f, center = Offset(s * 0.38f, s * 0.42f))
+    drawCircle(Color(0xFFC0392B), radius = s * 0.05f, center = Offset(s * 0.62f, s * 0.52f))
+}
+
+private fun DrawScope.drawPremiumTortillaEspanola(s: Float) {
+    drawCircle(brush = Brush.radialGradient(listOf(Color(0xFFF8C471), Color(0xFFD68910))), radius = s * 0.34f)
+    drawCircle(Color(0xFF7B4A12), radius = s * 0.08f, center = Offset(s * 0.35f, s * 0.46f))
+    drawCircle(Color(0xFF7B4A12), radius = s * 0.08f, center = Offset(s * 0.6f, s * 0.42f))
+}
+
+private fun DrawScope.drawPremiumJamonIberico(s: Float) {
+    val path = Path().apply {
+        moveTo(s * 0.28f, s * 0.22f)
+        lineTo(s * 0.68f, s * 0.32f)
+        lineTo(s * 0.62f, s * 0.72f)
+        lineTo(s * 0.34f, s * 0.82f)
+        close()
+    }
+    drawPath(path, brush = Brush.linearGradient(listOf(Color(0xFFA93226), Color(0xFF641E16))))
+    drawCircle(Color(0xFFE59866), radius = s * 0.06f, center = Offset(s * 0.55f, s * 0.42f))
+}
+
+private fun DrawScope.drawPremiumGazpacho(s: Float) {
+    drawCircle(Color(0xFFEC7063), radius = s * 0.35f)
+    drawCircle(Color(0xFFFDEBD0), radius = s * 0.22f)
+    drawCircle(Color(0xFF27AE60), radius = s * 0.04f, center = Offset(s * 0.42f, s * 0.46f))
+}
+
+private fun DrawScope.drawPremiumCroquetas(s: Float) {
+    drawRoundRect(brush = Brush.linearGradient(listOf(Color(0xFFF9E79F), Color(0xFFD4AC0D))), topLeft = Offset(s * 0.22f, s * 0.35f), size = Size(s * 0.56f, s * 0.25f), cornerRadius = CornerRadius(s * 0.12f))
+    drawCircle(Color(0xFF7B4A12), radius = s * 0.03f, center = Offset(s * 0.42f, s * 0.47f))
+}
+
+private fun DrawScope.drawPremiumPatatasBravas(s: Float) {
+    drawRect(Color(0xFFE1B12C), topLeft = Offset(s * 0.24f, s * 0.28f), size = Size(s * 0.18f, s * 0.22f))
+    drawRect(Color(0xFFE1B12C), topLeft = Offset(s * 0.44f, s * 0.38f), size = Size(s * 0.18f, s * 0.24f))
+    drawRect(Color(0xFFE1B12C), topLeft = Offset(s * 0.62f, s * 0.28f), size = Size(s * 0.14f, s * 0.22f))
+    drawCircle(Color(0xFFC0392B), radius = s * 0.1f, center = Offset(s * 0.5f, s * 0.6f))
+}
+
+private fun DrawScope.drawPremiumPulpo(s: Float) {
+    drawCircle(brush = Brush.radialGradient(listOf(Color(0xFF9B59B6), Color(0xFF6C3483))), radius = s * 0.28f, center = Offset(s * 0.5f, s * 0.45f))
+    repeat(4) { i ->
+        drawRoundRect(
+            color = Color(0xFF7D3C98),
+            topLeft = Offset(s * (0.32f + i * 0.09f), s * 0.55f),
+            size = Size(s * 0.05f, s * 0.28f),
+            cornerRadius = CornerRadius(s * 0.03f)
+        )
+    }
+}
+
+private fun DrawScope.drawPremiumSangria(s: Float) {
+    drawCircle(brush = Brush.radialGradient(listOf(Color(0xFFB03A2E), Color(0xFF641E16))), radius = s * 0.34f)
+    drawCircle(Color(0xFFF7DC6F), radius = s * 0.05f, center = Offset(s * 0.38f, s * 0.35f))
+    drawCircle(Color(0xFF7DCEA0), radius = s * 0.04f, center = Offset(s * 0.6f, s * 0.56f))
+}
+
+private fun DrawScope.drawPremiumCremaCatalana(s: Float) {
+    drawRoundRect(brush = Brush.verticalGradient(listOf(Color(0xFFF9E79F), Color(0xFFF5CBA7))), topLeft = Offset(s * 0.22f, s * 0.34f), size = Size(s * 0.56f, s * 0.28f), cornerRadius = CornerRadius(s * 0.08f))
+    drawRect(Color(0xFFB03A2E), topLeft = Offset(s * 0.22f, s * 0.28f), size = Size(s * 0.56f, s * 0.06f))
+}
+
 // --- Shared Helpers ---
 
 private fun DrawScope.drawPremiumGloss(s: Float) {
+    // Primary specular arc — mimics plastic/candy-coat sheen.
     drawArc(
-        color = Color.White.copy(alpha = 0.3f),
-        startAngle = -120f,
-        sweepAngle = 60f,
+        color = Color.White.copy(alpha = 0.45f),
+        startAngle = -130f,
+        sweepAngle = 65f,
         useCenter = false,
-        topLeft = Offset(s * 0.2f, s * 0.2f),
-        size = Size(s * 0.6f, s * 0.6f),
-        style = Stroke(width = s * 0.04f)
+        topLeft = Offset(s * 0.15f, s * 0.10f),
+        size = Size(s * 0.70f, s * 0.70f),
+        style = Stroke(width = s * 0.055f)
+    )
+    // Soft oval highlight dot at top-left (candy-gloss diffuse).
+    drawOval(
+        brush = Brush.radialGradient(
+            colors = listOf(Color.White.copy(alpha = 0.42f), Color.Transparent),
+            center = Offset(s * 0.30f, s * 0.22f),
+            radius = s * 0.15f
+        ),
+        topLeft = Offset(s * 0.16f, s * 0.12f),
+        size = Size(s * 0.26f, s * 0.18f)
     )
 }
