@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -15,9 +17,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,7 +39,13 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -47,20 +59,26 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mahmodhota.worldfood3dadventure.data.audio.GlobalSystemManager
+import com.mahmodhota.worldfood3dadventure.data.audio.SfxType
 import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionManager
 import com.mahmodhota.worldfood3dadventure.game.world.LevelRegistry
 import com.mahmodhota.worldfood3dadventure.game.world.model.CountryProgressionChain
 import com.mahmodhota.worldfood3dadventure.game.world.france.FrancePresentation
+import com.mahmodhota.worldfood3dadventure.game.world.spain.SpainPresentation
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.BottomNavigationBar
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.TopStatusBar
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -81,8 +99,9 @@ internal data class GlobeCountry(
 
 internal val GLOBE_COUNTRIES = listOf(
     GlobeCountry("germany", "Germany", "🇩🇪", "DE",  51.1f,  10.4f),
-    GlobeCountry("france",  "France",  "🇫🇷", "FR",  46.2f,   2.2f),
     GlobeCountry("italy",   "Italy",   "🇮🇹", "IT",  41.9f,  12.6f),
+    GlobeCountry("france",  "France",  "🇫🇷", "FR",  46.2f,   2.2f),
+    GlobeCountry("spain",   "Spain",   "🇪🇸", "ES",  40.4f,  -3.7f),
     GlobeCountry("sudan",   "Sudan",   "🇸🇩", "SD",  15.6f,  32.5f),
     GlobeCountry("japan",   "Japan",   "🇯🇵", "JP",  36.2f, 138.3f),
     GlobeCountry("mexico",  "Mexico",  "🇲🇽", "MX",  23.6f,-102.6f)
@@ -91,7 +110,8 @@ internal val GLOBE_COUNTRIES = listOf(
 private val GLOBE_COUNTRIES_BY_ID = GLOBE_COUNTRIES.associateBy { it.id }
 private val COUNTRY_FEATURED_FOODS = mapOf(
     "italy" to listOf("Pizza Margherita", "Pasta Carbonara", "Gelato", "Espresso"),
-    "france" to FrancePresentation.signatureFoods.map { "${it.emoji} ${it.name}" }
+    "france" to FrancePresentation.signatureFoods.map { "${it.emoji} ${it.name}" },
+    "spain" to SpainPresentation.signatureFoods.map { "${it.emoji} ${it.name}" }
 )
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -101,7 +121,7 @@ private val COUNTRY_FEATURED_FOODS = mapOf(
 // ──────────────────────────────────────────────────────────────────────────────
 
 internal class MarkerPositionCache {
-    private val _entries = ArrayList<Pair<GlobeCountry, Offset>>(6)
+    private val _entries = ArrayList<Pair<GlobeCountry, Offset>>(7)
     val entries: List<Pair<GlobeCountry, Offset>> get() = _entries
 
     fun update(country: GlobeCountry, screenPos: Offset) {
@@ -195,6 +215,9 @@ fun Globe3DScreen(
     var pulsePhase by remember { mutableFloatStateOf(0f) }
     var selectedCountry by remember { mutableStateOf<GlobeCountry?>(null) }
     var currentCountryId by remember { mutableStateOf("germany") }
+    var unlockBanner by remember { mutableStateOf<String?>(null) }
+    var unlockHighlightCountryId by remember { mutableStateOf<String?>(null) }
+    var unlockBaseline by remember { mutableStateOf<Set<String>?>(null) }
     val markerCache = remember { MarkerPositionCache() }
     val visibleIdsBuffer = remember { HashSet<String>(6) }
     val pointerPath = remember { Path() }
@@ -202,7 +225,12 @@ fun Globe3DScreen(
     val flightPlanePath = remember { Path() }
     val flightAnimator = remember { FlightAnimator() }
     val progressMap = ProgressionManager.progressMap
+    val unlockedIds = progressMap
+        .filterValues { it.isUnlocked }
+        .keys
+        .toSet()
     val density = LocalDensity.current
+    var bottomNavHeightPx by remember { mutableFloatStateOf(0f) }
     val pinNormPx = with(density) { 10.dp.toPx() }
     val pinSelPx = with(density) { 15.dp.toPx() }
     val ptrNormPx = with(density) { 7.dp.toPx() }
@@ -210,6 +238,52 @@ fun Globe3DScreen(
     val strokeWPx = with(density) { 1.5.dp.toPx() }
     val starGapPx = with(density) { 12.dp.toPx() }
     val hitRadiusPx = with(density) { HIT_RADIUS_DP.dp.toPx() }
+    val navInsetBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val bottomOverlayPadding = (with(density) { bottomNavHeightPx.toDp() } + 8.dp)
+        .coerceAtLeast(navInsetBottom + 80.dp)
+    val unlockPulseTransition = rememberInfiniteTransition(label = "unlockPulse")
+    val unlockPulse by unlockPulseTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 860, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "unlockPulseValue"
+    )
+
+    LaunchedEffect(unlockedIds) {
+        val baseline = unlockBaseline
+        if (baseline == null) {
+            unlockBaseline = unlockedIds
+        } else {
+            val newlyUnlocked = unlockedIds - baseline
+            if (newlyUnlocked.isNotEmpty()) {
+                val unlockedId = newlyUnlocked.first()
+                val country = GLOBE_COUNTRIES_BY_ID[unlockedId]
+                if (country != null) {
+                    unlockHighlightCountryId = unlockedId
+                    unlockBanner = "${country.flag} ${country.displayName} unlocked!"
+                    GlobalSystemManager.audio.playSfx(SfxType.COUNTRY_UNLOCK)
+                    GlobalSystemManager.haptics.heavy()
+                    val from = GLOBE_COUNTRIES_BY_ID[currentCountryId]
+                    if (from != null && from.id != unlockedId && !flightAnimator.isActive) {
+                        selectedCountry = null
+                        camera.cancelFlyTo()
+                        camera.stopInertia()
+                        flightAnimator.startFlight(from, country)
+                    }
+                    delay(1800)
+                    unlockBanner = null
+                    delay(500)
+                    if (unlockHighlightCountryId == unlockedId) {
+                        unlockHighlightCountryId = null
+                    }
+                }
+            }
+            unlockBaseline = unlockedIds
+        }
+    }
 
     // Pre-allocate Paint objects for marker labels — never reallocated after first composition
     val codePaint = remember {
@@ -240,19 +314,46 @@ fun Globe3DScreen(
             setShadowLayer(4f, 0f, 1f, android.graphics.Color.argb(100, 80, 60, 0))
         }
     }
+    val unlockFlagPaint = remember {
+        Paint().apply {
+            isAntiAlias = true
+            textSize = 34f
+            textAlign = Paint.Align.CENTER
+            setShadowLayer(8f, 0f, 2f, android.graphics.Color.argb(160, 0, 0, 0))
+        }
+    }
 
     // Single frame loop — inertia, fly-to, cloud drift and marker pulse.
-    // Kept at 60fps target to avoid idle-frame throttling jank on device profiling.
+    // Motion-heavy frames update every display frame; idle world state is throttled to reduce
+    // unnecessary recomposition and GPU load without changing gameplay/navigation behavior.
     LaunchedEffect(Unit) {
+        var lastFrameNanos = 0L
         var sunAccumulatorMs = 0f
+        var idleFrameDivider = 0
         while (isActive) {
+            val frameTimeNanos = withFrameNanos { it }
+            if (lastFrameNanos == 0L) {
+                lastFrameNanos = frameTimeNanos
+                continue
+            }
+            val rawFrameMs = ((frameTimeNanos - lastFrameNanos) / 1_000_000f).coerceIn(8f, 64f)
+            lastFrameNanos = frameTimeNanos
             val motionActive = camera.isFlyingTo ||
                 flightAnimator.isActive ||
                 flightAnimator.hasVisiblePath ||
                 kotlin.math.abs(camera.velY) > 0.05f ||
                 kotlin.math.abs(camera.velX) > 0.05f
-            val frameMs = 16f
-            delay(frameMs.toLong())
+
+            val idleWorld = !motionActive && selectedCountry == null
+            if (idleWorld) {
+                idleFrameDivider = (idleFrameDivider + 1) % 3
+                if (idleFrameDivider != 0) {
+                    continue
+                }
+            } else {
+                idleFrameDivider = 0
+            }
+            val frameMs = if (idleWorld) rawFrameMs * 1.5f else rawFrameMs
 
             camera.tickInertia()
             camera.tickFlyTo()
@@ -277,8 +378,7 @@ fun Globe3DScreen(
                 }
             }
 
-            // Fixed-step updates tuned for 60fps cadence.
-            val step = 1f
+            val step = frameMs / 16f
             cloudRotY  = (cloudRotY  + 0.012f * step) % 360f
             cloudDepthRotY = (cloudDepthRotY + 0.0085f * step) % 360f
             oceanPhase = (oceanPhase + 0.0042f * step) % TWO_PI
@@ -287,7 +387,8 @@ fun Globe3DScreen(
                 sunPhase = (sunPhase + 0.00032f * sunAccumulatorMs) % TWO_PI
                 sunAccumulatorMs = 0f
             }
-            pulsePhase = (pulsePhase + 0.022f * step) % TWO_PI
+            val pulseSpeed = if (idleWorld) 0.014f else 0.022f
+            pulsePhase = (pulsePhase + pulseSpeed * step) % TWO_PI
         }
     }
 
@@ -325,12 +426,14 @@ fun Globe3DScreen(
                     ?: continue
 
                 val isSelected  = country.id == selId
+                val isUnlockHighlighted = country.id == unlockHighlightCountryId
                 val progress = progressMap[country.id]
                 val isUnlocked = progress?.isUnlocked == true
                 val totalStars = progress?.totalStars ?: 0
                 val arrivalBoost = flightAnimator.arrivalBoostFor(country.id)
                 val selectedScale = when {
                     isSelected -> 1f + 0.07f * (0.5f + 0.5f * sin(pulsePhase * 1.4f))
+                    isUnlockHighlighted -> 1f + 0.11f * (0.25f + unlockPulse * 0.75f)
                     arrivalBoost > 0f -> 1f + 0.09f * arrivalBoost
                     else -> 1f
                 }
@@ -348,6 +451,12 @@ fun Globe3DScreen(
                     val pulse = 0.12f + 0.14f * (0.5f + 0.5f * sin(pulsePhase))
                     val glowR  = pinR * 2.35f
                     if (glowR > 0f) drawCircle(Color(1f, 0.83f, 0.20f, pulse), radius = glowR, center = circCenter)
+                    drawCircle(
+                        color = Color.White.copy(alpha = pulse * 0.42f),
+                        radius = pinR * 1.16f,
+                        center = circCenter,
+                        style = Stroke(width = strokeWPx * 0.72f)
+                    )
                 }
 
                 // ── Selected glow ────────────────────────────────────────────────
@@ -355,9 +464,28 @@ fun Globe3DScreen(
                     if (pinR * 3.9f > 0f) drawCircle(Color(0x4DFFD95A), radius = pinR * 3.9f, center = circCenter)
                     if (pinR * 2.5f > 0f) drawCircle(Color(0x7AFFE17D), radius = pinR * 2.5f, center = circCenter)
                     if (pinR * 1.5f > 0f) drawCircle(Color(0x55FFF6B8), radius = pinR * 1.5f, center = circCenter)
+                } else if (isUnlockHighlighted) {
+                    val unlockGlow = (0.4f + unlockPulse * 0.6f).coerceIn(0f, 1f)
+                    drawCircle(
+                        Color(1f, 0.87f, 0.40f, 0.30f * unlockGlow),
+                        radius = pinR * (3.3f + unlockPulse),
+                        center = circCenter
+                    )
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.12f + 0.26f * unlockGlow),
+                        radius = pinR * (1.2f + 0.12f * unlockGlow),
+                        center = circCenter,
+                        style = Stroke(width = strokeWPx * (0.72f + 0.3f * unlockGlow))
+                    )
                 } else if (arrivalBoost > 0f) {
                     val glowAlpha = (0.35f * arrivalBoost).coerceIn(0f, 0.35f)
                     drawCircle(Color(1f, 0.88f, 0.45f, glowAlpha), radius = pinR * (2.3f + 0.9f * arrivalBoost), center = circCenter)
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.18f * arrivalBoost),
+                        radius = pinR * (1.18f + 0.08f * arrivalBoost),
+                        center = circCenter,
+                        style = Stroke(width = strokeWPx * (0.72f + 0.1f * arrivalBoost))
+                    )
                 }
 
                 // ── Pin fill and stroke colors ────────────────────────────────────
@@ -408,6 +536,16 @@ fun Globe3DScreen(
                         tipPos.x,
                         tipPos.y + starGapPx,
                         starPaint
+                    )
+                }
+
+                if (isUnlockHighlighted) {
+                    val waveY = (6f + 3f * sin(pulsePhase * 2.8f)).coerceAtLeast(0f)
+                    drawContext.canvas.nativeCanvas.drawText(
+                        country.flag,
+                        circCenter.x,
+                        circCenter.y - pinR * 2f - waveY,
+                        unlockFlagPaint
                     )
                 }
             }
@@ -467,18 +605,84 @@ fun Globe3DScreen(
             GlobeCountryCard(
                 country       = country,
                 onPlayLevel   = { lvl -> onLevelSelected(country.id, lvl) },
-                onDismiss     = { selectedCountry = null }
+                onDismiss     = { selectedCountry = null },
+                bottomClearance = bottomOverlayPadding
             )
         }
 
         // ── Top HUD ───────────────────────────────────────────────────────
+        unlockBanner?.let { text ->
+            CountryUnlockToast(
+                text = text,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 66.dp)
+            )
+        }
         Box(modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth()) {
             TopStatusBar(onSettingsClick = {})
         }
 
         // ── Bottom navigation ──────────────────────────────────────────────
-        Box(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .onSizeChanged { bottomNavHeightPx = it.height.toFloat() }
+        ) {
             BottomNavigationBar(currentTab = "world", onTabSelected = onTabSelected)
+        }
+    }
+}
+
+@Composable
+private fun CountryUnlockToast(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    val pulse = rememberInfiniteTransition(label = "unlockToastPulse")
+    val glowAlpha by pulse.animateFloat(
+        initialValue = 0.52f,
+        targetValue = 0.92f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 980, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "unlockToastGlow"
+    )
+    val wave by pulse.animateFloat(
+        initialValue = -4f,
+        targetValue = 4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 760, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "unlockToastWave"
+    )
+    Surface(
+        modifier = modifier
+            .padding(horizontal = 14.dp)
+            .scale(1f + (glowAlpha - 0.52f) * 0.04f),
+        shape = RoundedCornerShape(14.dp),
+        color = Color(0xEE122742),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xAAFFD978).copy(alpha = glowAlpha))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "🚩",
+                fontSize = 16.sp,
+                modifier = Modifier.graphicsLayer { translationY = wave }
+            )
+            Text(
+                text = text,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp
+            )
         }
     }
 }
@@ -491,7 +695,8 @@ fun Globe3DScreen(
 private fun BoxScope.GlobeCountryCard(
     country: GlobeCountry,
     onPlayLevel: (Int) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    bottomClearance: Dp
 ) {
     val progress  = ProgressionManager.getCountryProgress(country.id)
     val spec      = remember(country.id) { CountryProgressionChain.getSpec(country.id) }
@@ -513,21 +718,32 @@ private fun BoxScope.GlobeCountryCard(
             .align(Alignment.BottomCenter)
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
-            .padding(bottom = 96.dp),
+            .padding(bottom = bottomClearance),
         contentAlignment = Alignment.Center
     ) {
         val compact = maxWidth < 390.dp
         val cardShape = RoundedCornerShape(if (compact) 20.dp else 24.dp)
         val contentHorizontal = if (compact) 16.dp else 20.dp
         val contentVertical = if (compact) 12.dp else 16.dp
+        val maxCardHeight = (maxHeight - bottomClearance - 12.dp).coerceAtLeast(260.dp)
 
         Surface(
-            modifier = Modifier.fillMaxWidth().widthIn(max = 620.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 620.dp)
+                .heightIn(max = maxCardHeight)
+                .shadow(
+                    elevation = if (compact) 16.dp else 22.dp,
+                    shape = cardShape,
+                    ambientColor = Color.Black.copy(alpha = 0.32f),
+                    spotColor = Color(0xFF2E78FF).copy(alpha = 0.2f)
+                ),
             shape = cardShape,
             color = Color(0xF2080F1E),
-            tonalElevation = 16.dp
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)),
+            tonalElevation = 18.dp
         ) {
-            Column {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             // ── Header gradient banner ─────────────────────────────────────
             Box(
                 modifier = Modifier
@@ -552,14 +768,14 @@ private fun BoxScope.GlobeCountryCard(
                         Text(
                             text = "EXPLORE DESTINATION",
                             color = Color.White.copy(alpha = 0.55f),
-                            fontSize = if (compact) 9.sp else 10.sp,
+                            fontSize = if (compact) 10.sp else 11.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = country.displayName,
                             color = Color.White,
-                            fontSize = if (compact) 19.sp else 22.sp,
+                            fontSize = if (compact) 20.sp else 23.sp,
                             fontWeight = FontWeight.ExtraBold
                         )
                         Spacer(modifier = Modifier.height(4.dp))
@@ -623,7 +839,7 @@ private fun BoxScope.GlobeCountryCard(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 16.dp),
+                            .padding(bottom = 14.dp),
                         horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp)
                     ) {
                         CountryMetricCard(
@@ -655,7 +871,7 @@ private fun BoxScope.GlobeCountryCard(
                         animationSpec = tween(durationMillis = 140),
                         label = "playButtonGlow"
                     )
-                    val playShape = RoundedCornerShape(18.dp)
+                    val playShape = RoundedCornerShape(20.dp)
 
                     Box(
                         modifier = Modifier
@@ -702,7 +918,7 @@ private fun BoxScope.GlobeCountryCard(
                             interactionSource = playButtonInteraction,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(58.dp),
+                                .height(60.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color.Transparent,
                                 contentColor = Color.White
@@ -724,7 +940,7 @@ private fun BoxScope.GlobeCountryCard(
                                 Text(
                                     text = "▶",
                                     color = Color.White,
-                                    fontSize = 20.sp,
+                                    fontSize = 22.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     modifier = Modifier.padding(end = 8.dp)
                                 )
@@ -732,7 +948,7 @@ private fun BoxScope.GlobeCountryCard(
                                     text = if (completedLevels == 0) "Start Adventure"
                                     else "Continue · Level $nextLevel",
                                     color = Color.White,
-                                    fontSize = 17.sp,
+                                    fontSize = 18.sp,
                                     fontWeight = FontWeight.ExtraBold
                                 )
                             }

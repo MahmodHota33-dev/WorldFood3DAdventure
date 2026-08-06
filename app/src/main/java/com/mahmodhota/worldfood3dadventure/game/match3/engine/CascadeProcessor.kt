@@ -58,8 +58,9 @@ class CascadeProcessor(
         var pendingPreferredPositions = preferredMatchPositions
 
         while (cascadeIndex <= maxCascades) {
-            val stepResolution = if (pendingForcedResolution != null) {
-                val resolved = resolveForcedStep(currentBoard, pendingForcedResolution!!)
+            val forcedResolution = pendingForcedResolution
+            val stepResolution = if (forcedResolution != null) {
+                val resolved = resolveForcedStep(currentBoard, forcedResolution)
                 pendingForcedResolution = null
                 pendingPreferredPositions = emptyList()
                 resolved

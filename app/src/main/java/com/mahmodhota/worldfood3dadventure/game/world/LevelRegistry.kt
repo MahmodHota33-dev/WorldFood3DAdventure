@@ -4,10 +4,12 @@ import com.mahmodhota.worldfood3dadventure.game.world.model.CountryDefinition
 import com.mahmodhota.worldfood3dadventure.game.world.model.CountryMetadata
 import com.mahmodhota.worldfood3dadventure.game.world.germany.GermanyMatch3Levels
 import com.mahmodhota.worldfood3dadventure.game.world.france.FranceFoodBookEntries
-import com.mahmodhota.worldfood3dadventure.game.world.italy.ItalyMatch3Levels
 import com.mahmodhota.worldfood3dadventure.game.world.france.FranceMatch3Levels
+import com.mahmodhota.worldfood3dadventure.game.world.italy.ItalyMatch3Levels
 import com.mahmodhota.worldfood3dadventure.game.world.japan.JapanMatch3Levels
 import com.mahmodhota.worldfood3dadventure.game.world.mexico.MexicoMatch3Levels
+import com.mahmodhota.worldfood3dadventure.game.world.spain.SpainFoodBookEntries
+import com.mahmodhota.worldfood3dadventure.game.world.spain.SpainMatch3Levels
 import com.mahmodhota.worldfood3dadventure.game.world.sudan.SudanMatch3Levels
 
 /**
@@ -63,19 +65,24 @@ object LevelRegistry {
             }
         ))
 
-        // Spain placeholder
         register(CountryDefinition(
             id = "spain",
             metadata = CountryMetadata(
-                levelId = "spain",
-                displayName = "Spain",
-                countryCode = "ES",
-                flagEmoji = "🇪🇸",
-                travelDescription = "A future Mediterranean adventure is on the horizon.",
-                comingSoonText = "Coming soon after France."
+                "spain",
+                "Spain",
+                "ES",
+                "🇪🇸",
+                "Explore sunlit plazas, coastlines, and a premium tapas journey across Spain."
             ),
-            levels = emptyList(),
-            isComingSoon = true
+            levels = SpainMatch3Levels.levels.map { it.withBalancedThresholds() },
+            foodEntries = SpainFoodBookEntries.entries.map {
+                com.mahmodhota.worldfood3dadventure.game.world.model.UnifiedFoodEntry(
+                    id = it.id,
+                    name = it.name,
+                    country = it.country,
+                    description = it.description
+                )
+            }
         ))
 
         // Japan

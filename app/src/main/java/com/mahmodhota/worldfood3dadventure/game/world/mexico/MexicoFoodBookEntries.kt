@@ -1,6 +1,6 @@
 package com.mahmodhota.worldfood3dadventure.game.world.mexico
 
-import com.mahmodhota.worldfood3dadventure.game.world.france.FoodBookEntry
+import com.mahmodhota.worldfood3dadventure.game.world.model.FoodBookEntry
 
 object MexicoFoodBookEntries {
     val entries = listOf(

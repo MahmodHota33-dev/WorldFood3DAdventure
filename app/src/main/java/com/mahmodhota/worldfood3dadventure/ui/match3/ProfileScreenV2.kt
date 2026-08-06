@@ -46,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mahmodhota.worldfood3dadventure.game.progress.PlayerLevelProgression
 import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionQuery
 import com.mahmodhota.worldfood3dadventure.game.world.france.FrancePresentation
+import com.mahmodhota.worldfood3dadventure.game.world.spain.SpainPresentation
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.BottomNavigationBar
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumColors
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumGameBackdrop
@@ -67,6 +68,8 @@ fun ProfileScreenV2(
     val completedCountries = ProgressionQuery.completedCountries(gameState)
     val franceCompletion = ProgressionQuery.completionPercentageForCountry(gameState, "france")
     val favoriteFood = FrancePresentation.favoriteFood(gameState)
+    val spainCompletion = ProgressionQuery.completionPercentageForCountry(gameState, "spain")
+    val spainFavoriteFood = SpainPresentation.favoriteFood(gameState)
     val playTimeText = formatPlayTime(stats.totalPlayTimeMillis)
     val xpSnapshot = PlayerLevelProgression.snapshot(totalXp = player.xp, storedLevel = player.level)
     val travelRank = travelRankForLevel(xpSnapshot.level)
@@ -148,7 +151,9 @@ fun ProfileScreenV2(
                             totalCountries = totalCountries,
                             highestCombo = stats.highestCombo,
                             franceCompletion = franceCompletion,
+                            spainCompletion = spainCompletion,
                             favoriteFood = favoriteFood,
+                            spainFavoriteFood = spainFavoriteFood,
                             playTimeText = playTimeText,
                             rank = travelRank,
                             compact = compact
@@ -307,7 +312,9 @@ private fun ProfileSummaryCard(
     totalCountries: Int,
     highestCombo: Int,
     franceCompletion: Int,
+    spainCompletion: Int,
     favoriteFood: String,
+    spainFavoriteFood: String,
     playTimeText: String,
     rank: String,
     compact: Boolean
@@ -329,10 +336,12 @@ private fun ProfileSummaryCard(
             )
             SummaryLine("Levels completed", completedLevels.toString())
             SummaryLine("France completion", "$franceCompletion%")
+            SummaryLine("Spain completion", "$spainCompletion%")
             SummaryLine("Countries visited", "$visitedCountries / $totalCountries")
             SummaryLine("Countries completed", completedCountries.toString())
             SummaryLine("Highest combo", highestCombo.toString())
             SummaryLine("Favorite food", favoriteFood)
+            SummaryLine("Favorite Spanish food", spainFavoriteFood)
             SummaryLine("Play time", playTimeText)
             SummaryLine("Travel rank", rank)
         }

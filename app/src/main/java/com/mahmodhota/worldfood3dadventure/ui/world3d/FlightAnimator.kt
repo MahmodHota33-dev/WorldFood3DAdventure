@@ -6,6 +6,7 @@ internal class FlightAnimator {
     private var start = GlobeGeoPoint(0f, 0f)
     private var end = GlobeGeoPoint(0f, 0f)
     private var progress = 1f
+    private var easedProgress = 1f
     private var durationMs = 1000f
     private var routeAlpha = 0f
     private var arrivalPulse = 0f
@@ -22,6 +23,7 @@ internal class FlightAnimator {
         val angular = FlightPath.angularDistanceDeg(start, end)
         durationMs = (800f + (angular / 180f).coerceIn(0f, 1f) * 600f).coerceIn(800f, 1400f)
         progress = 0f
+        easedProgress = 0f
         routeAlpha = 1f
         arrivalPulse = 0f
         destinationId = to.id
@@ -32,6 +34,7 @@ internal class FlightAnimator {
         val dt = max(0f, deltaMs)
         if (isActive) {
             progress = (progress + dt / durationMs).coerceIn(0f, 1f)
+            easedProgress = smoothStep(progress)
             routeAlpha = 1f
             if (!isActive && destinationId != null) {
                 arrivalPulse = 1f
@@ -51,12 +54,12 @@ internal class FlightAnimator {
 
     fun sampleAt(t: Float): FlightSample = FlightPath.sample(start, end, t)
 
-    fun currentSample(): FlightSample? = if (isActive) sampleAt(progress) else null
+    fun currentSample(): FlightSample? = if (isActive) sampleAt(easedProgress) else null
 
     fun currentDirectionSample(step: Float = 0.012f): Pair<FlightSample, FlightSample>? {
         if (!isActive) return null
-        val t1 = progress
-        val t2 = (progress + step).coerceIn(0f, 1f)
+        val t1 = easedProgress
+        val t2 = smoothStep((progress + step).coerceIn(0f, 1f))
         return sampleAt(t1) to sampleAt(t2)
     }
 
@@ -67,9 +70,15 @@ internal class FlightAnimator {
 
     fun clear() {
         progress = 1f
+        easedProgress = 1f
         routeAlpha = 0f
         arrivalPulse = 0f
         destinationId = null
         justArrivedId = null
+    }
+
+    private fun smoothStep(value: Float): Float {
+        val t = value.coerceIn(0f, 1f)
+        return t * t * (3f - 2f * t)
     }
 }

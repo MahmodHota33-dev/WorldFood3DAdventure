@@ -67,5 +67,16 @@ enum class FoodTileType {
     SAMBUSA,
     SHAWAYA,
     GURRASA,
-    ASIDA
+    ASIDA,
+
+    // Spain
+    PAELLA,
+    TORTILLA_ESPANOLA,
+    JAMON_IBERICO,
+    GAZPACHO,
+    CROQUETAS,
+    PATATAS_BRAVAS,
+    PULPO_A_LA_GALLEGA,
+    SANGRIA,
+    CREMA_CATALANA
 }

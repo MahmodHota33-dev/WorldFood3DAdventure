@@ -14,6 +14,9 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -95,12 +98,18 @@ private fun NavItem(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val isPressed by interaction.collectIsPressedAsState()
     val contentColor by animateColorAsState(
         targetValue = if (isSelected) PremiumColors.Gold else Color.Gray,
         label = "navColor"
     )
     val itemScale by animateFloatAsState(
-        targetValue = if (isSelected) 1.08f else 1.0f,
+        targetValue = when {
+            isPressed -> 0.96f
+            isSelected -> 1.08f
+            else -> 1.0f
+        },
         animationSpec = spring(),
         label = "navScale"
     )
@@ -122,7 +131,10 @@ private fun NavItem(
                     Modifier
                 }
             )
-            .clickable { onClick() }
+            .clickable(
+                interactionSource = interaction,
+                onClick = onClick
+            )
             .padding(horizontal = if (compact) 4.dp else 6.dp, vertical = if (compact) 5.dp else 6.dp)
             .heightIn(min = if (compact) 48.dp else 54.dp)
             .scale(itemScale),

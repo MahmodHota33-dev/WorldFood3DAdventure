@@ -1,5 +1,10 @@
 package com.mahmodhota.worldfood3dadventure.ui.match3
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -49,11 +54,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mahmodhota.worldfood3dadventure.game.match3.Match3LevelRegistry
 import com.mahmodhota.worldfood3dadventure.game.match3.model.FoodTileType
+import com.mahmodhota.worldfood3dadventure.game.match3.model.GameStatus
 import com.mahmodhota.worldfood3dadventure.game.match3.model.LevelGoal
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.FoodIcon
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.Match3BoardComposable
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumColors
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumBoosterPanel
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumCompletionDialog
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.TopStatusBar
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.WorldMapComponent
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.WorldMapGeometry
@@ -71,6 +78,10 @@ fun PremiumAdventureScreen(
     val state = viewModel.uiState
     val levelDef = remember(countryId, levelNumber) {
         Match3LevelRegistry.getLevel(countryId, levelNumber)
+    }
+    var showCompletionDialog by remember(countryId, levelNumber) { mutableStateOf(false) }
+    LaunchedEffect(state.status) {
+        showCompletionDialog = state.status == GameStatus.WON || state.status == GameStatus.LOST
     }
     DisposableEffect(viewModel) {
         onDispose { viewModel.onScreenExit() }
@@ -174,6 +185,57 @@ fun PremiumAdventureScreen(
                     modifier = Modifier.height(quickActionsHeight)
                 )
             }
+        }
+    }
+
+    AnimatedVisibility(
+        visible = showCompletionDialog,
+        enter = fadeIn() + scaleIn(initialScale = 0.96f),
+        exit = fadeOut() + scaleOut(targetScale = 0.96f)
+    ) {
+        when (state.status) {
+            GameStatus.WON -> {
+                val stars = when {
+                    state.score >= state.scoreThresholds.threeStars -> 3
+                    state.score >= state.scoreThresholds.twoStars -> 2
+                    else -> 1
+                }
+                PremiumCompletionDialog(
+                    isWin = true,
+                    score = state.score,
+                    stars = stars,
+                    collected = state.collectedCounts,
+                    xpReward = 50 * stars,
+                    coinReward = 10 * stars,
+                    onContinue = {
+                        showCompletionDialog = false
+                        onTabSelected("world")
+                    },
+                    onReplay = {
+                        showCompletionDialog = false
+                        viewModel.resetGame()
+                    }
+                )
+            }
+            GameStatus.LOST -> {
+                PremiumCompletionDialog(
+                    isWin = false,
+                    score = state.score,
+                    stars = 0,
+                    collected = state.collectedCounts,
+                    xpReward = 0,
+                    coinReward = 0,
+                    onContinue = {
+                        showCompletionDialog = false
+                        onTabSelected("world")
+                    },
+                    onReplay = {
+                        showCompletionDialog = false
+                        viewModel.resetGame()
+                    }
+                )
+            }
+            GameStatus.PLAYING -> Unit
         }
     }
 }

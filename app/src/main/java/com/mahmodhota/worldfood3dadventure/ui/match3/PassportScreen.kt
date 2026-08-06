@@ -1,5 +1,12 @@
 package com.mahmodhota.worldfood3dadventure.ui.match3
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -27,12 +34,18 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +58,8 @@ import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionQuery
 import com.mahmodhota.worldfood3dadventure.game.world.LevelRegistry
 import com.mahmodhota.worldfood3dadventure.game.world.france.FranceFoodBookEntries
 import com.mahmodhota.worldfood3dadventure.game.world.france.FrancePresentation
+import com.mahmodhota.worldfood3dadventure.game.world.spain.SpainFoodBookEntries
+import com.mahmodhota.worldfood3dadventure.game.world.spain.SpainPresentation
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.BottomNavigationBar
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumColors
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumGameBackdrop
@@ -77,6 +92,9 @@ fun PassportScreen(
     val stars = ProgressionQuery.totalStarsEarned(gameState)
     val progress = visitedCountries.toFloat() / totalCountries.toFloat()
     val franceProgress = ProgressionQuery.countryProgressFor(gameState, "france")
+    val spainProgress = ProgressionQuery.countryProgressFor(gameState, "spain")
+    val knownStates = remember { mutableStateMapOf<String, PassportStampState>() }
+    var highlightedCountryId by remember { mutableStateOf<String?>(null) }
 
     val passportEntries = remember(gameState) {
         ProgressionQuery.countryProgressMap(gameState)
@@ -92,6 +110,36 @@ fun PassportScreen(
                 }
             }
     }
+    LaunchedEffect(passportEntries) {
+        var newlyActivatedId: String? = null
+        passportEntries.forEach { entry ->
+            val previous = knownStates[entry.countryId]
+            if (previous != null &&
+                previous != entry.state &&
+                (entry.state == PassportStampState.VISITED || entry.state == PassportStampState.COMPLETED)
+            ) {
+                newlyActivatedId = entry.countryId
+            }
+            knownStates[entry.countryId] = entry.state
+        }
+        if (newlyActivatedId != null) {
+            highlightedCountryId = newlyActivatedId
+            kotlinx.coroutines.delay(1500)
+            if (highlightedCountryId == newlyActivatedId) {
+                highlightedCountryId = null
+            }
+        }
+    }
+    val pageTurnTilt by animateFloatAsState(
+        targetValue = if (highlightedCountryId != null) -6f else 0f,
+        animationSpec = spring(dampingRatio = 0.78f, stiffness = 380f),
+        label = "passportPageTurnTilt"
+    )
+    val pageTurnScale by animateFloatAsState(
+        targetValue = if (highlightedCountryId != null) 0.985f else 1f,
+        animationSpec = tween(durationMillis = 420),
+        label = "passportPageTurnScale"
+    )
 
     Scaffold(
         topBar = { TopStatusBar(onSettingsClick = {}) },
@@ -133,6 +181,11 @@ fun PassportScreen(
                         compact = compact
                     )
 
+                    SpainPassportFeatureCard(
+                        progress = spainProgress,
+                        compact = compact
+                    )
+
                     Text(
                         text = "COUNTRY STAMPS",
                         color = Color.White,
@@ -143,7 +196,14 @@ fun PassportScreen(
 
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(minSize = cardMinSize),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .graphicsLayer {
+                                rotationY = pageTurnTilt
+                                scaleX = pageTurnScale
+                                scaleY = pageTurnScale
+                                transformOrigin = TransformOrigin(0f, 0.5f)
+                            },
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                         contentPadding = PaddingValues(bottom = 12.dp)
@@ -151,7 +211,8 @@ fun PassportScreen(
                         items(passportEntries, key = { it.countryId }) { entry ->
                             PassportStampCard(
                                 entry = entry,
-                                compact = compact
+                                compact = compact,
+                                highlighted = highlightedCountryId == entry.countryId
                             )
                         }
                     }
@@ -340,10 +401,113 @@ private fun FrancePassportFeatureCard(
 }
 
 @Composable
-private fun PassportStampCard(
-    entry: PassportEntryUi,
+private fun SpainPassportFeatureCard(
+    progress: CountryProgress,
     compact: Boolean
 ) {
+    val levelsCompleted = progress.levels.count { it.isCompleted }
+    val totalLevels = 15
+    val completionPercent = (levelsCompleted * 100) / totalLevels
+    val foodsDiscovered = ((levelsCompleted * SpainFoodBookEntries.entries.size) + totalLevels - 1) / totalLevels
+    val badgeText = if (progress.isCompleted) SpainPresentation.completionBadge else "LOCKED BADGE"
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .premiumPanel()
+            .border(1.dp, Color(0xFFD4AF37).copy(alpha = 0.30f), PremiumShapes.PanelShape),
+        color = Color.Transparent
+    ) {
+        Column(
+            modifier = Modifier.padding(if (compact) 14.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(if (compact) 70.dp else 84.dp)
+                        .clip(CircleShape)
+                        .background(Brush.radialGradient(listOf(Color(0xFFE74C3C), Color(0xFF1F3C88)))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("🇪🇸", fontSize = if (compact) 28.sp else 34.sp)
+                }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "SPAIN",
+                        color = Color(0xFFD4AF37),
+                        fontSize = if (compact) 18.sp else 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.1.sp
+                    )
+                    Text(
+                        text = "Explore sunlit plazas, coastlines, and a premium tapas journey across Spain.",
+                        color = Color.White.copy(alpha = 0.78f),
+                        fontSize = if (compact) 11.sp else 12.sp,
+                        lineHeight = if (compact) 15.sp else 16.sp,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                PassportInfoChip("COMPLETE", "$completionPercent%", Modifier.weight(1f))
+                PassportInfoChip("STARS", progress.totalStars.toString(), Modifier.weight(1f))
+                PassportInfoChip("LEVELS", "$levelsCompleted/15", Modifier.weight(1f))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                PassportInfoChip("FOODS", "$foodsDiscovered / ${SpainFoodBookEntries.entries.size}", Modifier.weight(1f))
+                PassportInfoChip("BADGE", badgeText, Modifier.weight(1f))
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                PassportInfoChip("CAPITAL", SpainPresentation.countryFacts[1].value, Modifier.weight(1f))
+                PassportInfoChip("LANGUAGE", SpainPresentation.countryFacts[3].value, Modifier.weight(1f))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                PassportInfoChip("CURRENCY", SpainPresentation.countryFacts[4].value, Modifier.weight(1f))
+                PassportInfoChip("POPULATION", SpainPresentation.countryFacts[2].value, Modifier.weight(1f))
+            }
+
+            Text(
+                text = SpainPresentation.countryFacts[0].value,
+                color = Color.White.copy(alpha = 0.74f),
+                fontSize = if (compact) 11.sp else 12.sp,
+                lineHeight = if (compact) 15.sp else 16.sp
+            )
+            Text(
+                text = "Landmarks: ${SpainPresentation.countryFacts[5].value}",
+                color = Color.White.copy(alpha = 0.74f),
+                fontSize = if (compact) 11.sp else 12.sp,
+                lineHeight = if (compact) 15.sp else 16.sp
+            )
+            Text(
+                text = "Signature foods: ${SpainPresentation.signatureFoods.joinToString("  •  ") { "${it.emoji} ${it.name}" }}",
+                color = Color.White.copy(alpha = 0.74f),
+                fontSize = if (compact) 11.sp else 12.sp,
+                lineHeight = if (compact) 15.sp else 16.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun PassportStampCard(
+    entry: PassportEntryUi,
+    compact: Boolean,
+    highlighted: Boolean
+) {
+    val cardScale by animateFloatAsState(
+        targetValue = if (highlighted) 1.035f else 1f,
+        animationSpec = spring(dampingRatio = 0.72f, stiffness = 440f),
+        label = "passportCardScale"
+    )
+    val cardGlow by animateFloatAsState(
+        targetValue = if (highlighted) 0.62f else 0.22f,
+        animationSpec = tween(durationMillis = 380),
+        label = "passportCardGlow"
+    )
     val stampColor = when (entry.state) {
         PassportStampState.COMPLETED -> PremiumColors.Gold
         PassportStampState.VISITED -> Color(0xFF65D9A1)
@@ -360,7 +524,11 @@ private fun PassportStampCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(if (compact) 0.90f else 0.86f),
+            .aspectRatio(if (compact) 0.90f else 0.86f)
+            .graphicsLayer {
+                scaleX = cardScale
+                scaleY = cardScale
+            },
         shape = RoundedCornerShape(18.dp),
         color = Color.Transparent,
         border = androidx.compose.foundation.BorderStroke(
@@ -416,6 +584,26 @@ private fun PassportStampCard(
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.8.sp
+                        )
+                    }
+                }
+                AnimatedVisibility(
+                    visible = highlighted && (entry.state == PassportStampState.VISITED || entry.state == PassportStampState.COMPLETED),
+                    enter = fadeIn(tween(160)) + scaleIn(initialScale = 0.82f),
+                    exit = fadeOut(tween(160))
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = stampColor.copy(alpha = cardGlow),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, stampColor.copy(alpha = 0.72f))
+                    ) {
+                        Text(
+                            text = if (entry.state == PassportStampState.COMPLETED) "PASSPORT STAMPED" else "ENTRY STAMPED",
+                            color = Color.White,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 9.sp,
+                            letterSpacing = 0.8.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
                     }
                 }

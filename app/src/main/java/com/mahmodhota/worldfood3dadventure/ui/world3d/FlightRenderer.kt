@@ -56,6 +56,22 @@ internal fun DrawScope.drawFlightPath(
         color = Color(1f, 0.95f, 0.72f, 0.22f * alpha),
         style = Stroke(width = 6f, cap = StrokeCap.Round)
     )
+
+    animator.currentSample()?.let { sample ->
+        val head = projectLatLon(sample.latDeg, sample.lonDeg, rotY, rotX, cx, cy, r * (1f + sample.altitudeNorm))
+        if (head != null) {
+            drawCircle(
+                color = Color(1f, 0.94f, 0.72f, 0.35f * alpha),
+                radius = 8f,
+                center = head
+            )
+            drawCircle(
+                color = Color(1f, 0.98f, 0.88f, 0.78f * alpha),
+                radius = 3.2f,
+                center = head
+            )
+        }
+    }
 }
 
 internal fun DrawScope.drawFlightAirplane(

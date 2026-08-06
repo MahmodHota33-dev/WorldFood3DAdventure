@@ -29,23 +29,26 @@ class CountryProgressionChainTest {
         val germany = CountryProgressionChain.getSpec("germany")!!
         val italy = CountryProgressionChain.getSpec("italy")!!
         val france = CountryProgressionChain.getSpec("france")!!
+        val spain = CountryProgressionChain.getSpec("spain")!!
 
         assertTrue("Germany should have 0 star requirement", germany.requiredStarsToUnlock == 0)
         assertTrue("Italy should require more stars than Germany", italy.requiredStarsToUnlock > germany.requiredStarsToUnlock)
         assertTrue("France should require more stars than Italy", france.requiredStarsToUnlock > italy.requiredStarsToUnlock)
+        assertEquals("Spain should unlock after France completion", 135, spain.requiredStarsToUnlock)
     }
 
     @Test
     fun testGermanyItalyFranceChainOrder() {
         val ids = CountryProgressionChain.UNLOCK_ORDER.map { it.countryId }
-        assertEquals(listOf("germany", "italy", "france", "spain"), ids.take(4))
+        assertEquals(listOf("germany", "italy", "france", "spain", "japan"), ids.take(5))
     }
 
     @Test
-    fun testSpainIsPlaceholderLocked() {
+    fun testSpainIsPlayable() {
         val spec = CountryProgressionChain.getSpec("spain")!!
-        assertEquals(0, spec.totalLevels)
-        assertFalse(CountryProgressionChain.canUnlock("spain", spec.requiredStarsToUnlock))
+        assertEquals(15, spec.totalLevels)
+        assertFalse(CountryProgressionChain.canUnlock("spain", spec.requiredStarsToUnlock - 1))
+        assertTrue(CountryProgressionChain.canUnlock("spain", spec.requiredStarsToUnlock))
     }
 
     @Test
@@ -69,7 +72,7 @@ class CountryProgressionChainTest {
         assertEquals("Germany should have 15 levels", 15, CountryProgressionChain.getTotalLevels("germany"))
         assertEquals("Italy should have 15 levels", 15, CountryProgressionChain.getTotalLevels("italy"))
         assertEquals("France should have 15 levels", 15, CountryProgressionChain.getTotalLevels("france"))
-        assertEquals("Spain should have 0 levels", 0, CountryProgressionChain.getTotalLevels("spain"))
+        assertEquals("Spain should have 15 levels", 15, CountryProgressionChain.getTotalLevels("spain"))
         assertEquals("Japan should have 10 levels", 10, CountryProgressionChain.getTotalLevels("japan"))
         assertEquals("Mexico should have 10 levels", 10, CountryProgressionChain.getTotalLevels("mexico"))
         assertEquals("Sudan should have 10 levels", 10, CountryProgressionChain.getTotalLevels("sudan"))
@@ -78,9 +81,11 @@ class CountryProgressionChainTest {
     @Test
     fun testCompletionRewards() {
         val germany = CountryProgressionChain.getSpec("germany")!!
+        val spain = CountryProgressionChain.getSpec("spain")!!
         val sudan = CountryProgressionChain.getSpec("sudan")!!
 
         assertEquals("Germany completion should award 150 coins", 150, germany.rewardCoinsOnCompletion)
+        assertEquals("Spain completion should award 500 coins", 500, spain.rewardCoinsOnCompletion)
         assertTrue("Sudan completion should award more than Germany", sudan.rewardCoinsOnCompletion > germany.rewardCoinsOnCompletion)
     }
 

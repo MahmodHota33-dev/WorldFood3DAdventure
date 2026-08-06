@@ -7,7 +7,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.PI
 
-private const val CL_DEG2RAD = (PI / 180.0).toFloat()
+private const val CL_DEG2RAD = PI / 180.0
 
 // Minimum night intensity before a city light becomes visible (0..1).
 // Points nearer the terminator than this threshold are hidden.
@@ -122,10 +122,10 @@ internal val CITY_LIGHTS: List<CityLight> = listOf(
  * [0]=x, [1]=y, [2]=z  (same convention as [latLonToXyz])
  */
 internal val CITY_LIGHT_XYZ: Array<FloatArray> = Array(CITY_LIGHTS.size) { i ->
-    val lat = CITY_LIGHTS[i].lat * CL_DEG2RAD
-    val lon = CITY_LIGHTS[i].lon * CL_DEG2RAD
+    val lat = CITY_LIGHTS[i].lat.toDouble() * CL_DEG2RAD
+    val lon = CITY_LIGHTS[i].lon.toDouble() * CL_DEG2RAD
     val cosLat = cos(lat)
-    floatArrayOf(cosLat * sin(lon), sin(lat).toFloat(), cosLat * cos(lon))
+    floatArrayOf((cosLat * sin(lon)).toFloat(), sin(lat).toFloat(), (cosLat * cos(lon)).toFloat())
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -175,10 +175,10 @@ fun DrawScope.drawCityLights(
 ) {
     if (r <= 0f) return
 
-    val ryRad = rotY * CL_DEG2RAD
-    val cosRy = cos(ryRad); val sinRy = sin(ryRad)
-    val rxRad = rotX * CL_DEG2RAD
-    val cosRx = cos(rxRad); val sinRx = sin(rxRad)
+    val ryRad = rotY.toDouble() * CL_DEG2RAD
+    val cosRy = cos(ryRad).toFloat(); val sinRy = sin(ryRad).toFloat()
+    val rxRad = rotX.toDouble() * CL_DEG2RAD
+    val cosRx = cos(rxRad).toFloat(); val sinRx = sin(rxRad).toFloat()
 
     for (i in CITY_LIGHT_XYZ.indices step 2) {
         val xyz = CITY_LIGHT_XYZ[i]

@@ -34,8 +34,10 @@ class RegistryTest {
 
         val spain = LevelRegistry.getCountry("spain")
         assertNotNull(spain)
-        assertTrue(spain?.isComingSoon == true)
-        assertTrue(spain?.levels?.isEmpty() == true)
+        assertEquals("Spain", spain?.metadata?.displayName)
+        assertEquals(15, spain?.levels?.size)
+        assertTrue(spain?.isComingSoon == false)
+        assertEquals(10, spain?.foodEntries?.size)
     }
 
     @Test

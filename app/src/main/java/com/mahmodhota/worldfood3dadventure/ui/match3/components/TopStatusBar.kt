@@ -46,7 +46,7 @@ fun TopStatusBar(onSettingsClick: () -> Unit) {
     FixedOrderSurface {
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             val compact = maxWidth < 390.dp
-            val headerShape = RoundedCornerShape(if (compact) 24.dp else 28.dp)
+            val headerShape = RoundedCornerShape(if (compact) 20.dp else 24.dp)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -56,7 +56,7 @@ fun TopStatusBar(onSettingsClick: () -> Unit) {
                 Row(
                     modifier = Modifier
                         .windowInsetsPadding(WindowInsets.statusBars)
-                        .padding(horizontal = if (compact) 10.dp else 14.dp, vertical = if (compact) 8.dp else 10.dp)
+                        .padding(horizontal = if (compact) 8.dp else 10.dp, vertical = if (compact) 5.dp else 7.dp)
                         .clip(headerShape)
                         .background(
                             Brush.verticalGradient(
@@ -67,12 +67,12 @@ fun TopStatusBar(onSettingsClick: () -> Unit) {
                             )
                         )
                         .border(1.dp, PremiumColors.WhiteLow.copy(alpha = 0.32f), headerShape)
-                        .padding(horizontal = if (compact) 10.dp else 14.dp, vertical = if (compact) 9.dp else 12.dp),
+                        .padding(horizontal = if (compact) 8.dp else 10.dp, vertical = if (compact) 6.dp else 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Surface(
                         onClick = onSettingsClick,
-                        modifier = Modifier.size(if (compact) 50.dp else 56.dp),
+                        modifier = Modifier.size(if (compact) 42.dp else 46.dp),
                         shape = CircleShape,
                         color = PremiumColors.WhiteLow.copy(alpha = 0.08f),
                         border = BorderStroke(1.dp, PremiumColors.WhiteLow.copy(alpha = 0.35f))
@@ -82,7 +82,7 @@ fun TopStatusBar(onSettingsClick: () -> Unit) {
                                 Icons.Default.Settings,
                                 contentDescription = "Settings",
                                 tint = Color.White,
-                                modifier = Modifier.size(if (compact) 20.dp else 22.dp)
+                                modifier = Modifier.size(if (compact) 16.dp else 18.dp)
                             )
                         }
                     }
@@ -107,9 +107,9 @@ fun TopStatusBar(onSettingsClick: () -> Unit) {
                                 letterSpacing = 1.2.sp
                             )
                         }
-                        Spacer(Modifier.height(5.dp))
+                        Spacer(Modifier.height(3.dp))
                         XpProgressBar(progress = xpProgress)
-                        Spacer(Modifier.height(4.dp))
+                        Spacer(Modifier.height(2.dp))
                         Text(
                             text = xpLabel,
                             color = Color.White.copy(alpha = 0.68f),
@@ -135,7 +135,7 @@ fun TopStatusBar(onSettingsClick: () -> Unit) {
                                 compact = compact
                             )
                         }
-                        Spacer(Modifier.height(6.dp))
+                        Spacer(Modifier.height(3.dp))
                         StatCapsule(
                             icon = Icons.Default.Favorite,
                             value = player.lives.toString(),
@@ -188,7 +188,7 @@ private fun XpProgressBar(progress: Float) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(7.dp)
+            .height(5.dp)
             .clip(CircleShape)
             .background(Color.White.copy(alpha = 0.1f))
             .border(0.5.dp, Color.White.copy(alpha = 0.2f), CircleShape)
