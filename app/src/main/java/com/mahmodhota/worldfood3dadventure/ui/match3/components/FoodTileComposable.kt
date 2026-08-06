@@ -56,7 +56,9 @@ fun FoodTileComposable(
     isMatched: Boolean = false,
     isLanding: Boolean = false,
     isRefilling: Boolean = false,
-    specialEffectType: SpecialBoardEffectType? = null
+    specialEffectType: SpecialBoardEffectType? = null,
+    spawnedSpecialType: SpecialTileType? = null,
+    spawnedSpecialNonce: Int = 0
 ) {
     val palette = tilePalette(tile.type.ordinal)
     val spawnScale = remember(tile.id) { Animatable(1f) }
@@ -140,6 +142,15 @@ fun FoodTileComposable(
         animationSpec = tween(durationMillis = Match3MotionTokens.MatchPopDurationMs),
         label = "matchBurst"
     )
+    val spawnedPulseProgress = remember(tile.id) { Animatable(1f) }
+    LaunchedEffect(spawnedSpecialType, spawnedSpecialNonce) {
+        if (spawnedSpecialType != null && spawnedSpecialNonce > 0) {
+            spawnedPulseProgress.snapTo(0f)
+            spawnedPulseProgress.animateTo(1f, tween(durationMillis = 240, easing = FastOutSlowInEasing))
+        } else {
+            spawnedPulseProgress.snapTo(1f)
+        }
+    }
 
     Box(
         modifier = modifier
@@ -212,6 +223,34 @@ fun FoodTileComposable(
                                 Color.Transparent
                             )
                         )
+                    )
+            )
+        }
+        if (spawnedSpecialType != null && spawnedSpecialNonce > 0 && spawnedPulseProgress.value < 1f) {
+            val pulseAlpha = (1f - spawnedPulseProgress.value) * 0.55f
+            val ringAlpha = (1f - spawnedPulseProgress.value) * 0.65f
+            val pulseColor = when (spawnedSpecialType) {
+                SpecialTileType.ROW_CLEAR,
+                SpecialTileType.COLUMN_CLEAR -> PremiumColors.Gold
+                SpecialTileType.BOMB -> Color(0xFFFFC857)
+                SpecialTileType.COLOR_BOMB -> PremiumColors.Emerald
+                SpecialTileType.NONE -> PremiumColors.Gold
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                pulseColor.copy(alpha = pulseAlpha),
+                                Color.Transparent
+                            )
+                        )
+                    )
+                    .border(
+                        width = 1.4.dp,
+                        color = Color.White.copy(alpha = ringAlpha),
+                        shape = RoundedCornerShape(16.dp)
                     )
             )
         }

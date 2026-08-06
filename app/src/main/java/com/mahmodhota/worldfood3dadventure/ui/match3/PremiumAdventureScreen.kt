@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -25,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
@@ -117,12 +121,16 @@ fun PremiumAdventureScreen(
                     goals = state.goals,
                     collected = state.collectedCounts,
                     score = state.score,
+                    goalPulseType = state.goalPulseType,
+                    goalPulseNonce = state.goalPulseNonce,
                     modifier = Modifier.height(stripHeight)
                 )
 
                 PremiumBoosterPanel(
                     inventory = state.boosterInventory,
                     selectedBooster = state.selectedBooster,
+                    activatedBooster = state.activatedBooster,
+                    activationNonce = state.boosterActivationNonce,
                     onBoosterSelected = viewModel::onBoosterSelected,
                     modifier = Modifier.height(boosterHeight),
                     isHorizontal = true,
@@ -150,7 +158,14 @@ fun PremiumAdventureScreen(
                         comboLabel = state.comboLabel,
                         boardShakeNonce = state.boardShakeNonce,
                         boardShakeEnabled = state.boardShakeEnabled,
-                        specialEffects = state.specialEffects
+                        specialEffects = state.specialEffects,
+                        floatingScoreText = state.floatingScoreText,
+                        floatingScoreNonce = state.floatingScoreNonce,
+                        floatingScoreAnchor = state.floatingScoreAnchor,
+                        specialEffectLabel = state.specialEffectLabel,
+                        specialEffectNonce = state.specialEffectNonce,
+                        spawnedSpecialTiles = state.spawnedSpecialTiles,
+                        spawnedSpecialNonce = state.spawnedSpecialNonce
                     )
                 }
 
@@ -220,6 +235,8 @@ private fun CompactGameplayInfoStrip(
     goals: List<LevelGoal>,
     collected: Map<FoodTileType, Int>,
     score: Int,
+    goalPulseType: FoodTileType? = null,
+    goalPulseNonce: Int = 0,
     modifier: Modifier = Modifier
 ) {
     val primaryGoal = goals.firstOrNull()
@@ -261,6 +278,24 @@ private fun CompactGameplayInfoStrip(
             val goalLabelFont = if (compactWidth) 8.sp else 9.sp
             val horizontalInset = if (compactWidth) 8.dp else 10.dp
             val verticalInset = if (compactWidth) 6.dp else 8.dp
+            var goalPulseVisible by remember { mutableStateOf(false) }
+            LaunchedEffect(goalPulseNonce) {
+                if (goalPulseNonce > 0) {
+                    goalPulseVisible = true
+                    kotlinx.coroutines.delay(240)
+                    goalPulseVisible = false
+                }
+            }
+            val pulseScale by animateFloatAsState(
+                targetValue = if (goalPulseVisible) 1.035f else 1f,
+                animationSpec = spring(dampingRatio = 0.72f, stiffness = 520f),
+                label = "goalPulseScale"
+            )
+            val pulseBorderAlpha by animateFloatAsState(
+                targetValue = if (goalPulseVisible) 0.9f else 0.45f,
+                animationSpec = spring(dampingRatio = 0.78f, stiffness = 560f),
+                label = "goalPulseBorder"
+            )
 
             Row(
                 modifier = Modifier
@@ -334,6 +369,16 @@ private fun CompactGameplayInfoStrip(
                         .weight(1.1f)
                         .widthIn(min = if (compactWidth) 108.dp else 116.dp)
                         .semantics { contentDescription = "Goal $goalLabel progress $goalProgress" }
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(
+                            width = 1.2.dp,
+                            color = (if (goalPulseType != null) PremiumColors.Gold else Color.White).copy(alpha = pulseBorderAlpha),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .graphicsLayer {
+                            scaleX = pulseScale
+                            scaleY = pulseScale
+                        }
                 ) {
                     Row(
                         modifier = Modifier

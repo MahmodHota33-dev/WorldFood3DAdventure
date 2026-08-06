@@ -60,7 +60,18 @@ data class Match3UiState(
     val boardShakeEnabled: Boolean = false,
     val specialEffects: List<SpecialBoardEffect> = emptyList(),
     val boosterInventory: BoosterInventory = BoosterInventory(),
-    val selectedBooster: BoosterType? = null
+    val selectedBooster: BoosterType? = null,
+    val floatingScoreText: String? = null,
+    val floatingScoreNonce: Int = 0,
+    val floatingScoreAnchor: BoardPosition? = null,
+    val specialEffectLabel: String? = null,
+    val specialEffectNonce: Int = 0,
+    val goalPulseType: FoodTileType? = null,
+    val goalPulseNonce: Int = 0,
+    val activatedBooster: BoosterType? = null,
+    val boosterActivationNonce: Int = 0,
+    val spawnedSpecialTiles: Map<BoardPosition, SpecialTileType> = emptyMap(),
+    val spawnedSpecialNonce: Int = 0
 )
 
 class Match3ViewModel(
@@ -179,7 +190,9 @@ class Match3ViewModel(
                     fallDistanceByTileId = emptyMap(),
                     refillTileIds = emptySet(),
                     landingTileIds = emptySet(),
-                    specialEffects = emptyList()
+                    specialEffects = emptyList(),
+                    specialEffectLabel = null,
+                    spawnedSpecialTiles = emptyMap()
                 )
 
                 val result = withContext(Dispatchers.Default) { engine.performSwap(uiState.board, pos1, pos2) }
@@ -196,6 +209,7 @@ class Match3ViewModel(
                             detail = "matched=${result.totalMatchedTiles} score=${result.scoreGained}"
                         )
                         playSfx(SfxType.SWAP_VALID)
+                        hapticLight()
                         uiState = uiState.copy(board = result.swappedBoard)
                         delay(Match3MotionTokens.SwapDurationMs.toLong())
                         playCascadeResult(result.stableBoard, result.cascadeSteps, result.scoreGained, result.collectedCounts, movesDelta = -1)
@@ -273,7 +287,10 @@ class Match3ViewModel(
                     matchedPositions = setOf(position),
                     specialEffects = emptyList(),
                     boardShakeNonce = uiState.boardShakeNonce + 1,
-                    boardShakeEnabled = true
+                    boardShakeEnabled = true,
+                    activatedBooster = BoosterType.HAMMER,
+                    boosterActivationNonce = uiState.boosterActivationNonce + 1,
+                    spawnedSpecialTiles = emptyMap()
                 )
                 delay(Match3MotionTokens.MatchPopDurationMs.toLong())
                 val result = withContext(Dispatchers.Default) { engine.applyHammer(uiState.board, position) }
@@ -322,7 +339,10 @@ class Match3ViewModel(
                 selectedBooster = null,
                 selectedPosition = null,
                 boardShakeNonce = uiState.boardShakeNonce + 1,
-                boardShakeEnabled = true
+                boardShakeEnabled = true,
+                activatedBooster = BoosterType.SHUFFLE,
+                boosterActivationNonce = uiState.boosterActivationNonce + 1,
+                spawnedSpecialTiles = emptyMap()
             )
             delay(Match3SpecialConfig.SpecialComboDurationMs.toLong())
             uiState = uiState.copy(boardShakeEnabled = false)
@@ -359,7 +379,9 @@ class Match3ViewModel(
                 movesRemaining = uiState.movesRemaining + Match3SpecialConfig.ExtraMovesBoostAmount,
                 boosterInventory = updatedInventory,
                 selectedBooster = null,
-                selectedPosition = null
+                selectedPosition = null,
+                activatedBooster = BoosterType.EXTRA_MOVES,
+                boosterActivationNonce = uiState.boosterActivationNonce + 1
             )
         }
     }
@@ -381,34 +403,35 @@ class Match3ViewModel(
             cascadeCount = cascadeSteps.size
         )
         cascadeSteps.forEachIndexed { index, step ->
+            val feedback = resolveCascadeFeedback(
+                stepIndex = index,
+                matchedCount = step.matchedPositions.size,
+                specialSpawnCount = step.specialSpawnCount,
+                specialEffects = step.specialEffects
+            )
             val impactfulStep = step.specialSpawnCount > 0 ||
                 step.specialEffects.isNotEmpty() ||
                 step.matchedPositions.size >= 5
-            val comboLabel = when {
-                step.specialEffects.any { it.type == SpecialBoardEffectType.COLOR_CLEAR } -> "Delicious Combo"
-                index >= 2 -> "Amazing"
-                index == 1 -> "Great"
-                else -> null
-            }
+            val pulseGoalType = step.matchedPositions
+                .asSequence()
+                .mapNotNull { pos -> uiState.board.tileAt(pos)?.type }
+                .firstOrNull { type ->
+                    uiState.goals.any { goal -> goal is LevelGoal.CollectFood && goal.type == type }
+                }
+            val hasScoreGoal = uiState.goals.any { it is LevelGoal.ScoreTarget }
+            val shouldPulseGoal = pulseGoalType != null || hasScoreGoal
+            val goalPulseNonce = if (shouldPulseGoal) uiState.goalPulseNonce + 1 else uiState.goalPulseNonce
+            val floatingScoreNonce = uiState.floatingScoreNonce + 1
+            val specialEffectLabel = specialEffectEventLabel(step.specialEffects)
+            val specialEffectNonce = if (specialEffectLabel != null) uiState.specialEffectNonce + 1 else uiState.specialEffectNonce
 
-            when {
-                step.specialEffects.any { it.type == SpecialBoardEffectType.COLOR_CLEAR } -> {
-                    playSfx(SfxType.MATCH_LARGE)
-                    hapticHeavy()
-                }
-                step.specialEffects.isNotEmpty() || step.specialSpawnCount > 0 -> {
-                    playSfx(SfxType.MATCH_LARGE)
-                    hapticMedium()
-                }
-                index > 0 -> {
-                    playSfx(SfxType.CASCADE)
-                    hapticLight()
-                }
-                else -> {
-                    playSfx(SfxType.MATCH_SMALL)
-                    hapticMedium()
-                }
+            when (feedback.haptic) {
+                HapticFeedbackStrength.LIGHT -> hapticLight()
+                HapticFeedbackStrength.MEDIUM -> hapticMedium()
+                HapticFeedbackStrength.HEAVY -> hapticHeavy()
+                HapticFeedbackStrength.NONE -> Unit
             }
+            playSfx(feedback.sfxType)
 
             Match3Telemetry.log(
                 event = Match3TelemetryEvent.MATCH_FOUND,
@@ -458,19 +481,28 @@ class Match3ViewModel(
                 animationPhase = Match3AnimationPhase.RemovingMatches,
                 matchedPositions = step.matchedPositions,
                 comboCount = index + 1,
-                comboLabel = comboLabel,
+                comboLabel = feedback.comboLabel,
                 activeTileAnimationIds = emptySet(),
                 fallDistanceByTileId = emptyMap(),
                 refillTileIds = emptySet(),
                 landingTileIds = emptySet(),
                 specialEffects = step.specialEffects,
                 boardShakeNonce = if (impactfulStep) uiState.boardShakeNonce + 1 else uiState.boardShakeNonce,
-                boardShakeEnabled = impactfulStep
+                boardShakeEnabled = impactfulStep,
+                floatingScoreText = floatingScoreLabel(step.scoreAwarded, index + 1),
+                floatingScoreNonce = floatingScoreNonce,
+                floatingScoreAnchor = scoreAnchorPosition(step.matchedPositions),
+                specialEffectLabel = specialEffectLabel,
+                specialEffectNonce = specialEffectNonce,
+                goalPulseType = pulseGoalType,
+                goalPulseNonce = goalPulseNonce,
+                spawnedSpecialTiles = emptyMap()
             )
             delay(Match3MotionTokens.MatchPopDurationMs.toLong())
             uiState = uiState.copy(
                 matchedPositions = emptySet(),
-                specialEffects = emptyList()
+                specialEffects = emptyList(),
+                goalPulseType = null
             )
 
             Match3Telemetry.log(
@@ -490,7 +522,13 @@ class Match3ViewModel(
                 fallDistanceByTileId = step.fallDistanceByTileId,
                 refillTileIds = step.refillTileIds,
                 landingTileIds = landingTileIds,
-                boardShakeEnabled = false
+                boardShakeEnabled = false,
+                spawnedSpecialTiles = step.createdSpecialTiles,
+                spawnedSpecialNonce = if (step.createdSpecialTiles.isNotEmpty()) {
+                    uiState.spawnedSpecialNonce + 1
+                } else {
+                    uiState.spawnedSpecialNonce
+                }
             )
 
             val maxDrop = step.fallDistanceByTileId.values.maxOrNull() ?: 0
@@ -533,7 +571,18 @@ class Match3ViewModel(
             comboLabel = null,
             boardShakeEnabled = false,
             specialEffects = emptyList(),
-            selectedBooster = null
+            selectedBooster = null,
+            floatingScoreText = null,
+            floatingScoreNonce = 0,
+            floatingScoreAnchor = null,
+            specialEffectLabel = null,
+            specialEffectNonce = 0,
+            goalPulseType = null,
+            goalPulseNonce = 0,
+            activatedBooster = null,
+            boosterActivationNonce = 0,
+            spawnedSpecialTiles = emptyMap(),
+            spawnedSpecialNonce = 0
         )
 
         Match3Telemetry.log(
@@ -583,9 +632,15 @@ class Match3ViewModel(
                 cascadeCount = 0
             )
             playSfx(victorySfx)
-            playSfx(SfxType.STAR_EARNED)
-            playSfx(SfxType.XP_GAINED)
             hapticHeavy()
+            viewModelScope.launch {
+                delay(Match3MotionTokens.VictoryRewardDelayMs)
+                playSfx(SfxType.STAR_EARNED)
+                hapticMedium()
+                delay(Match3MotionTokens.VictoryXpDelayMs)
+                playSfx(SfxType.XP_GAINED)
+                hapticLight()
+            }
             uiState = uiState.copy(status = GameStatus.WON, animationPhase = Match3AnimationPhase.Completed)
             val stars = when {
                 uiState.score >= uiState.scoreThresholds.threeStars -> 3
@@ -635,20 +690,6 @@ class Match3ViewModel(
     }
 
     private fun clearTransientAnimationState(isAnimating: Boolean) {
-        uiState = uiState.copy(
-            isAnimating = isAnimating,
-            selectedPosition = null,
-            matchedPositions = emptySet(),
-            comboCount = 0,
-            animationPhase = Match3AnimationPhase.Idle,
-            activeTileAnimationIds = emptySet(),
-            fallDistanceByTileId = emptyMap(),
-            refillTileIds = emptySet(),
-            landingTileIds = emptySet(),
-            comboLabel = null,
-            boardShakeEnabled = false,
-            specialEffects = emptyList(),
-            selectedBooster = null
-        )
+        uiState = uiState.resetTransientUi(isAnimating)
     }
 }

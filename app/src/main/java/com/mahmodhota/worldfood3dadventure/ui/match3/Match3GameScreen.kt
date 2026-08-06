@@ -84,9 +84,9 @@ fun Match3GameScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                    .padding(horizontal = 2.dp, vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
+                verticalArrangement = Arrangement.Top
             ) {
                 // Header: Moves and Score
                 Row(
@@ -99,31 +99,33 @@ fun Match3GameScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
                             .premiumPanel()
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
                     ) {
                         Text(
                             text = "Level $levelNumber", 
                             color = Color.White, 
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 18.sp
+                            fontSize = 16.sp
                         )
-                        Text(text = countryId.uppercase(), color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp, letterSpacing = 1.sp)
+                        Text(text = countryId.uppercase(), color = Color.White.copy(alpha = 0.72f), fontSize = 10.sp, letterSpacing = 1.sp)
                     }
                     InfoPanel(label = "Score", value = state.score.toString())
                 }
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
 
                 PremiumBoosterPanel(
                     inventory = state.boosterInventory,
                     selectedBooster = state.selectedBooster,
+                    activatedBooster = state.activatedBooster,
+                    activationNonce = state.boosterActivationNonce,
                     onBoosterSelected = viewModel::onBoosterSelected,
                     modifier = Modifier.fillMaxWidth(),
                     isHorizontal = true,
                     enabled = !state.isAnimating && state.status == GameStatus.PLAYING
                 )
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
 
                 // Board — weight(1f) takes all remaining vertical space
                 Match3BoardComposable(
@@ -131,7 +133,9 @@ fun Match3GameScreen(
                     selectedPosition = state.selectedPosition,
                     matchedPositions = state.matchedPositions,
                     onTileClick = { viewModel.onTileSelected(it) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
                     comboCount = state.comboCount,
                     animationPhase = state.animationPhase,
                     activeTileAnimationIds = state.activeTileAnimationIds,
@@ -141,10 +145,17 @@ fun Match3GameScreen(
                     comboLabel = state.comboLabel,
                     boardShakeNonce = state.boardShakeNonce,
                     boardShakeEnabled = state.boardShakeEnabled,
-                    specialEffects = state.specialEffects
+                    specialEffects = state.specialEffects,
+                    floatingScoreText = state.floatingScoreText,
+                    floatingScoreNonce = state.floatingScoreNonce,
+                    floatingScoreAnchor = state.floatingScoreAnchor,
+                    specialEffectLabel = state.specialEffectLabel,
+                    specialEffectNonce = state.specialEffectNonce,
+                    spawnedSpecialTiles = state.spawnedSpecialTiles,
+                    spawnedSpecialNonce = state.spawnedSpecialNonce
                 )
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
 
                 // Footer: Goals
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -154,7 +165,7 @@ fun Match3GameScreen(
                         currentScore = state.score
                     )
                     
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(12.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -175,10 +186,9 @@ fun Match3GameScreen(
                                 .background(Brush.horizontalGradient(listOf(PremiumColors.Emerald, PremiumColors.MutedBlue)))
                                 .clickable(
                                     interactionSource = interactionSource,
-                                    indication = null,
                                     onClick = onBackToMap
                                 )
-                                .padding(vertical = 14.dp),
+                                .padding(vertical = 12.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -206,6 +216,8 @@ fun Match3GameScreen(
             score = state.score,
             stars = stars,
             collected = state.collectedCounts,
+            xpReward = 50 * stars,
+            coinReward = 10 * stars,
             onContinue = onBackToMap,
             onReplay = { viewModel.resetGame() }
         )
@@ -215,6 +227,8 @@ fun Match3GameScreen(
             score = state.score,
             stars = 0,
             collected = state.collectedCounts,
+            xpReward = 0,
+            coinReward = 0,
             onContinue = onBackToMap,
             onReplay = { viewModel.resetGame() }
         )
@@ -383,11 +397,11 @@ private fun InfoPanel(label: String, value: String) {
     Column(
         modifier = Modifier
             .premiumPanel()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 7.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = label.uppercase(), color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-        Text(text = value, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+        Text(text = label.uppercase(), color = Color.Gray, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Text(text = value, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
     }
 }
 

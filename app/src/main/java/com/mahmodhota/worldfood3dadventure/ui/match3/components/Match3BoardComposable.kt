@@ -1,10 +1,8 @@
 package com.mahmodhota.worldfood3dadventure.ui.match3.components
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -12,6 +10,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,18 +26,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -50,9 +49,11 @@ import com.mahmodhota.worldfood3dadventure.game.match3.model.BoardPosition
 import com.mahmodhota.worldfood3dadventure.game.match3.model.Match3Board
 import com.mahmodhota.worldfood3dadventure.game.match3.model.SpecialBoardEffect
 import com.mahmodhota.worldfood3dadventure.game.match3.model.SpecialBoardEffectType
+import com.mahmodhota.worldfood3dadventure.game.match3.model.SpecialTileType
 import com.mahmodhota.worldfood3dadventure.ui.match3.Match3AnimationPhase
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -74,21 +75,20 @@ fun Match3BoardComposable(
     comboLabel: String? = null,
     boardShakeNonce: Int = 0,
     boardShakeEnabled: Boolean = false,
-    specialEffects: List<SpecialBoardEffect> = emptyList()
+    specialEffects: List<SpecialBoardEffect> = emptyList(),
+    floatingScoreText: String? = null,
+    floatingScoreNonce: Int = 0,
+    floatingScoreAnchor: BoardPosition? = null,
+    specialEffectLabel: String? = null,
+    specialEffectNonce: Int = 0,
+    spawnedSpecialTiles: Map<BoardPosition, SpecialTileType> = emptyMap(),
+    spawnedSpecialNonce: Int = 0
 ) {
     var previousBoard by remember { mutableStateOf<Match3Board?>(null) }
     val boardShakeOffsetPx = remember { Animatable(0f) }
     val specialEffectProgress = remember { Animatable(0f) }
-    val idleTransition = rememberInfiniteTransition(label = "boardIdle")
-    val idlePulse by idleTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2200),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "boardIdlePulse"
-    )
+    val spawnedSpecialProgress = remember { Animatable(0f) }
+    val matchGlowProgress = remember { Animatable(0f) }
 
     LaunchedEffect(boardShakeNonce, boardShakeEnabled) {
         if (boardShakeEnabled && boardShakeNonce > 0) {
@@ -119,14 +119,32 @@ fun Match3BoardComposable(
         }
     }
 
+    LaunchedEffect(spawnedSpecialNonce, spawnedSpecialTiles) {
+        if (spawnedSpecialNonce <= 0 || spawnedSpecialTiles.isEmpty()) {
+            spawnedSpecialProgress.snapTo(0f)
+        } else {
+            spawnedSpecialProgress.snapTo(0f)
+            spawnedSpecialProgress.animateTo(1f, tween(durationMillis = 260))
+        }
+    }
+
+    LaunchedEffect(matchedPositions) {
+        if (matchedPositions.isEmpty()) {
+            matchGlowProgress.snapTo(0f)
+        } else {
+            matchGlowProgress.snapTo(0f)
+            matchGlowProgress.animateTo(1f, tween(durationMillis = Match3MotionTokens.MatchPopDurationMs))
+        }
+    }
+
     FixedCoordinateSurface {
         BoxWithConstraints(
             modifier = modifier
                 .fillMaxSize()
-                    .padding(4.dp),
+                .padding(1.dp),
             contentAlignment = Alignment.Center
         ) {
-                val boardPadding = 4.dp
+            val boardPadding = 0.dp
             val maxAvailableWidth = maxWidth - (boardPadding * 2)
             val maxAvailableHeight = maxHeight - (boardPadding * 2)
             val boardSize = minOf(maxAvailableWidth, maxAvailableHeight).coerceAtLeast(0.dp)
@@ -171,7 +189,6 @@ fun Match3BoardComposable(
                 Box(
                     modifier = Modifier
                         .size(boardSize)
-                        .scale(1f + idlePulse * 0.0025f)
                         .offset { IntOffset(boardShakeOffsetPx.value.roundToInt(), 0) }
                         .clip(RoundedCornerShape(18.dp))
                         .background(
@@ -180,17 +197,22 @@ fun Match3BoardComposable(
                             )
                         )
                         .border(1.5.dp, PremiumColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(18.dp))
-                        .padding(2.dp)
+                        .padding(1.dp)
                         .clipToBounds()
                         .pointerInput(board, boardSize) {
                             val boardSizePx = boardSize.toPx()
-                            // Use local tracking variable so onDrag always has the correct
-                            // origin tile — avoids stale Composable parameter capture.
+                            val tileExtentPx = boardSizePx / board.columns
                             var dragOrigin: BoardPosition? = null
+                            var accumulatedDragX = 0f
+                            var accumulatedDragY = 0f
                             detectDragGestures(
                                 onDragStart = { offset ->
-                                    val col = (offset.x / (boardSizePx / board.columns)).toInt()
-                                    val row = (offset.y / (boardSizePx / board.rows)).toInt()
+                                    accumulatedDragX = 0f
+                                    accumulatedDragY = 0f
+                                    val clampedX = offset.x.coerceIn(0f, boardSizePx - 1f)
+                                    val clampedY = offset.y.coerceIn(0f, boardSizePx - 1f)
+                                    val col = (clampedX / tileExtentPx).toInt()
+                                    val row = (clampedY / tileExtentPx).toInt()
                                     if (row in 0 until board.rows && col in 0 until board.columns) {
                                         dragOrigin = BoardPosition(row, col)
                                         onTileClick(BoardPosition(row, col))
@@ -200,26 +222,40 @@ fun Match3BoardComposable(
                                     change.consume()
                                     val origin = dragOrigin
                                     if (origin != null) {
-                                        val threshold = boardSizePx / board.columns * 0.35f
+                                        accumulatedDragX += dragAmount.x
+                                        accumulatedDragY += dragAmount.y
+                                        val threshold = tileExtentPx * 0.24f
+                                        val absX = abs(accumulatedDragX)
+                                        val absY = abs(accumulatedDragY)
                                         val targetPos = when {
-                                            dragAmount.x > threshold -> origin.copy(column = origin.column + 1)
-                                            dragAmount.x < -threshold -> origin.copy(column = origin.column - 1)
-                                            dragAmount.y > threshold -> origin.copy(row = origin.row + 1)
-                                            dragAmount.y < -threshold -> origin.copy(row = origin.row - 1)
+                                            absX >= threshold && absX >= absY ->
+                                                origin.copy(column = origin.column + if (accumulatedDragX > 0f) 1 else -1)
+                                            absY >= threshold ->
+                                                origin.copy(row = origin.row + if (accumulatedDragY > 0f) 1 else -1)
                                             else -> null
                                         }
                                         if (targetPos != null && board.contains(targetPos)) {
-                                            dragOrigin = null // consume — prevent repeated triggers in one gesture
+                                            dragOrigin = null
+                                            accumulatedDragX = 0f
+                                            accumulatedDragY = 0f
                                             onTileClick(targetPos)
                                         }
                                     }
                                 },
-                                onDragEnd = { dragOrigin = null },
-                                onDragCancel = { dragOrigin = null }
+                                onDragEnd = {
+                                    dragOrigin = null
+                                    accumulatedDragX = 0f
+                                    accumulatedDragY = 0f
+                                },
+                                onDragCancel = {
+                                    dragOrigin = null
+                                    accumulatedDragX = 0f
+                                    accumulatedDragY = 0f
+                                }
                             )
                         }
                 ) {
-                    val innerBoardSize = boardSize - 4.dp
+                    val innerBoardSize = boardSize - 2.dp
                     val tileSize = innerBoardSize / board.columns
                     val density = LocalDensity.current
                     val tileSizePx = with(density) { tileSize.toPx() }
@@ -233,7 +269,6 @@ fun Match3BoardComposable(
                         val initialY = visualTile.previousLogicalPosition.row * tileSizePx
                         val animX = remember(visualTile.tile.id) { Animatable(initialX) }
                         val animY = remember(visualTile.tile.id) { Animatable(initialY) }
-                        val scope = rememberCoroutineScope()
                         val tileEffect = tileEffectByPosition[visualTile.currentLogicalPosition]
 
                         LaunchedEffect(
@@ -254,13 +289,30 @@ fun Match3BoardComposable(
                             if (duration <= 0) {
                                 animX.snapTo(targetX)
                                 animY.snapTo(targetY)
+                            } else if (visualTile.role == TileAnimationRole.Falling || visualTile.role == TileAnimationRole.Refilling) {
+                                launch {
+                                    animX.animateTo(
+                                        targetValue = targetX,
+                                        animationSpec = tween(
+                                            durationMillis = (duration * 0.72f).toInt().coerceAtLeast(70),
+                                            easing = Match3MotionTokens.SwapEasing
+                                        )
+                                    )
+                                }
+                                animY.animateTo(
+                                    targetValue = targetY,
+                                    animationSpec = spring(
+                                        dampingRatio = 0.78f,
+                                        stiffness = 360f
+                                    )
+                                )
                             } else {
                                 val easing = when (visualTile.role) {
                                     TileAnimationRole.Falling, TileAnimationRole.Refilling -> Match3MotionTokens.FallEasing
                                     else -> Match3MotionTokens.SwapEasing
                                 }
                                 val spec = tween<Float>(durationMillis = duration, easing = easing)
-                                scope.launch { animX.animateTo(targetX, spec) }
+                                launch { animX.animateTo(targetX, spec) }
                                 animY.animateTo(targetY, spec)
                             }
                         }
@@ -282,8 +334,98 @@ fun Match3BoardComposable(
                                     isSelected = isSelected,
                                     isMatched = isMatched,
                                     isLanding = visualTile.role == TileAnimationRole.Landing,
-                                    specialEffectType = tileEffect
+                                    isRefilling = visualTile.role == TileAnimationRole.Refilling,
+                                    specialEffectType = tileEffect,
+                                    spawnedSpecialType = spawnedSpecialTiles[visualTile.currentLogicalPosition],
+                                    spawnedSpecialNonce = spawnedSpecialNonce
                                 )
+                            }
+                        }
+                    }
+
+                    if (matchedPositions.isNotEmpty()) {
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val glowAlpha = (1f - matchGlowProgress.value) * 0.28f
+                            val ringAlpha = (1f - matchGlowProgress.value) * 0.24f
+                            matchedPositions.forEach { pos ->
+                                val center = Offset(
+                                    x = (pos.column + 0.5f) * tileSizePx,
+                                    y = (pos.row + 0.5f) * tileSizePx
+                                )
+                                drawCircle(
+                                    color = PremiumColors.Gold.copy(alpha = glowAlpha),
+                                    radius = tileSizePx * 0.46f,
+                                    center = center
+                                )
+                                drawCircle(
+                                    color = Color.White.copy(alpha = ringAlpha),
+                                    radius = tileSizePx * (0.30f + matchGlowProgress.value * 0.24f),
+                                    center = center,
+                                    style = Stroke(width = tileSizePx * 0.05f)
+                                )
+                            }
+                        }
+                    }
+
+                    if (spawnedSpecialTiles.isNotEmpty() && spawnedSpecialProgress.value < 1f) {
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val progress = spawnedSpecialProgress.value
+                            spawnedSpecialTiles.forEach { (pos, type) ->
+                                val center = Offset(
+                                    x = (pos.column + 0.5f) * tileSizePx,
+                                    y = (pos.row + 0.5f) * tileSizePx
+                                )
+                                when (type) {
+                                    SpecialTileType.ROW_CLEAR -> {
+                                        val sweepWidth = size.width * (0.22f + progress * 0.72f)
+                                        drawRoundRect(
+                                            color = PremiumColors.Gold.copy(alpha = 0.30f * (1f - progress)),
+                                            topLeft = Offset(center.x - sweepWidth / 2f, center.y - tileSizePx * 0.14f),
+                                            size = Size(sweepWidth, tileSizePx * 0.28f),
+                                            cornerRadius = CornerRadius(tileSizePx * 0.12f, tileSizePx * 0.12f)
+                                        )
+                                    }
+                                    SpecialTileType.COLUMN_CLEAR -> {
+                                        val sweepHeight = size.height * (0.22f + progress * 0.72f)
+                                        drawRoundRect(
+                                            color = PremiumColors.Gold.copy(alpha = 0.30f * (1f - progress)),
+                                            topLeft = Offset(center.x - tileSizePx * 0.14f, center.y - sweepHeight / 2f),
+                                            size = Size(tileSizePx * 0.28f, sweepHeight),
+                                            cornerRadius = CornerRadius(tileSizePx * 0.12f, tileSizePx * 0.12f)
+                                        )
+                                    }
+                                    SpecialTileType.BOMB -> {
+                                        drawCircle(
+                                            color = Color(0xFFFFC857).copy(alpha = 0.34f * (1f - progress)),
+                                            radius = tileSizePx * (0.48f + progress * 0.52f),
+                                            center = center
+                                        )
+                                        drawCircle(
+                                            color = Color.White.copy(alpha = 0.26f * (1f - progress)),
+                                            radius = tileSizePx * (0.24f + progress * 0.28f),
+                                            center = center
+                                        )
+                                    }
+                                    SpecialTileType.COLOR_BOMB -> {
+                                        drawCircle(
+                                            color = PremiumColors.Emerald.copy(alpha = 0.22f * (1f - progress)),
+                                            radius = tileSizePx * (0.34f + progress * 0.46f),
+                                            center = center
+                                        )
+                                        drawCircle(
+                                            color = PremiumColors.Gold.copy(alpha = 0.16f * (1f - progress)),
+                                            radius = tileSizePx * (0.20f + progress * 0.30f),
+                                            center = center
+                                        )
+                                        drawCircle(
+                                            color = Color.White.copy(alpha = 0.20f * (1f - progress)),
+                                            radius = tileSizePx * (0.30f + progress * 0.34f),
+                                            center = center,
+                                            style = Stroke(width = tileSizePx * 0.05f)
+                                        )
+                                    }
+                                    SpecialTileType.NONE -> Unit
+                                }
                             }
                         }
                     }
@@ -300,6 +442,12 @@ fun Match3BoardComposable(
                                             topLeft = Offset(0f, y - tileSizePx * 0.18f),
                                             size = Size(size.width, tileSizePx * 0.36f),
                                             cornerRadius = CornerRadius(tileSizePx * 0.18f, tileSizePx * 0.18f)
+                                        )
+                                        drawRoundRect(
+                                            color = Color.White.copy(alpha = 0.10f + (1f - progress) * 0.18f),
+                                            topLeft = Offset(0f, y - tileSizePx * 0.07f),
+                                            size = Size(size.width, tileSizePx * 0.14f),
+                                            cornerRadius = CornerRadius(tileSizePx * 0.08f, tileSizePx * 0.08f)
                                         )
                                     }
                                     SpecialBoardEffectType.VERTICAL_LINE -> {
@@ -323,26 +471,33 @@ fun Match3BoardComposable(
                                             y = (effect.origin.row + 0.5f) * tileSizePx
                                         )
                                         drawCircle(
-                                            color = Color(0xFFFFC857).copy(alpha = 0.34f * (1f - progress / 2f)),
-                                            radius = tileSizePx * (0.8f + progress * 1.3f),
+                                            color = Color(0xFFFFC857).copy(alpha = 0.45f * (1f - progress / 2f)),
+                                            radius = tileSizePx * (0.92f + progress * 1.45f),
                                             center = center
                                         )
                                         drawCircle(
-                                            color = Color.White.copy(alpha = 0.2f * (1f - progress)),
-                                            radius = tileSizePx * (0.28f + progress * 0.42f),
+                                            color = Color.White.copy(alpha = 0.28f * (1f - progress)),
+                                            radius = tileSizePx * (0.32f + progress * 0.48f),
                                             center = center
+                                        )
+                                        drawCircle(
+                                            color = Color(0xFFFFF1B3).copy(alpha = 0.18f * (1f - progress)),
+                                            radius = tileSizePx * (0.55f + progress * 0.9f),
+                                            center = center,
+                                            style = Stroke(width = tileSizePx * 0.08f)
                                         )
                                     }
                                     SpecialBoardEffectType.COLOR_CLEAR -> {
-                                        effect.affectedPositions.take(Match3SpecialConfig.MaxSpecialParticles * 10).forEach { pos ->
+                                        effect.affectedPositions.take(Match3SpecialConfig.MaxSpecialParticles * 10).forEachIndexed { index, pos ->
                                             val center = Offset(
                                                 x = (pos.column + 0.5f) * tileSizePx,
                                                 y = (pos.row + 0.5f) * tileSizePx
                                             )
+                                            val drift = ((index % 3) - 1) * tileSizePx * 0.06f * progress
                                             drawCircle(
                                                 color = PremiumColors.Emerald.copy(alpha = 0.12f + (1f - progress) * 0.18f),
                                                 radius = tileSizePx * (0.16f + progress * 0.18f),
-                                                center = center
+                                                center = Offset(center.x + drift, center.y - drift)
                                             )
                                             drawCircle(
                                                 color = Color.White.copy(alpha = 0.08f + (1f - progress) * 0.12f),
@@ -355,6 +510,18 @@ fun Match3BoardComposable(
                             }
                         }
                     }
+
+                    FloatingScoreOverlay(
+                        text = floatingScoreText,
+                        nonce = floatingScoreNonce,
+                        anchor = floatingScoreAnchor,
+                        boardSizePx = tileSizePx * board.columns,
+                        tileSizePx = tileSizePx
+                    )
+                    SpecialEffectOverlay(
+                        text = specialEffectLabel,
+                        nonce = specialEffectNonce
+                    )
                 }
 
                 if (comboCount > 1) {
@@ -408,6 +575,95 @@ private fun ComboOverlay(count: Int, label: String?) {
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.FloatingScoreOverlay(
+    text: String?,
+    nonce: Int,
+    anchor: BoardPosition?,
+    boardSizePx: Float,
+    tileSizePx: Float
+) {
+    if (text.isNullOrBlank()) return
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(nonce, text) {
+        if (nonce <= 0) return@LaunchedEffect
+        visible = true
+        delay(420)
+        visible = false
+    }
+    if (!visible) return
+    val progress by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(durationMillis = 420),
+        label = "floatingScoreProgress"
+    )
+    val anchorX = ((anchor?.column ?: 3) + 0.5f) * tileSizePx
+    val anchorY = ((anchor?.row ?: 3) + 0.32f) * tileSizePx
+    val clampedX = anchorX.coerceIn(tileSizePx * 1.35f, boardSizePx - tileSizePx * 1.35f)
+    val clampedY = anchorY.coerceIn(tileSizePx * 0.85f, boardSizePx - tileSizePx * 0.85f)
+    val rise = tileSizePx * 0.78f * progress
+    val alpha = (1f - progress * 0.9f).coerceIn(0f, 1f)
+    val scale = 0.92f + (0.16f * progress)
+
+    Box(
+        modifier = Modifier
+            .align(Alignment.TopStart)
+            .offset { IntOffset(clampedX.roundToInt(), (clampedY - rise).roundToInt()) }
+            .graphicsLayer {
+                this.alpha = alpha
+                scaleX = scale
+                scaleY = scale
+            }
+            .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(16.dp))
+            .border(1.dp, PremiumColors.Gold.copy(alpha = 0.7f), RoundedCornerShape(16.dp))
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = text,
+            color = PremiumColors.Gold,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 14.sp
+        )
+    }
+}
+
+@Composable
+private fun SpecialEffectOverlay(
+    text: String?,
+    nonce: Int
+) {
+    if (text.isNullOrBlank()) return
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(nonce, text) {
+        if (nonce <= 0) return@LaunchedEffect
+        visible = true
+        delay(380)
+        visible = false
+    }
+    if (!visible) return
+
+    androidx.compose.animation.AnimatedVisibility(
+        visible = visible,
+        enter = androidx.compose.animation.fadeIn(animationSpec = tween(90)) + androidx.compose.animation.scaleIn(initialScale = 0.92f),
+        exit = androidx.compose.animation.fadeOut(animationSpec = tween(180)) + androidx.compose.animation.scaleOut(targetScale = 1.06f)
+    ) {
+        Box(
+            modifier = Modifier
+                .offset(y = (-76).dp)
+                .background(PremiumColors.DeepNavy.copy(alpha = 0.84f), RoundedCornerShape(16.dp))
+                .border(1.dp, PremiumColors.Gold.copy(alpha = 0.72f), RoundedCornerShape(16.dp))
+                .padding(horizontal = 14.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = text.uppercase(),
+                color = PremiumColors.Gold,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp
+            )
         }
     }
 }
