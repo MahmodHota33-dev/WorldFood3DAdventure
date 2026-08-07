@@ -12,8 +12,8 @@ android {
         applicationId = "com.mahmodhota.worldfood3dadventure"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 10001
+        versionName = "1.0.0-rc1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -35,6 +35,11 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+    packaging {
+        resources {
+            excludes += "DebugProbesKt.bin"
+        }
     }
 }
 

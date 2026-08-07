@@ -34,6 +34,10 @@ import com.mahmodhota.worldfood3dadventure.ui.match3.components.Match3MotionToke
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+internal fun shouldFireCompletionCallback(closing: Boolean, callbackFired: Boolean): Boolean {
+    return !closing && !callbackFired
+}
+
 @Composable
 fun PremiumCompletionDialog(
     isWin: Boolean,
@@ -45,7 +49,6 @@ fun PremiumCompletionDialog(
     onContinue: () -> Unit,
     onReplay: () -> Unit
 ) {
-    val scope = rememberCoroutineScope()
     var closing by remember { mutableStateOf(false) }
     var scaleTarget by remember(isWin, score, xpReward, coinReward) { mutableFloatStateOf(0.94f) }
     var scoreTarget by remember(isWin, score) { mutableIntStateOf(if (isWin) 0 else score) }
@@ -54,9 +57,11 @@ fun PremiumCompletionDialog(
     var rewardCardsVisible by remember(isWin, score, xpReward, coinReward) { mutableStateOf(false) }
     var achievementVisible by remember(isWin, score, stars) { mutableStateOf(false) }
     var panelAlphaTarget by remember(isWin, score) { mutableFloatStateOf(0f) }
+    var callbackFired by remember { mutableStateOf(false) }
 
     LaunchedEffect(isWin, score, xpReward, coinReward) {
         closing = false
+        callbackFired = false
         scaleTarget = 0.94f
         scoreTarget = if (isWin) 0 else score
         xpTarget = 0
@@ -78,6 +83,13 @@ fun PremiumCompletionDialog(
                 delay(80)
                 achievementVisible = true
             }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            closing = false
+            callbackFired = false
         }
     }
 
@@ -247,12 +259,9 @@ fun PremiumCompletionDialog(
                         text = if (isWin) "CONTINUE ADVENTURE" else "BACK TO HUB",
                         containerColor = if (isWin) Color(0xFF4CAF50) else PremiumColors.DarkSlate,
                         onClick = {
-                            if (!closing) {
-                                scope.launch {
-                                    closing = true
-                                    delay(170)
-                                    onContinue()
-                                }
+                            if (shouldFireCompletionCallback(closing, callbackFired)) {
+                                closing = true
+                                callbackFired = true
                             }
                         }
                     )
@@ -264,17 +273,24 @@ fun PremiumCompletionDialog(
                             borderColor = PremiumColors.Gold,
                             textColor = PremiumColors.Gold,
                             onClick = {
-                                if (!closing) {
-                                    scope.launch {
-                                        closing = true
-                                        delay(170)
-                                        onReplay()
-                                    }
+                                if (shouldFireCompletionCallback(closing, callbackFired)) {
+                                    closing = true
+                                    callbackFired = true
                                 }
                             }
                         )
                     }
                 }
+            }
+        }
+    }
+
+    LaunchedEffect(closing) {
+        if (closing && callbackFired) {
+            delay(170)
+            if (callbackFired) {
+                val winClicked = scaleTarget == 1f && !rewardCardsVisible
+                if (winClicked || isWin) onContinue() else onReplay()
             }
         }
     }

@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -87,6 +88,14 @@ import kotlin.math.sin
 // ──────────────────────────────────────────────────────────────────────────────
 
 private val TWO_PI = (PI * 2).toFloat()
+
+internal fun shouldConsumeUnlockFlightEvent(unlockedId: String, consumedUnlockIds: Set<String>): Boolean {
+    return !consumedUnlockIds.contains(unlockedId)
+}
+
+internal fun canStartManualMarkerFlight(isFlightActive: Boolean, activeFlightDestinationId: String?): Boolean {
+    return !isFlightActive && activeFlightDestinationId == null
+}
 
 internal data class GlobeCountry(
     val id: String,
@@ -218,6 +227,8 @@ fun Globe3DScreen(
     var unlockBanner by remember { mutableStateOf<String?>(null) }
     var unlockHighlightCountryId by remember { mutableStateOf<String?>(null) }
     var unlockBaseline by remember { mutableStateOf<Set<String>?>(null) }
+    var consumedUnlockIds by remember { mutableStateOf(setOf<String>()) }
+    var activeFlightDestinationId by remember { mutableStateOf<String?>(null) }
     val markerCache = remember { MarkerPositionCache() }
     val visibleIdsBuffer = remember { HashSet<String>(6) }
     val pointerPath = remember { Path() }
@@ -260,24 +271,28 @@ fun Globe3DScreen(
             val newlyUnlocked = unlockedIds - baseline
             if (newlyUnlocked.isNotEmpty()) {
                 val unlockedId = newlyUnlocked.first()
-                val country = GLOBE_COUNTRIES_BY_ID[unlockedId]
-                if (country != null) {
-                    unlockHighlightCountryId = unlockedId
-                    unlockBanner = "${country.flag} ${country.displayName} unlocked!"
-                    GlobalSystemManager.audio.playSfx(SfxType.COUNTRY_UNLOCK)
-                    GlobalSystemManager.haptics.heavy()
-                    val from = GLOBE_COUNTRIES_BY_ID[currentCountryId]
-                    if (from != null && from.id != unlockedId && !flightAnimator.isActive) {
-                        selectedCountry = null
-                        camera.cancelFlyTo()
-                        camera.stopInertia()
-                        flightAnimator.startFlight(from, country)
-                    }
-                    delay(1800)
-                    unlockBanner = null
-                    delay(500)
-                    if (unlockHighlightCountryId == unlockedId) {
-                        unlockHighlightCountryId = null
+                if (shouldConsumeUnlockFlightEvent(unlockedId, consumedUnlockIds)) {
+                    val country = GLOBE_COUNTRIES_BY_ID[unlockedId]
+                    if (country != null) {
+                        unlockHighlightCountryId = unlockedId
+                        unlockBanner = "${country.flag} ${country.displayName} unlocked!"
+                        GlobalSystemManager.audio.playSfx(SfxType.COUNTRY_UNLOCK)
+                        GlobalSystemManager.haptics.heavy()
+                        val from = GLOBE_COUNTRIES_BY_ID[currentCountryId]
+                        if (from != null && from.id != unlockedId && !flightAnimator.isActive) {
+                            selectedCountry = null
+                            camera.cancelFlyTo()
+                            camera.stopInertia()
+                            activeFlightDestinationId = unlockedId
+                            flightAnimator.startFlight(from, country)
+                        }
+                        consumedUnlockIds = consumedUnlockIds + unlockedId
+                        delay(1800)
+                        unlockBanner = null
+                        delay(500)
+                        if (unlockHighlightCountryId == unlockedId) {
+                            unlockHighlightCountryId = null
+                        }
                     }
                 }
             }
@@ -376,6 +391,9 @@ fun Globe3DScreen(
                         selectedCountry = arrived
                     }
                 }
+                if (!flightAnimator.isActive) {
+                    activeFlightDestinationId = null
+                }
             }
 
             val step = frameMs / 16f
@@ -389,6 +407,16 @@ fun Globe3DScreen(
             }
             val pulseSpeed = if (idleWorld) 0.014f else 0.022f
             pulsePhase = (pulsePhase + pulseSpeed * step) % TWO_PI
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            camera.stopInertia()
+            camera.cancelFlyTo()
+            flightAnimator.clear()
+            unlockHighlightCountryId = null
+            unlockBanner = null
         }
     }
 
@@ -572,9 +600,14 @@ fun Globe3DScreen(
                             flightAnimator.clear()
                             camera.resetToDefault()
                             selectedCountry = null
+                            activeFlightDestinationId = null
                         }
                     ) { tapPos ->
-                        if (flightAnimator.isActive) return@detectTapGestures
+                        if (!canStartManualMarkerFlight(
+                                isFlightActive = flightAnimator.isActive,
+                                activeFlightDestinationId = activeFlightDestinationId
+                            )
+                        ) return@detectTapGestures
                         val hit = markerCache.findNearest(tapPos, hitRadiusPx)
                         if (hit != null) {
                             // Toggle: tapping the already-selected country deselects it
@@ -586,6 +619,7 @@ fun Globe3DScreen(
                                     selectedCountry = null
                                     camera.cancelFlyTo()
                                     camera.stopInertia()
+                                    activeFlightDestinationId = hit.id
                                     flightAnimator.startFlight(from, hit)
                                 } else {
                                     selectedCountry = hit

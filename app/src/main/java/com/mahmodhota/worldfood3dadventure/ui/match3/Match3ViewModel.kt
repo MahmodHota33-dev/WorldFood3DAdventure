@@ -74,6 +74,29 @@ data class Match3UiState(
     val spawnedSpecialNonce: Int = 0
 )
 
+internal fun shouldIgnoreTileSelectionInput(isAnimating: Boolean, status: GameStatus): Boolean {
+    return isAnimating || status != GameStatus.PLAYING
+}
+
+internal fun canAcceptBoosterRequest(
+    isAnimating: Boolean,
+    status: GameStatus,
+    pendingBooster: BoosterType?,
+    inventoryCount: Int
+): Boolean {
+    if (isAnimating || status != GameStatus.PLAYING) return false
+    if (pendingBooster != null) return false
+    return inventoryCount > 0
+}
+
+internal fun shouldGrantFirstClearReward(rewardedInThisSession: Boolean): Boolean {
+    return !rewardedInThisSession
+}
+
+internal fun movesDeltaForSwapResult(result: SwapResult): Int {
+    return if (result is SwapResult.Success) -1 else 0
+}
+
 class Match3ViewModel(
     val countryId: String,
     val levelNumber: Int,
@@ -95,6 +118,8 @@ class Match3ViewModel(
     private val engine = engineFactory(levelDefinition.allowedTiles)
     private val telemetryLevelId = Match3Telemetry.levelId(countryId, levelNumber)
     private var resolutionJob: Job? = null
+    private var pendingBooster: BoosterType? = null
+    private var rewardedInThisSession = false
 
     var uiState by mutableStateOf(
         Match3UiState(
@@ -106,9 +131,26 @@ class Match3ViewModel(
         )
     )
         private set
+    
+    /**
+     * Atomically cancel existing resolution job and start a new one.
+     * Prevents overlapping swap/cascade/booster jobs.
+     */
+    private fun launchResolutionJob(block: suspend () -> Unit) {
+        resolutionJob?.cancel()
+        resolutionJob = viewModelScope.launch {
+            try {
+                block()
+            } finally {
+                if (uiState.isAnimating) {
+                    clearTransientAnimationState(isAnimating = false)
+                }
+            }
+        }
+    }
 
     fun onTileSelected(position: BoardPosition) {
-        if (uiState.isAnimating || uiState.status != GameStatus.PLAYING) return
+        if (shouldIgnoreTileSelectionInput(uiState.isAnimating, uiState.status)) return
 
         if (uiState.selectedBooster == BoosterType.HAMMER) {
             useHammer(position)
@@ -142,8 +184,13 @@ class Match3ViewModel(
     }
 
     fun onBoosterSelected(type: BoosterType) {
-        if (uiState.isAnimating || uiState.status != GameStatus.PLAYING) return
-        if (uiState.boosterInventory.countFor(type) <= 0) return
+        if (!canAcceptBoosterRequest(
+                isAnimating = uiState.isAnimating,
+                status = uiState.status,
+                pendingBooster = pendingBooster,
+                inventoryCount = uiState.boosterInventory.countFor(type)
+            )
+        ) return
 
         when (type) {
             BoosterType.HAMMER -> {
@@ -155,96 +202,99 @@ class Match3ViewModel(
                     animationPhase = Match3AnimationPhase.Idle
                 )
             }
-            BoosterType.SHUFFLE -> useShuffle()
-            BoosterType.EXTRA_MOVES -> useExtraMoves()
+            BoosterType.SHUFFLE -> {
+                pendingBooster = BoosterType.SHUFFLE
+                useShuffle()
+            }
+            BoosterType.EXTRA_MOVES -> {
+                pendingBooster = BoosterType.EXTRA_MOVES
+                useExtraMoves()
+            }
         }
     }
 
     private fun performSwap(pos1: BoardPosition, pos2: BoardPosition) {
-        resolutionJob?.cancel()
-        resolutionJob = viewModelScope.launch {
+        launchResolutionJob {
             // Safety net: if this coroutine terminates for ANY reason (exception,
             // cancellation, or normal flow) while the board is locked, unlock it.
             // Normal completion paths set isAnimating = false themselves, so the
             // condition below is only true on unexpected termination.
-            try {
-                Match3Telemetry.log(
-                    event = Match3TelemetryEvent.MOVE_START,
-                    levelId = telemetryLevelId,
-                    countryId = countryId,
-                    remainingMoves = uiState.movesRemaining,
-                    score = uiState.score,
-                    comboCount = uiState.comboCount,
-                    cascadeCount = 0,
-                    detail = "from=$pos1 to=$pos2"
-                )
-                val firstId = uiState.board.tileAt(pos1)?.id
-                val secondId = uiState.board.tileAt(pos2)?.id
-                val swappedIds = setOfNotNull(firstId, secondId)
-                uiState = uiState.copy(
-                    isAnimating = true,
-                    selectedPosition = null,
-                    selectedBooster = null,
-                    animationPhase = Match3AnimationPhase.Swapping,
-                    activeTileAnimationIds = swappedIds,
-                    fallDistanceByTileId = emptyMap(),
-                    refillTileIds = emptySet(),
-                    landingTileIds = emptySet(),
-                    specialEffects = emptyList(),
-                    specialEffectLabel = null,
-                    spawnedSpecialTiles = emptyMap()
-                )
+            Match3Telemetry.log(
+                event = Match3TelemetryEvent.MOVE_START,
+                levelId = telemetryLevelId,
+                countryId = countryId,
+                remainingMoves = uiState.movesRemaining,
+                score = uiState.score,
+                comboCount = uiState.comboCount,
+                cascadeCount = 0,
+                detail = "from=$pos1 to=$pos2"
+            )
+            val firstId = uiState.board.tileAt(pos1)?.id
+            val secondId = uiState.board.tileAt(pos2)?.id
+            val swappedIds = setOfNotNull(firstId, secondId)
+            uiState = uiState.copy(
+                isAnimating = true,
+                selectedPosition = null,
+                selectedBooster = null,
+                animationPhase = Match3AnimationPhase.Swapping,
+                activeTileAnimationIds = swappedIds,
+                fallDistanceByTileId = emptyMap(),
+                refillTileIds = emptySet(),
+                landingTileIds = emptySet(),
+                specialEffects = emptyList(),
+                specialEffectLabel = null,
+                spawnedSpecialTiles = emptyMap()
+            )
 
-                val result = withContext(Dispatchers.Default) { engine.performSwap(uiState.board, pos1, pos2) }
-                when (result) {
-                    is SwapResult.Success -> {
-                        Match3Telemetry.log(
-                            event = Match3TelemetryEvent.MOVE_VALID,
-                            levelId = telemetryLevelId,
-                            countryId = countryId,
-                            remainingMoves = uiState.movesRemaining,
-                            score = uiState.score,
-                            comboCount = uiState.comboCount,
-                            cascadeCount = result.cascadeSteps.size,
-                            detail = "matched=${result.totalMatchedTiles} score=${result.scoreGained}"
-                        )
-                        playSfx(SfxType.SWAP_VALID)
-                        hapticLight()
-                        uiState = uiState.copy(board = result.swappedBoard)
-                        delay(Match3MotionTokens.SwapDurationMs.toLong())
-                        playCascadeResult(result.stableBoard, result.cascadeSteps, result.scoreGained, result.collectedCounts, movesDelta = -1)
-                    }
-                    else -> {
-                        Match3Telemetry.log(
-                            event = Match3TelemetryEvent.MOVE_INVALID,
-                            levelId = telemetryLevelId,
-                            countryId = countryId,
-                            remainingMoves = uiState.movesRemaining,
-                            score = uiState.score,
-                            comboCount = uiState.comboCount,
-                            cascadeCount = 0,
-                            detail = "from=$pos1 to=$pos2"
-                        )
-                        playSfx(SfxType.SWAP_INVALID)
-                        hapticMedium()
-                        val swapped = uiState.board.swap(pos1, pos2)
-                        uiState = uiState.copy(
-                            animationPhase = Match3AnimationPhase.Swapping,
-                            board = swapped
-                        )
-                        delay(Match3MotionTokens.InvalidSwapOutDurationMs.toLong())
-                        uiState = uiState.copy(
-                            animationPhase = Match3AnimationPhase.InvalidReturning,
-                            board = swapped.swap(pos1, pos2)
-                        )
-                        delay(Match3MotionTokens.InvalidSwapReturnDurationMs.toLong())
-                        clearTransientAnimationState(isAnimating = false)
-                    }
+            val result = withContext(Dispatchers.Default) { engine.performSwap(uiState.board, pos1, pos2) }
+            when (result) {
+                is SwapResult.Success -> {
+                    Match3Telemetry.log(
+                        event = Match3TelemetryEvent.MOVE_VALID,
+                        levelId = telemetryLevelId,
+                        countryId = countryId,
+                        remainingMoves = uiState.movesRemaining,
+                        score = uiState.score,
+                        comboCount = uiState.comboCount,
+                        cascadeCount = result.cascadeSteps.size,
+                        detail = "matched=${result.totalMatchedTiles} score=${result.scoreGained}"
+                    )
+                    playSfx(SfxType.SWAP_VALID)
+                    hapticLight()
+                    uiState = uiState.copy(board = result.swappedBoard)
+                    delay(Match3MotionTokens.SwapDurationMs.toLong())
+                    playCascadeResult(
+                        result.stableBoard,
+                        result.cascadeSteps,
+                        result.scoreGained,
+                        result.collectedCounts,
+                        movesDelta = movesDeltaForSwapResult(result)
+                    )
                 }
-            } finally {
-                // Only fires if coroutine terminated while still animating
-                // (i.e., exception or cancellation before normal unlock)
-                if (uiState.isAnimating) {
+                else -> {
+                    Match3Telemetry.log(
+                        event = Match3TelemetryEvent.MOVE_INVALID,
+                        levelId = telemetryLevelId,
+                        countryId = countryId,
+                        remainingMoves = uiState.movesRemaining,
+                        score = uiState.score,
+                        comboCount = uiState.comboCount,
+                        cascadeCount = 0,
+                        detail = "from=$pos1 to=$pos2"
+                    )
+                    playSfx(SfxType.SWAP_INVALID)
+                    hapticMedium()
+                    val swapped = uiState.board.swap(pos1, pos2)
+                    uiState = uiState.copy(
+                        animationPhase = Match3AnimationPhase.Swapping,
+                        board = swapped
+                    )
+                    delay(Match3MotionTokens.InvalidSwapOutDurationMs.toLong())
+                    uiState = uiState.copy(
+                        animationPhase = Match3AnimationPhase.InvalidReturning,
+                        board = swapped.swap(pos1, pos2)
+                    )
+                    delay(Match3MotionTokens.InvalidSwapReturnDurationMs.toLong())
                     clearTransientAnimationState(isAnimating = false)
                 }
             }
@@ -252,65 +302,57 @@ class Match3ViewModel(
     }
 
     private fun useHammer(position: BoardPosition) {
-        resolutionJob?.cancel()
-        resolutionJob = viewModelScope.launch {
-            try {
-                val updatedInventory = consumeBooster(BoosterType.HAMMER) ?: return@launch
-                Match3Telemetry.log(
-                    event = Match3TelemetryEvent.BOOSTER_USED,
-                    levelId = telemetryLevelId,
-                    countryId = countryId,
-                    remainingMoves = uiState.movesRemaining,
-                    score = uiState.score,
-                    comboCount = uiState.comboCount,
-                    cascadeCount = 0,
-                    detail = "type=HAMMER"
-                )
-                Match3Telemetry.log(
-                    event = Match3TelemetryEvent.HAMMER_USED,
-                    levelId = telemetryLevelId,
-                    countryId = countryId,
-                    remainingMoves = uiState.movesRemaining,
-                    score = uiState.score,
-                    comboCount = uiState.comboCount,
-                    cascadeCount = 0,
-                    detail = "target=$position"
-                )
-                playSfx(SfxType.MATCH_SMALL)
-                hapticMedium()
-                uiState = uiState.copy(
-                    boosterInventory = updatedInventory,
-                    selectedBooster = null,
-                    selectedPosition = null,
-                    isAnimating = true,
-                    animationPhase = Match3AnimationPhase.RemovingMatches,
-                    matchedPositions = setOf(position),
-                    specialEffects = emptyList(),
-                    boardShakeNonce = uiState.boardShakeNonce + 1,
-                    boardShakeEnabled = true,
-                    activatedBooster = BoosterType.HAMMER,
-                    boosterActivationNonce = uiState.boosterActivationNonce + 1,
-                    spawnedSpecialTiles = emptyMap()
-                )
-                delay(Match3MotionTokens.MatchPopDurationMs.toLong())
-                val result = withContext(Dispatchers.Default) { engine.applyHammer(uiState.board, position) }
-                if (result == null) {
-                    clearTransientAnimationState(isAnimating = false)
-                    return@launch
-                }
-                playCascadeResult(result.finalBoard, result.steps, result.totalScore, result.collectedCounts, movesDelta = 0)
-            } finally {
-                if (uiState.isAnimating) {
-                    clearTransientAnimationState(isAnimating = false)
-                }
+        launchResolutionJob {
+            val updatedInventory = consumeBooster(BoosterType.HAMMER) ?: return@launchResolutionJob
+            Match3Telemetry.log(
+                event = Match3TelemetryEvent.BOOSTER_USED,
+                levelId = telemetryLevelId,
+                countryId = countryId,
+                remainingMoves = uiState.movesRemaining,
+                score = uiState.score,
+                comboCount = uiState.comboCount,
+                cascadeCount = 0,
+                detail = "type=HAMMER"
+            )
+            Match3Telemetry.log(
+                event = Match3TelemetryEvent.HAMMER_USED,
+                levelId = telemetryLevelId,
+                countryId = countryId,
+                remainingMoves = uiState.movesRemaining,
+                score = uiState.score,
+                comboCount = uiState.comboCount,
+                cascadeCount = 0,
+                detail = "target=$position"
+            )
+            playSfx(SfxType.MATCH_SMALL)
+            hapticMedium()
+            uiState = uiState.copy(
+                boosterInventory = updatedInventory,
+                selectedBooster = null,
+                selectedPosition = null,
+                isAnimating = true,
+                animationPhase = Match3AnimationPhase.RemovingMatches,
+                matchedPositions = setOf(position),
+                specialEffects = emptyList(),
+                boardShakeNonce = uiState.boardShakeNonce + 1,
+                boardShakeEnabled = true,
+                activatedBooster = BoosterType.HAMMER,
+                boosterActivationNonce = uiState.boosterActivationNonce + 1,
+                spawnedSpecialTiles = emptyMap()
+            )
+            delay(Match3MotionTokens.MatchPopDurationMs.toLong())
+            val result = withContext(Dispatchers.Default) { engine.applyHammer(uiState.board, position) }
+            if (result == null) {
+                clearTransientAnimationState(isAnimating = false)
+                return@launchResolutionJob
             }
+            playCascadeResult(result.finalBoard, result.steps, result.totalScore, result.collectedCounts, movesDelta = 0)
         }
     }
 
     private fun useShuffle() {
-        resolutionJob?.cancel()
-        resolutionJob = viewModelScope.launch {
-            val updatedInventory = consumeBooster(BoosterType.SHUFFLE) ?: return@launch
+        launchResolutionJob {
+            val updatedInventory = consumeBooster(BoosterType.SHUFFLE) ?: return@launchResolutionJob
             Match3Telemetry.log(
                 event = Match3TelemetryEvent.BOOSTER_USED,
                 levelId = telemetryLevelId,
@@ -346,13 +388,13 @@ class Match3ViewModel(
             )
             delay(Match3SpecialConfig.SpecialComboDurationMs.toLong())
             uiState = uiState.copy(boardShakeEnabled = false)
+            pendingBooster = null
         }
     }
 
     private fun useExtraMoves() {
-        resolutionJob?.cancel()
-        resolutionJob = viewModelScope.launch {
-            val updatedInventory = consumeBooster(BoosterType.EXTRA_MOVES) ?: return@launch
+        launchResolutionJob {
+            val updatedInventory = consumeBooster(BoosterType.EXTRA_MOVES) ?: return@launchResolutionJob
             Match3Telemetry.log(
                 event = Match3TelemetryEvent.BOOSTER_USED,
                 levelId = telemetryLevelId,
@@ -381,8 +423,11 @@ class Match3ViewModel(
                 selectedBooster = null,
                 selectedPosition = null,
                 activatedBooster = BoosterType.EXTRA_MOVES,
-                boosterActivationNonce = uiState.boosterActivationNonce + 1
+                boosterActivationNonce = uiState.boosterActivationNonce + 1,
+                isAnimating = false,
+                animationPhase = Match3AnimationPhase.Idle
             )
+            pendingBooster = null
         }
     }
 
@@ -657,7 +702,10 @@ class Match3ViewModel(
                 cascadeCount = 0,
                 detail = "stars=$stars"
             )
-            completeLevelProgress(countryId, levelNumber, uiState.score, stars)
+            if (shouldGrantFirstClearReward(rewardedInThisSession)) {
+                rewardedInThisSession = true
+                completeLevelProgress(countryId, levelNumber, uiState.score, stars)
+            }
         } else if (uiState.movesRemaining <= 0) {
             Match3Telemetry.log(
                 event = Match3TelemetryEvent.LEVEL_LOSE,
@@ -675,6 +723,8 @@ class Match3ViewModel(
 
     fun resetGame() {
         resolutionJob?.cancel()
+        pendingBooster = null
+        rewardedInThisSession = false
         uiState = Match3UiState(
             board = engine.createStartBoard(),
             movesRemaining = levelDefinition.moves,
@@ -686,6 +736,7 @@ class Match3ViewModel(
 
     fun onScreenExit() {
         resolutionJob?.cancel()
+        pendingBooster = null
         clearTransientAnimationState(isAnimating = false)
     }
 

@@ -16,6 +16,40 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+internal data class LevelCompletionRewardPlan(
+    val updatedBestStars: Int,
+    val updatedBestScore: Int,
+    val starsDelta: Int,
+    val xpDelta: Int,
+    val coinsDelta: Int,
+    val isFirstClear: Boolean
+)
+
+internal fun buildLevelCompletionRewardPlan(
+    currentBestStars: Int,
+    currentBestScore: Int,
+    alreadyCompleted: Boolean,
+    incomingStars: Int,
+    incomingScore: Int,
+    xpReward: Int,
+    coinReward: Int
+): LevelCompletionRewardPlan {
+    val updatedBestStars = maxOf(currentBestStars, incomingStars)
+    val updatedBestScore = maxOf(currentBestScore, incomingScore)
+    val starsDelta = (updatedBestStars - currentBestStars).coerceAtLeast(0)
+    val isFirstClear = !alreadyCompleted
+    val xpDelta = if (isFirstClear) xpReward else 0
+    val coinsDelta = if (isFirstClear) coinReward else 0
+    return LevelCompletionRewardPlan(
+        updatedBestStars = updatedBestStars,
+        updatedBestScore = updatedBestScore,
+        starsDelta = starsDelta,
+        xpDelta = xpDelta,
+        coinsDelta = coinsDelta,
+        isFirstClear = isFirstClear
+    )
+}
+
 /**
  * Single source of truth for persisted game state.
  */
@@ -122,28 +156,35 @@ class GameProgressRepository(private val context: Context) {
         context.gameDataStore.edit { prefs ->
             val currentBestStars = prefs[GameKeys.levelStars(countryId, levelNumber)] ?: 0
             val currentBestScore = prefs[GameKeys.levelScore(countryId, levelNumber)] ?: 0
-            val isFirstTime = !(prefs[GameKeys.levelCompleted(countryId, levelNumber)] ?: false)
+            val rewardPlan = buildLevelCompletionRewardPlan(
+                currentBestStars = currentBestStars,
+                currentBestScore = currentBestScore,
+                alreadyCompleted = prefs[GameKeys.levelCompleted(countryId, levelNumber)] ?: false,
+                incomingStars = stars,
+                incomingScore = score,
+                xpReward = xpReward,
+                coinReward = coinReward
+            )
 
             prefs[GameKeys.levelCompleted(countryId, levelNumber)] = true
             
-            if (stars > currentBestStars) {
-                val diff = stars - currentBestStars
-                prefs[GameKeys.TOTAL_STARS] = (prefs[GameKeys.TOTAL_STARS] ?: 0) + diff
-                prefs[GameKeys.levelStars(countryId, levelNumber)] = stars
+            if (rewardPlan.starsDelta > 0) {
+                prefs[GameKeys.TOTAL_STARS] = (prefs[GameKeys.TOTAL_STARS] ?: 0) + rewardPlan.starsDelta
+                prefs[GameKeys.levelStars(countryId, levelNumber)] = rewardPlan.updatedBestStars
             }
             
-            if (score > currentBestScore) {
-                prefs[GameKeys.levelScore(countryId, levelNumber)] = score
+            if (rewardPlan.updatedBestScore > currentBestScore) {
+                prefs[GameKeys.levelScore(countryId, levelNumber)] = rewardPlan.updatedBestScore
             }
 
-            if (isFirstTime) {
-                val newXp = (prefs[GameKeys.XP] ?: 0) + xpReward
+            if (rewardPlan.isFirstClear) {
+                val newXp = (prefs[GameKeys.XP] ?: 0) + rewardPlan.xpDelta
                 prefs[GameKeys.XP] = newXp
                 prefs[GameKeys.LEVEL] = PlayerLevelProgression.normalizedLevel(
                     totalXp = newXp,
                     storedLevel = prefs[GameKeys.LEVEL] ?: 1
                 )
-                prefs[GameKeys.COINS] = (prefs[GameKeys.COINS] ?: 100) + coinReward
+                prefs[GameKeys.COINS] = (prefs[GameKeys.COINS] ?: 100) + rewardPlan.coinsDelta
                 Match3Telemetry.log(
                     event = Match3TelemetryEvent.REWARD_GRANTED,
                     levelId = Match3Telemetry.levelId(countryId, levelNumber),
@@ -162,7 +203,7 @@ class GameProgressRepository(private val context: Context) {
                     score = score,
                     comboCount = stars,
                     cascadeCount = 0,
-                    detail = "amount=$xpReward"
+                    detail = "amount=${rewardPlan.xpDelta}"
                 )
                 Match3Telemetry.log(
                     event = Match3TelemetryEvent.COINS_GRANTED,
@@ -172,7 +213,7 @@ class GameProgressRepository(private val context: Context) {
                     score = score,
                     comboCount = stars,
                     cascadeCount = 0,
-                    detail = "amount=$coinReward"
+                    detail = "amount=${rewardPlan.coinsDelta}"
                 )
                 
                 val hasNextLevel = Match3LevelRegistry.getLevel(countryId, levelNumber + 1) != null
@@ -194,8 +235,10 @@ class GameProgressRepository(private val context: Context) {
                     
                     // Unlock next country in the chain
                     val levelChain = LevelRegistry.allCountryIds
-                    val nextIndex = levelChain.indexOf(countryId) + 1
-                    if (nextIndex in levelChain.indices) {
+                    val currentIndex = levelChain.indexOf(countryId)
+                    val nextIndex = currentIndex + 1
+                    
+                    if (currentIndex >= 0 && nextIndex in levelChain.indices) {
                         val nextId = levelChain[nextIndex]
                         val nextCountryDef = LevelRegistry.getCountry(nextId)
                         if (nextCountryDef?.isComingSoon != true) {

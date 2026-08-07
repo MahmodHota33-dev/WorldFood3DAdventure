@@ -1,5 +1,6 @@
 package com.mahmodhota.worldfood3dadventure.ui.match3
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -52,10 +53,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionManager
 import com.mahmodhota.worldfood3dadventure.game.match3.Match3LevelRegistry
 import com.mahmodhota.worldfood3dadventure.game.match3.model.FoodTileType
 import com.mahmodhota.worldfood3dadventure.game.match3.model.GameStatus
 import com.mahmodhota.worldfood3dadventure.game.match3.model.LevelGoal
+import com.mahmodhota.worldfood3dadventure.game.world.LevelRegistry
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.FoodIcon
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.Match3BoardComposable
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumColors
@@ -65,6 +68,22 @@ import com.mahmodhota.worldfood3dadventure.ui.match3.components.TopStatusBar
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.WorldMapComponent
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.WorldMapGeometry
 
+internal data class Match3RouteValidation(
+    val isValid: Boolean,
+    val reason: String
+)
+
+internal fun validateMatch3Route(
+    countryExists: Boolean,
+    levelExists: Boolean,
+    levelUnlocked: Boolean
+): Match3RouteValidation {
+    if (!countryExists) return Match3RouteValidation(isValid = false, reason = "invalid_country")
+    if (!levelExists) return Match3RouteValidation(isValid = false, reason = "invalid_level")
+    if (!levelUnlocked) return Match3RouteValidation(isValid = false, reason = "level_locked")
+    return Match3RouteValidation(isValid = true, reason = "ok")
+}
+
 @Composable
 fun PremiumAdventureScreen(
     countryId: String,
@@ -72,19 +91,43 @@ fun PremiumAdventureScreen(
     onTabSelected: (String) -> Unit,
     onSettingsClick: () -> Unit
 ) {
+    // Validate route before creating ViewModel
+    val routeValidation = remember(countryId, levelNumber) {
+        val countryExists = LevelRegistry.getCountry(countryId) != null
+        val levelExists = Match3LevelRegistry.getLevel(countryId, levelNumber) != null
+        val countryProgress = ProgressionManager.getCountryProgress(countryId)
+        val levelProgress = countryProgress.levels.firstOrNull { it.levelNumber == levelNumber }
+        val levelUnlocked = levelProgress?.isUnlocked ?: (countryProgress.isUnlocked && levelNumber == 1)
+        validateMatch3Route(
+            countryExists = countryExists,
+            levelExists = levelExists,
+            levelUnlocked = levelUnlocked
+        )
+    }
+    
+    LaunchedEffect(routeValidation.isValid, routeValidation.reason, countryId, levelNumber) {
+        if (!routeValidation.isValid) {
+            Log.w(
+                "PremiumAdventureScreen",
+                "Invalid match3 route country=$countryId level=$levelNumber reason=${routeValidation.reason}"
+            )
+            onTabSelected("world")
+        }
+    }
+    
+    if (!routeValidation.isValid) {
+        return
+    }
+    
     val viewModel: Match3ViewModel = remember(countryId, levelNumber) {
-        Match3ViewModel(countryId, levelNumber)
+       Match3ViewModel(countryId, levelNumber)
     }
     val state = viewModel.uiState
     val levelDef = remember(countryId, levelNumber) {
-        Match3LevelRegistry.getLevel(countryId, levelNumber)
-    }
-    var showCompletionDialog by remember(countryId, levelNumber) { mutableStateOf(false) }
-    LaunchedEffect(state.status) {
-        showCompletionDialog = state.status == GameStatus.WON || state.status == GameStatus.LOST
+       Match3LevelRegistry.getLevel(countryId, levelNumber)
     }
     DisposableEffect(viewModel) {
-        onDispose { viewModel.onScreenExit() }
+       onDispose { viewModel.onScreenExit() }
     }
 
     var mapScale by remember { mutableStateOf(1f) }
@@ -189,7 +232,7 @@ fun PremiumAdventureScreen(
     }
 
     AnimatedVisibility(
-        visible = showCompletionDialog,
+        visible = state.status == GameStatus.WON || state.status == GameStatus.LOST,
         enter = fadeIn() + scaleIn(initialScale = 0.96f),
         exit = fadeOut() + scaleOut(targetScale = 0.96f)
     ) {
@@ -208,11 +251,9 @@ fun PremiumAdventureScreen(
                     xpReward = 50 * stars,
                     coinReward = 10 * stars,
                     onContinue = {
-                        showCompletionDialog = false
                         onTabSelected("world")
                     },
                     onReplay = {
-                        showCompletionDialog = false
                         viewModel.resetGame()
                     }
                 )
@@ -226,11 +267,9 @@ fun PremiumAdventureScreen(
                     xpReward = 0,
                     coinReward = 0,
                     onContinue = {
-                        showCompletionDialog = false
                         onTabSelected("world")
                     },
                     onReplay = {
-                        showCompletionDialog = false
                         viewModel.resetGame()
                     }
                 )
