@@ -76,6 +76,26 @@ class GameProgressRepository(private val context: Context) {
                             }
                         }
                     }
+
+                    // Migration: reconcile TOTAL_STARS against the per-level bestStars sum.
+                    // If the stored counter is lower than the actual per-level sum (e.g., from
+                    // an older save where TOTAL_STARS was never written), fix it forward.
+                    // We never reduce stars to avoid penalising existing players.
+                    val storedStars = (prefs[GameKeys.TOTAL_STARS] ?: 0).coerceAtLeast(0)
+                    val computedStars = LevelRegistry.allCountryIds.sumOf { cId ->
+                        LevelRegistry.getCountry(cId)?.levels?.sumOf { lvDef ->
+                            (prefs[GameKeys.levelStars(cId, lvDef.levelNumber)] ?: 0).coerceIn(0, 3)
+                        } ?: 0
+                    }
+                    if (computedStars > storedStars) {
+                        context.gameDataStore.edit { mutable ->
+                            mutable[GameKeys.TOTAL_STARS] = computedStars
+                        }
+                        // Skip this emission — the edit will trigger a fresh collection
+                        // with the corrected value.
+                        return@collect
+                    }
+
                     _state.value = mapToGameState(prefs)
                 }
         }
@@ -113,7 +133,7 @@ class GameProgressRepository(private val context: Context) {
                     countryId = id,
                     isUnlocked = prefs[GameKeys.levelUnlocked(id, lvl)] ?: (unlocked && lvl == 1),
                     isCompleted = prefs[GameKeys.levelCompleted(id, lvl)] ?: false,
-                    bestStars = (prefs[GameKeys.levelStars(id, lvl)] ?: 0).coerceAtLeast(0),
+                    bestStars = (prefs[GameKeys.levelStars(id, lvl)] ?: 0).coerceIn(0, 3),
                     bestScore = (prefs[GameKeys.levelScore(id, lvl)] ?: 0).coerceAtLeast(0)
                 )
             } ?: emptyMap()
@@ -152,7 +172,8 @@ class GameProgressRepository(private val context: Context) {
         score: Int,
         xpReward: Int,
         coinReward: Int
-    ) {
+    ): List<String> {
+        val newlyUnlockedCountryIds = mutableListOf<String>()
         context.gameDataStore.edit { prefs ->
             val currentBestStars = prefs[GameKeys.levelStars(countryId, levelNumber)] ?: 0
             val currentBestScore = prefs[GameKeys.levelScore(countryId, levelNumber)] ?: 0
@@ -171,6 +192,31 @@ class GameProgressRepository(private val context: Context) {
             if (rewardPlan.starsDelta > 0) {
                 prefs[GameKeys.TOTAL_STARS] = (prefs[GameKeys.TOTAL_STARS] ?: 0) + rewardPlan.starsDelta
                 prefs[GameKeys.levelStars(countryId, levelNumber)] = rewardPlan.updatedBestStars
+
+                // Star-based country unlock: check every country whenever total stars increase.
+                val newTotalStars = (prefs[GameKeys.TOTAL_STARS] ?: 0).coerceAtLeast(0)
+                LevelRegistry.allCountryIds.forEach { cId ->
+                    val alreadyUnlocked = prefs[GameKeys.countryUnlocked(cId)]
+                        ?: CountryProgressionChain.isInitiallyUnlocked(cId)
+                    if (!alreadyUnlocked && CountryProgressionChain.canUnlock(cId, newTotalStars)) {
+                        val def = LevelRegistry.getCountry(cId)
+                        if (def?.isComingSoon != true) {
+                            prefs[GameKeys.countryUnlocked(cId)] = true
+                            prefs[GameKeys.levelUnlocked(cId, 1)] = true
+                            newlyUnlockedCountryIds.add(cId)
+                            Match3Telemetry.log(
+                                event = Match3TelemetryEvent.WORLD_UNLOCK,
+                                levelId = Match3Telemetry.levelId(countryId, levelNumber),
+                                countryId = cId,
+                                remainingMoves = 0,
+                                score = score,
+                                comboCount = newTotalStars,
+                                cascadeCount = 0,
+                                detail = "starUnlock,threshold=${CountryProgressionChain.getSpec(cId)?.requiredStarsToUnlock}"
+                            )
+                        }
+                    }
+                }
             }
             
             if (rewardPlan.updatedBestScore > currentBestScore) {
@@ -185,6 +231,7 @@ class GameProgressRepository(private val context: Context) {
                     storedLevel = prefs[GameKeys.LEVEL] ?: 1
                 )
                 prefs[GameKeys.COINS] = (prefs[GameKeys.COINS] ?: 100) + rewardPlan.coinsDelta
+
                 Match3Telemetry.log(
                     event = Match3TelemetryEvent.REWARD_GRANTED,
                     levelId = Match3Telemetry.levelId(countryId, levelNumber),
@@ -230,32 +277,10 @@ class GameProgressRepository(private val context: Context) {
                         detail = "nextLevel=${levelNumber + 1}"
                     )
                 } else {
-                    // Level is the last level of this country, check for country completion
+                    // Last level of this country — mark completion and check chapter finale.
                     checkAndMarkCountryCompleted(countryId, prefs)
-                    
-                    // Unlock next country in the chain
-                    val levelChain = LevelRegistry.allCountryIds
-                    val currentIndex = levelChain.indexOf(countryId)
-                    val nextIndex = currentIndex + 1
-                    
-                    if (currentIndex >= 0 && nextIndex in levelChain.indices) {
-                        val nextId = levelChain[nextIndex]
-                        val nextCountryDef = LevelRegistry.getCountry(nextId)
-                        if (nextCountryDef?.isComingSoon != true) {
-                            prefs[GameKeys.countryUnlocked(nextId)] = true
-                            prefs[GameKeys.levelUnlocked(nextId, 1)] = true
-                            Match3Telemetry.log(
-                                event = Match3TelemetryEvent.WORLD_UNLOCK,
-                                levelId = Match3Telemetry.levelId(countryId, levelNumber),
-                                countryId = nextId,
-                                remainingMoves = 0,
-                                score = score,
-                                comboCount = stars,
-                                cascadeCount = 0,
-                                detail = "countryUnlockFrom=$countryId"
-                            )
-                        }
-                    } else if (countryId == "sudan") {
+
+                    if (countryId == "sudan") {
                         // Chapter 1 Finale
                         prefs[GameKeys.CHAPTER_1_COMPLETED] = true
                         prefs[GameKeys.WORLD_EXPLORER_BADGE] = true
@@ -289,6 +314,7 @@ class GameProgressRepository(private val context: Context) {
             comboCount = stars,
             cascadeCount = 0
         )
+        return newlyUnlockedCountryIds
     }
 
     /**

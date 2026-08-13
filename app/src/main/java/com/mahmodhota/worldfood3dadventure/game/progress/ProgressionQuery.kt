@@ -74,7 +74,9 @@ object ProgressionQuery {
                 .orEmpty()
             CountryProgress(
                 levelId = countryId,
-                isUnlocked = persisted?.isUnlocked ?: false,
+                // Use isInitiallyUnlocked as fallback so Germany always shows as unlocked
+                // on a fresh install before the first DataStore emission.
+                isUnlocked = persisted?.isUnlocked ?: CountryProgressionChain.isInitiallyUnlocked(countryId),
                 isCompleted = persisted?.isCompleted ?: false,
                 levels = levels
             )

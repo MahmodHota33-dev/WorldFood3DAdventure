@@ -22,7 +22,8 @@ private const val DEG2RAD = (PI / 180.0).toFloat()
 /**
  * Fill color per polygon index, matching [GlobeContinentData.allPolygons] order:
  * 0=N.America, 1=S.America, 2=Europe, 3=Scandinavia, 4=Africa,
- * 5=Asia, 6=Asia-FE, 7=India, 8=Australia, 9=Greenland, 10=Japan, 11=NZ
+ * 5=Asia, 6=Asia-FE, 7=India, 8=Arabian, 9=Italy,
+ * 10=Australia, 11=Greenland, 12=Japan, 13=NZ
  */
 private val CONTINENT_FILLS = arrayOf(
     Color(0xFF4D9958),  // N. America — rich temperate forests
@@ -33,6 +34,8 @@ private val CONTINENT_FILLS = arrayOf(
     Color(0xFF4A7A4E),  // Asia main — mixed forest/plains
     Color(0xFF4E7D53),  // Asia far east
     Color(0xFF6D8C4B),  // India — subtropical plains
+    Color(0xFFC4A055),  // Arabian Peninsula — warm desert sand
+    Color(0xFF7AB362),  // Italy — Mediterranean green
     Color(0xFFC08E4A),  // Australia — warm desert earth
     Color(0xFFDCEBFA),  // Greenland — icy blue-white
     Color(0xFF4B7E4F),  // Japan — forested green
@@ -48,6 +51,8 @@ private val CONTINENT_COASTS = arrayOf(
     Color(0xFF2B6240),  // Asia main
     Color(0xFF2D6443),  // Asia far east
     Color(0xFF3D6C3C),  // India
+    Color(0xFF8A7230),  // Arabian Peninsula — dry desert coast
+    Color(0xFF4A8054),  // Italy — Mediterranean coast
     Color(0xFF8B6230),  // Australia — desert coastline
     Color(0xFFA5C9E0),  // Greenland — cool ice coast
     Color(0xFF2D6641),  // Japan
@@ -57,6 +62,8 @@ private val CONTINENT_COASTS = arrayOf(
 private val CONTINENT_MOUNTAIN_TINT = arrayOf(
     Color(0x142A2F38), Color(0x10272F38), Color(0x162E333C), Color(0x182E343E),
     Color(0x1536342B), Color(0x1E2A2F38), Color(0x1C2A2F38), Color(0x1630322F),
+    Color(0x143A3020), // Arabian Peninsula
+    Color(0x182F353C), // Italy
     Color(0x123B2F26), Color(0x10F0F6FF), Color(0x1C2B313A), Color(0x162B323B)
 )
 
@@ -344,44 +351,23 @@ fun DrawScope.drawOceanSphere(
 
     // Base ocean — highlight offset tracks sun direction with subtle drift.
     val hlOffset = Offset(
-        cx + r * lighting.sunX * 0.72f + driftX,
-        cy - r * lighting.sunY * 0.74f + driftY
+        cx + r * lighting.sunX * 0.75f + driftX,
+        cy - r * lighting.sunY * 0.77f + driftY
     )
     if (!hlOffset.x.isFinite() || !hlOffset.y.isFinite()) return
-    val gradR = r * 1.68f
+    val gradR = r * 1.85f
     if (gradR > 0f) {
         drawCircle(
             brush = Brush.radialGradient(
-                colors = listOf(
-                    Color(0xFF4B9DD2),   // sun-facing bright ocean
-                    Color(0xFF1E6EA8),   // upper mid-depth
-                    Color(0xFF0C4679),   // deep ocean body
-                    Color(0xFF06263F),   // dark basin
-                    Color(0xFF03151F)    // abyss edge
+                colorStops = arrayOf(
+                    0.00f to Color(0xFF59B0E3),   // specular ocean highlight
+                    0.22f to Color(0xFF2279B5),   // sunlit shallow
+                    0.48f to Color(0xFF0D4C82),   // primary ocean blue
+                    0.75f to Color(0xFF062A45),   // deep basin
+                    0.92f to Color(0xFF031826),   // abyss
+                    1.00f to Color(0xFF02101A)    // outer edge shadow
                 ),
                 center = hlOffset, radius = gradR
-            ),
-            radius = r, center = Offset(cx, cy)
-        )
-    }
-
-    // Tropical/turquoise coast tint near the lit side
-    val coastR = r * 0.72f
-    if (coastR > 0f) {
-        val coastCenter = Offset(
-            cx + r * lighting.sunX * 0.42f + driftX * 0.65f,
-            cy - r * lighting.sunY * 0.46f + driftY * 0.65f
-        )
-        if (!coastCenter.x.isFinite() || !coastCenter.y.isFinite()) return
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    Color(0x124FE7D9),
-                    Color(0x1736C7C2),
-                    Color(0x08248CB0),
-                    Color.Transparent
-                ),
-                center = coastCenter, radius = coastR
             ),
             radius = r, center = Offset(cx, cy)
         )
@@ -478,12 +464,12 @@ fun DrawScope.drawSunlight(cx: Float, cy: Float, r: Float, lighting: GlobeLighti
     }
 
     // Inner specular highlight
-    val specR = r * 0.26f
+    val specR = r * 0.28f
     if (specR > 0f) {
-        val specX = sx + r * 0.06f; val specY = sy + r * 0.04f
+        val specX = sx + r * 0.05f; val specY = sy + r * 0.03f
         drawCircle(
             brush = Brush.radialGradient(
-                colors = listOf(Color(0x55FFFFFF), Color(0x18FFFFFF), Color.Transparent),
+                colors = listOf(Color(0x6AFFFFFF), Color(0x22BCE8FF), Color.Transparent),
                 center = Offset(specX, specY), radius = specR
             ),
             radius = specR, center = Offset(specX, specY)
@@ -561,18 +547,39 @@ fun DrawScope.drawAtmosphereRim(cx: Float, cy: Float, r: Float, lighting: GlobeL
     if (r <= 0f) return
     val c = Offset(cx, cy)
     // Outermost faint haze
-    drawCircle(color = Color(0x103A8EEA), radius = r + 15f, center = c, style = Stroke(width = 28f))
-    // Mid atmosphere band
-    drawCircle(color = Color(0x2F5FAEFF), radius = r + 6f,  center = c, style = Stroke(width = 10f))
-    // Sharp bright limb
-    drawCircle(color = Color(0x5A9EE7FF), radius = r,       center = c, style = Stroke(width = 3.0f))
-    // Warm highlight arc on sunlit side — approximately upper-left 120° arc
-    // Approximated as a slightly offset lighter circle with a clipping mask effect
     drawCircle(
-        color = Color(0x2CFFE39B),
-        radius = r + 1.5f,
-        center = Offset(cx + lighting.sunX * 4f, cy - lighting.sunY * 4f),
-        style = Stroke(width = 3.0f)
+        brush = Brush.radialGradient(
+            0.90f to Color.Transparent,
+            0.95f to Color(0x123A8EEA),
+            1.00f to Color.Transparent,
+            center = c, radius = r + 30f
+        ),
+        radius = r + 30f, center = c
+    )
+    // Mid atmosphere band
+    drawCircle(
+        color = Color(0x285FAEFF),
+        radius = r + 6f,
+        center = c,
+        style = Stroke(width = 8f)
+    )
+    // Sharp bright limb
+    drawCircle(
+        color = Color(0x6A9EE7FF),
+        radius = r,
+        center = c,
+        style = Stroke(width = 2.5f)
+    )
+    // Warm highlight arc on sunlit side
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(Color(0x35FFE39B), Color.Transparent),
+            center = Offset(cx + lighting.sunX * r * 0.95f, cy - lighting.sunY * r * 0.95f),
+            radius = r * 0.45f
+        ),
+        radius = r + 2f,
+        center = c,
+        style = Stroke(width = 3.5f)
     )
 }
 
@@ -607,6 +614,8 @@ fun DrawScope.drawContinents(
         val mountain = CONTINENT_MOUNTAIN_TINT.getOrElse(idx) { Color(0x142B313A) }
         drawPath(path, color = fill)
         drawPath(path, brush = sunBrush)
+        // Mountain/highland shadow overlay — darkens high-terrain regions slightly
+        drawPath(path, color = mountain)
         drawPath(path, color = coast, style = Stroke(width = 1.2f, cap = StrokeCap.Round))
     }
 }
@@ -715,8 +724,24 @@ fun projectCountry(
     r: Float
 ): Offset? = projectLatLon(latDeg, lonDeg, rotY, rotX, cx, cy, r)
 
-/** Euclidean distance between two offsets. */
-fun Offset.distanceTo(other: Offset): Float {
-    val dx = x - other.x; val dy = y - other.y
-    return sqrt(dx * dx + dy * dy)
+/**
+ * Get the rotated Z-coordinate (depth) of a geographic point.
+ * +z is towards the viewer.
+ */
+fun getZDepth(
+    latDeg: Float, lonDeg: Float,
+    rotY: Float, rotX: Float
+): Float {
+    val p = latLonToXyz(latDeg, lonDeg)
+    
+    val ry = rotY * DEG2RAD
+    val cosRy = cos(ry); val sinRy = sin(ry)
+    // Rotate Y
+    val z1 = -p[0] * sinRy + p[2] * cosRy
+    val y1 = p[1]
+
+    val rx = rotX * DEG2RAD
+    val cosRx = cos(rx); val sinRx = sin(rx)
+    // Rotate X
+    return y1 * sinRx + z1 * cosRx
 }

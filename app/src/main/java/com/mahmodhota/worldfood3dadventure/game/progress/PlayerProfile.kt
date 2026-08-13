@@ -22,8 +22,12 @@ object PlayerProfile {
     var username by mutableStateOf("FoodieTraveler")
     
     private val scope = CoroutineScope(Dispatchers.Main)
+    @Volatile
+    private var initialized = false
 
     fun initialize() {
+        if (initialized) return
+        initialized = true
         scope.launch {
             GameProgressManager.repository.state.collect { gameState ->
                 lives = gameState.player.lives

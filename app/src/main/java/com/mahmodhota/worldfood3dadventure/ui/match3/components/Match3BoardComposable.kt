@@ -1,5 +1,6 @@
 package com.mahmodhota.worldfood3dadventure.ui.match3.components
 
+import androidx.compose.animation.*
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -82,13 +83,23 @@ fun Match3BoardComposable(
     specialEffectLabel: String? = null,
     specialEffectNonce: Int = 0,
     spawnedSpecialTiles: Map<BoardPosition, SpecialTileType> = emptyMap(),
-    spawnedSpecialNonce: Int = 0
+    spawnedSpecialNonce: Int = 0,
+    reshuffleNonce: Int = 0
 ) {
     var previousBoard by remember { mutableStateOf<Match3Board?>(null) }
     val boardShakeOffsetPx = remember { Animatable(0f) }
     val specialEffectProgress = remember { Animatable(0f) }
     val spawnedSpecialProgress = remember { Animatable(0f) }
     val matchGlowProgress = remember { Animatable(0f) }
+    var showReshuffleLabel by remember { mutableStateOf(false) }
+
+    LaunchedEffect(reshuffleNonce) {
+        if (reshuffleNonce > 0) {
+            showReshuffleLabel = true
+            delay(1500)
+            showReshuffleLabel = false
+        }
+    }
 
     LaunchedEffect(boardShakeNonce, boardShakeEnabled) {
         if (boardShakeEnabled && boardShakeNonce > 0) {
@@ -193,7 +204,7 @@ fun Match3BoardComposable(
                         .clip(RoundedCornerShape(18.dp))
                         .background(
                             Brush.verticalGradient(
-                                listOf(PremiumColors.DarkSlate.copy(alpha = 0.96f), PremiumColors.DeepNavy.copy(alpha = 0.96f))
+                                listOf(PremiumColors.DarkSlate.copy(alpha = 0.88f), PremiumColors.DeepNavy.copy(alpha = 0.88f))
                             )
                         )
                         .border(1.5.dp, PremiumColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(18.dp))
@@ -527,6 +538,10 @@ fun Match3BoardComposable(
                 if (comboCount > 1) {
                     ComboOverlay(count = comboCount, label = comboLabel)
                 }
+
+                if (showReshuffleLabel) {
+                    ReshuffleOverlay()
+                }
             }
         }
 
@@ -546,10 +561,10 @@ private fun ComboOverlay(count: Int, label: String?) {
         visible = false
     }
 
-    androidx.compose.animation.AnimatedVisibility(
+    AnimatedVisibility(
         visible = visible,
-        enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(initialScale = 0.5f),
-        exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut(targetScale = 1.5f)
+        enter = fadeIn() + scaleIn(initialScale = 0.5f),
+        exit = fadeOut() + scaleOut(targetScale = 1.5f)
     ) {
         Box(
             modifier = Modifier
@@ -574,6 +589,39 @@ private fun ComboOverlay(count: Int, label: String?) {
                         fontWeight = FontWeight.Bold
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReshuffleOverlay() {
+    AnimatedVisibility(
+        visible = true,
+        enter = fadeIn() + scaleIn(initialScale = 0.8f),
+        exit = fadeOut() + scaleOut(targetScale = 1.2f)
+    ) {
+        Box(
+            modifier = Modifier
+                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+                .border(2.dp, PremiumColors.Gold, RoundedCornerShape(16.dp))
+                .padding(horizontal = 24.dp, vertical = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "NO MORE MOVES!",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "RESHUFFLING...",
+                    color = PremiumColors.Gold,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.5.sp
+                )
             }
         }
     }

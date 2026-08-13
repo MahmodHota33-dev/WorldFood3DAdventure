@@ -17,8 +17,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,12 +43,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -61,9 +66,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.unit.Dp
@@ -74,10 +81,13 @@ import com.mahmodhota.worldfood3dadventure.data.audio.SfxType
 import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionManager
 import com.mahmodhota.worldfood3dadventure.game.world.LevelRegistry
 import com.mahmodhota.worldfood3dadventure.game.world.model.CountryProgressionChain
-import com.mahmodhota.worldfood3dadventure.game.world.france.FrancePresentation
-import com.mahmodhota.worldfood3dadventure.game.world.spain.SpainPresentation
+import androidx.compose.ui.draw.clip
+import com.mahmodhota.worldfood3dadventure.game.match3.model.FoodTileType
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.BottomNavigationBar
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.FoodIcon
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumColors
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.TopStatusBar
+import androidx.compose.ui.text.font.FontStyle
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
 import kotlin.math.PI
@@ -88,10 +98,6 @@ import kotlin.math.sin
 // ──────────────────────────────────────────────────────────────────────────────
 
 private val TWO_PI = (PI * 2).toFloat()
-
-internal fun shouldConsumeUnlockFlightEvent(unlockedId: String, consumedUnlockIds: Set<String>): Boolean {
-    return !consumedUnlockIds.contains(unlockedId)
-}
 
 internal fun canStartManualMarkerFlight(isFlightActive: Boolean, activeFlightDestinationId: String?): Boolean {
     return !isFlightActive && activeFlightDestinationId == null
@@ -117,10 +123,16 @@ internal val GLOBE_COUNTRIES = listOf(
 )
 
 private val GLOBE_COUNTRIES_BY_ID = GLOBE_COUNTRIES.associateBy { it.id }
-private val COUNTRY_FEATURED_FOODS = mapOf(
-    "italy" to listOf("Pizza Margherita", "Pasta Carbonara", "Gelato", "Espresso"),
-    "france" to FrancePresentation.signatureFoods.map { "${it.emoji} ${it.name}" },
-    "spain" to SpainPresentation.signatureFoods.map { "${it.emoji} ${it.name}" }
+
+/** Presentation-layer only: per-country dark accent gradient (compatible with deep navy identity). */
+private val COUNTRY_ACCENT_GRADIENT: Map<String, Pair<Color, Color>> = mapOf(
+    "germany" to Pair(Color(0xFF1A3B1E), Color(0xFF0D1F12)),  // forest green
+    "italy"   to Pair(Color(0xFF2D3010), Color(0xFF161808)),  // olive/terracotta
+    "france"  to Pair(Color(0xFF0D1845), Color(0xFF060E28)),  // Gallic blue
+    "spain"   to Pair(Color(0xFF461208), Color(0xFF1E0804)),  // Castilian red
+    "japan"   to Pair(Color(0xFF170F3D), Color(0xFF0A0820)),  // deep indigo
+    "mexico"  to Pair(Color(0xFF0C2E3C), Color(0xFF061820)),  // Yucatán teal
+    "sudan"   to Pair(Color(0xFF2C1404), Color(0xFF160A02))   // Nubian amber-brown
 )
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -201,6 +213,10 @@ private val STAR_COLORS: Array<Color> = Array(STAR_COUNT) { i ->
 // Tap hit-radius in dp
 private const val HIT_RADIUS_DP = 44f
 
+// Idle globe auto-rotation
+private const val IDLE_ROT_SPEED       = 0.055f   // degrees per normalised step ≈ 3.3°/s at 60fps
+private const val IDLE_RESUME_DELAY_MS = 2200f     // ms after last interaction before drift resumes
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Main composable
 // ──────────────────────────────────────────────────────────────────────────────
@@ -214,7 +230,9 @@ private const val HIT_RADIUS_DP = 44f
 @Composable
 fun Globe3DScreen(
     onLevelSelected: (String, Int) -> Unit,
-    onTabSelected: (String) -> Unit
+    onShowLevels: (String) -> Unit,
+    onTabSelected: (String) -> Unit,
+    onSettingsClick: () -> Unit
 ) {
     val camera = remember { GlobeCameraState() }
     var cloudRotY  by remember { mutableFloatStateOf(0f) }
@@ -226,20 +244,18 @@ fun Globe3DScreen(
     var currentCountryId by remember { mutableStateOf("germany") }
     var unlockBanner by remember { mutableStateOf<String?>(null) }
     var unlockHighlightCountryId by remember { mutableStateOf<String?>(null) }
-    var unlockBaseline by remember { mutableStateOf<Set<String>?>(null) }
-    var consumedUnlockIds by remember { mutableStateOf(setOf<String>()) }
     var activeFlightDestinationId by remember { mutableStateOf<String?>(null) }
     val markerCache = remember { MarkerPositionCache() }
     val visibleIdsBuffer = remember { HashSet<String>(6) }
+    // Plain primitive refs — written by pointer handler / frame loop on main thread.
+    // Not Compose state: no recomposition overhead per frame.
+    val isDraggingRef = remember { booleanArrayOf(false) }
+    val idleCountdownRef = remember { floatArrayOf(IDLE_RESUME_DELAY_MS) }
     val pointerPath = remember { Path() }
     val flightRoutePath = remember { Path() }
     val flightPlanePath = remember { Path() }
     val flightAnimator = remember { FlightAnimator() }
     val progressMap = ProgressionManager.progressMap
-    val unlockedIds = progressMap
-        .filterValues { it.isUnlocked }
-        .keys
-        .toSet()
     val density = LocalDensity.current
     var bottomNavHeightPx by remember { mutableFloatStateOf(0f) }
     val pinNormPx = with(density) { 10.dp.toPx() }
@@ -263,40 +279,32 @@ fun Globe3DScreen(
         label = "unlockPulseValue"
     )
 
-    LaunchedEffect(unlockedIds) {
-        val baseline = unlockBaseline
-        if (baseline == null) {
-            unlockBaseline = unlockedIds
-        } else {
-            val newlyUnlocked = unlockedIds - baseline
-            if (newlyUnlocked.isNotEmpty()) {
-                val unlockedId = newlyUnlocked.first()
-                if (shouldConsumeUnlockFlightEvent(unlockedId, consumedUnlockIds)) {
-                    val country = GLOBE_COUNTRIES_BY_ID[unlockedId]
-                    if (country != null) {
-                        unlockHighlightCountryId = unlockedId
-                        unlockBanner = "${country.flag} ${country.displayName} unlocked!"
-                        GlobalSystemManager.audio.playSfx(SfxType.COUNTRY_UNLOCK)
-                        GlobalSystemManager.haptics.heavy()
-                        val from = GLOBE_COUNTRIES_BY_ID[currentCountryId]
-                        if (from != null && from.id != unlockedId && !flightAnimator.isActive) {
-                            selectedCountry = null
-                            camera.cancelFlyTo()
-                            camera.stopInertia()
-                            activeFlightDestinationId = unlockedId
-                            flightAnimator.startFlight(from, country)
-                        }
-                        consumedUnlockIds = consumedUnlockIds + unlockedId
-                        delay(1800)
-                        unlockBanner = null
-                        delay(500)
-                        if (unlockHighlightCountryId == unlockedId) {
-                            unlockHighlightCountryId = null
-                        }
-                    }
+    LaunchedEffect(ProgressionManager.newlyUnlockedCountry) {
+        val unlockedCountry = ProgressionManager.newlyUnlockedCountry
+        if (unlockedCountry != null) {
+            val unlockedId = unlockedCountry.countryId
+            val country = GLOBE_COUNTRIES_BY_ID[unlockedId]
+            if (country != null) {
+                unlockHighlightCountryId = unlockedId
+                unlockBanner = unlockedId
+                GlobalSystemManager.audio.playSfx(SfxType.COUNTRY_UNLOCK)
+                GlobalSystemManager.haptics.heavy()
+                val from = GLOBE_COUNTRIES_BY_ID[currentCountryId]
+                if (from != null && from.id != unlockedId && !flightAnimator.isActive) {
+                    selectedCountry = null
+                    camera.cancelFlyTo()
+                    camera.stopInertia()
+                    activeFlightDestinationId = unlockedId
+                    flightAnimator.startFlight(from, country)
+                }
+                delay(4000)
+                unlockBanner = null
+                ProgressionManager.consumeUnlockEvent()
+                delay(500)
+                if (unlockHighlightCountryId == unlockedId) {
+                    unlockHighlightCountryId = null
                 }
             }
-            unlockBaseline = unlockedIds
         }
     }
 
@@ -353,7 +361,18 @@ fun Globe3DScreen(
             }
             val rawFrameMs = ((frameTimeNanos - lastFrameNanos) / 1_000_000f).coerceIn(8f, 64f)
             lastFrameNanos = frameTimeNanos
-            val motionActive = camera.isFlyingTo ||
+
+            // ── Idle auto-rotation countdown ───────────────────────────────
+            val interacting = isDraggingRef[0] || camera.isFlyingTo || flightAnimator.isActive
+            if (interacting || camera.hasVelocity) {
+                idleCountdownRef[0] = IDLE_RESUME_DELAY_MS  // reset on any activity
+            } else if (idleCountdownRef[0] > 0f) {
+                idleCountdownRef[0] = (idleCountdownRef[0] - rawFrameMs).coerceAtLeast(0f)
+            }
+            val idleAutoRotating = !interacting && !camera.hasVelocity && idleCountdownRef[0] <= 0f
+
+            val motionActive = idleAutoRotating ||
+                camera.isFlyingTo ||
                 flightAnimator.isActive ||
                 flightAnimator.hasVisiblePath ||
                 kotlin.math.abs(camera.velY) > 0.05f ||
@@ -372,6 +391,10 @@ fun Globe3DScreen(
 
             camera.tickInertia()
             camera.tickFlyTo()
+            // Slow eastward drift — only when fully settled and countdown expired
+            if (idleAutoRotating) {
+                camera.rotationY = (camera.rotationY + IDLE_ROT_SPEED * (frameMs / 16f)) % 360f
+            }
             flightAnimator.tick(frameMs)
 
             if (flightAnimator.isActive) {
@@ -448,7 +471,13 @@ fun Globe3DScreen(
 
             visibleIdsBuffer.clear()
 
-            for (country in GLOBE_COUNTRIES) {
+            // ── Render country markers (sorted by Z-depth for correct overlap) ──
+            val sortedCountries = GLOBE_COUNTRIES.map { 
+                it to getZDepth(it.latDeg, it.lonDeg, rotY, rotX)
+            }.filter { it.second > -0.05f } // only front-side
+             .sortedBy { it.second } // drawn back-to-front (larger Z is closer)
+
+            for ((country, _) in sortedCountries) {
                 // tipPos = geographic coordinate = bottom of pin pointer
                 val tipPos = projectLatLon(country.latDeg, country.lonDeg, rotY, rotX, cx, cy, r)
                     ?: continue
@@ -468,8 +497,21 @@ fun Globe3DScreen(
                 val pinR   = (if (isSelected) pinSelPx else pinNormPx) * selectedScale
                 val ptrLen = (if (isSelected) ptrSelPx else ptrNormPx) * selectedScale
 
-                // Circle center = above the geographic tip
-                val circCenter = Offset(tipPos.x, tipPos.y - ptrLen - pinR)
+                // ── Crowded Region Visual Offsets (Europe) ───────────────────────
+                // Shifts the label body while keeping the pointer tip at real lat/lon.
+                val visualOffset = when (country.id) {
+                    "germany" -> Offset(0f, -pinR * 0.8f) // Higher
+                    "france"  -> Offset(-pinR * 0.9f, -pinR * 0.3f) // Left
+                    "italy"   -> Offset(pinR * 0.9f, pinR * 0.4f)  // Right/Down
+                    "spain"   -> Offset(-pinR * 0.4f, pinR * 1.1f) // Far Down/Left
+                    else -> Offset.Zero
+                }
+
+                // Circle center = above the geographic tip + visual offset
+                val circCenter = Offset(
+                    tipPos.x + visualOffset.x, 
+                    tipPos.y - ptrLen - pinR + visualOffset.y
+                )
 
                 visibleIdsBuffer.add(country.id)
                 markerCache.update(country, circCenter)   // hit-test targets visible circle body
@@ -489,9 +531,23 @@ fun Globe3DScreen(
 
                 // ── Selected glow ────────────────────────────────────────────────
                 if (isSelected) {
-                    if (pinR * 3.9f > 0f) drawCircle(Color(0x4DFFD95A), radius = pinR * 3.9f, center = circCenter)
-                    if (pinR * 2.5f > 0f) drawCircle(Color(0x7AFFE17D), radius = pinR * 2.5f, center = circCenter)
-                    if (pinR * 1.5f > 0f) drawCircle(Color(0x55FFF6B8), radius = pinR * 1.5f, center = circCenter)
+                    val selGlowR = pinR * 3.8f
+                    if (selGlowR > 0f) {
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colorStops = arrayOf(
+                                    0.0f to Color(0xBBFFF6B8),
+                                    0.4f to Color(0x99FFE17D),
+                                    0.7f to Color(0x55FFD95A),
+                                    1.0f to Color.Transparent
+                                ),
+                                center = circCenter,
+                                radius = selGlowR
+                            ),
+                            radius = selGlowR,
+                            center = circCenter
+                        )
+                    }
                 } else if (isUnlockHighlighted) {
                     val unlockGlow = (0.4f + unlockPulse * 0.6f).coerceIn(0f, 1f)
                     drawCircle(
@@ -528,6 +584,13 @@ fun Globe3DScreen(
                     else                -> Color(0xFF8B98A7)
                 }
 
+                // ── Shadow ────────────────────────────────────────────────────────
+                drawCircle(
+                    color = Color.Black.copy(alpha = 0.25f),
+                    radius = pinR * 0.8f,
+                    center = Offset(circCenter.x + 2f, circCenter.y + 3f)
+                )
+
                 // ── Pointer triangle ─────────────────────────────────────────────
                 val halfBase = pinR * 0.54f
                 val ptrBase  = circCenter.y + pinR * 0.70f
@@ -543,7 +606,15 @@ fun Globe3DScreen(
                 }
 
                 // ── Circle body ───────────────────────────────────────────────────
-                drawCircle(color = pinFill,   radius = pinR, center = circCenter)
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(pinFill, pinStroke.copy(alpha = 0.9f)),
+                        center = Offset(circCenter.x - pinR * 0.2f, circCenter.y - pinR * 0.2f),
+                        radius = pinR * 1.5f
+                    ),
+                    radius = pinR,
+                    center = circCenter
+                )
                 drawCircle(color = pinStroke, radius = pinR, center = circCenter,
                     style = Stroke(width = strokeWPx))
 
@@ -632,29 +703,53 @@ fun Globe3DScreen(
                         }
                     }
                 }
+                .pointerInput("dragState") {
+                    // Tracks whether any finger is currently touching the globe.
+                    // Uses Initial pass so events are seen before transform/tap handlers consume them.
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+                            isDraggingRef[0] = event.changes.any { it.pressed }
+                        }
+                    }
+                }
         )
 
         // ── Country info card ─────────────────────────────────────────────
-        selectedCountry?.let { country ->
-            GlobeCountryCard(
-                country       = country,
-                onPlayLevel   = { lvl -> onLevelSelected(country.id, lvl) },
-                onDismiss     = { selectedCountry = null },
-                bottomClearance = bottomOverlayPadding
-            )
+        AnimatedVisibility(
+            visible = selectedCountry != null,
+            enter = fadeIn(tween(400)) + slideInVertically(
+                initialOffsetY = { it / 2 },
+                animationSpec = spring(dampingRatio = 0.82f, stiffness = 300f)
+            ),
+            exit = fadeOut(tween(300)) + slideOutVertically(targetOffsetY = { it / 2 }),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            selectedCountry?.let { country ->
+                GlobeCountryCard(
+                    country       = country,
+                    onPlayLevel   = { lvl -> onLevelSelected(country.id, lvl) },
+                    onShowLevels  = { onShowLevels(country.id) },
+                    onDismiss     = { selectedCountry = null },
+                    bottomClearance = bottomOverlayPadding
+                )
+            }
         }
 
         // ── Top HUD ───────────────────────────────────────────────────────
-        unlockBanner?.let { text ->
-            CountryUnlockToast(
-                text = text,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 66.dp)
-            )
+        AnimatedVisibility(
+            visible = unlockBanner != null,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 70.dp)
+        ) {
+            unlockBanner?.let { id ->
+                CountryUnlockBanner(countryId = id)
+            }
         }
+
         Box(modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth()) {
-            TopStatusBar(onSettingsClick = {})
+            TopStatusBar(onSettingsClick = onSettingsClick)
         }
 
         // ── Bottom navigation ──────────────────────────────────────────────
@@ -670,52 +765,78 @@ fun Globe3DScreen(
 }
 
 @Composable
-private fun CountryUnlockToast(
-    text: String,
+private fun CountryUnlockBanner(
+    countryId: String,
     modifier: Modifier = Modifier
 ) {
-    val pulse = rememberInfiniteTransition(label = "unlockToastPulse")
-    val glowAlpha by pulse.animateFloat(
-        initialValue = 0.52f,
-        targetValue = 0.92f,
+    val metadata = remember(countryId) { LevelRegistry.getCountry(countryId)?.metadata }
+    val foods = remember(countryId) { LevelRegistry.getRepresentativeFoods(countryId) }
+    
+    val pulseTransition = rememberInfiniteTransition(label = "bannerPulse")
+    val pulseScale by pulseTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.03f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 980, easing = LinearEasing),
+            animation = tween(1200, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "unlockToastGlow"
+        label = "pulse"
     )
-    val wave by pulse.animateFloat(
-        initialValue = -4f,
-        targetValue = 4f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 760, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "unlockToastWave"
-    )
+
     Surface(
         modifier = modifier
-            .padding(horizontal = 14.dp)
-            .scale(1f + (glowAlpha - 0.52f) * 0.04f),
-        shape = RoundedCornerShape(14.dp),
-        color = Color(0xEE122742),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xAAFFD978).copy(alpha = glowAlpha))
+            .padding(horizontal = 16.dp)
+            .widthIn(max = 480.dp)
+            .scale(pulseScale)
+            .shadow(16.dp, RoundedCornerShape(22.dp)),
+        shape = RoundedCornerShape(22.dp),
+        color = Color(0xF2081426),
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, Brush.linearGradient(listOf(PremiumColors.Gold, Color.Transparent)))
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "🚩",
-                fontSize = 16.sp,
-                modifier = Modifier.graphicsLayer { translationY = wave }
+                text = "★ NEW DESTINATION UNLOCKED",
+                color = PremiumColors.Gold,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 1.2.sp
             )
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(metadata?.flagEmoji ?: "🌍", fontSize = 30.sp)
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    metadata?.displayName?.uppercase() ?: countryId.uppercase(),
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 0.5.sp
+                )
+            }
+            if (foods.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    foods.take(3).forEach { type ->
+                        Box(
+                            modifier = Modifier
+                                .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
+                                .padding(4.dp)
+                        ) {
+                            FoodIcon(type = type, size = 26.dp)
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
             Text(
-                text = text,
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp
+                text = "Your culinary journey continues...",
+                color = Color.White.copy(alpha = 0.6f),
+                fontSize = 12.sp,
+                fontStyle = FontStyle.Italic,
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -729,18 +850,38 @@ private fun CountryUnlockToast(
 private fun BoxScope.GlobeCountryCard(
     country: GlobeCountry,
     onPlayLevel: (Int) -> Unit,
+    onShowLevels: () -> Unit,
     onDismiss: () -> Unit,
     bottomClearance: Dp
 ) {
     val progress  = ProgressionManager.getCountryProgress(country.id)
     val spec      = remember(country.id) { CountryProgressionChain.getSpec(country.id) }
     val metadata  = remember(country.id) { LevelRegistry.getCountry(country.id)?.metadata }
-    val featuredFoods = remember(country.id) { COUNTRY_FEATURED_FOODS[country.id].orEmpty() }
+    val foodIcons = remember(country.id) { LevelRegistry.getRepresentativeFoods(country.id) }
+    val accentStart = COUNTRY_ACCENT_GRADIENT[country.id]?.first ?: Color(0xFF132A54)
+    val accentEnd   = COUNTRY_ACCENT_GRADIENT[country.id]?.second ?: Color(0xFF0A1830)
 
-    val totalLevels     = spec?.totalLevels ?: maxOf(progress.levels.size, 1)
-    val completedLevels = progress.levels.count { it.isCompleted }
-    val maxStars        = totalLevels * 3
-    val starsNeeded     = spec?.requiredStarsToUnlock ?: 0
+    val totalLevels       = spec?.totalLevels ?: maxOf(progress.levels.size, 1)
+    val completedLevels   = progress.levels.count { it.isCompleted }
+    val maxStars          = totalLevels * 3
+    val starsNeeded       = spec?.requiredStarsToUnlock ?: 0
+    val currentTotalStars = ProgressionManager.playerProgress.totalStars
+    val starsRemaining    = maxOf(0, starsNeeded - currentTotalStars)
+
+    val lockProgressFraction by animateFloatAsState(
+        targetValue = if (!progress.isUnlocked && starsNeeded > 0)
+            (currentTotalStars.toFloat() / starsNeeded.toFloat()).coerceIn(0f, 1f)
+        else 0f,
+        animationSpec = tween(durationMillis = 800),
+        label = "lockProgress"
+    )
+    val starProgressFraction by animateFloatAsState(
+        targetValue = if (progress.isUnlocked && maxStars > 0)
+            (progress.totalStars.toFloat() / maxStars.toFloat()).coerceIn(0f, 1f)
+        else 0f,
+        animationSpec = tween(durationMillis = 600),
+        label = "starProgress"
+    )
 
     // First incomplete level (1-based); fall back to level 1 if all done
     val nextLevel = if (progress.isUnlocked) {
@@ -770,11 +911,11 @@ private fun BoxScope.GlobeCountryCard(
                     elevation = if (compact) 16.dp else 22.dp,
                     shape = cardShape,
                     ambientColor = Color.Black.copy(alpha = 0.32f),
-                    spotColor = Color(0xFF2E78FF).copy(alpha = 0.2f)
+                    spotColor = accentStart.copy(alpha = 0.4f)
                 ),
             shape = cardShape,
             color = Color(0xF2080F1E),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)),
+            border = androidx.compose.foundation.BorderStroke(1.dp, accentStart.copy(alpha = 0.45f)),
             tonalElevation = 18.dp
         ) {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
@@ -784,7 +925,7 @@ private fun BoxScope.GlobeCountryCard(
                     .fillMaxWidth()
                     .background(
                         Brush.linearGradient(
-                            colors = listOf(Color(0xFF132A54), Color(0xFF0A1830))
+                            colors = listOf(accentStart, accentEnd)
                         )
                     )
                     .padding(horizontal = contentHorizontal, vertical = contentVertical)
@@ -851,21 +992,33 @@ private fun BoxScope.GlobeCountryCard(
                     Spacer(modifier = Modifier.height(4.dp))
                 }
 
-                if (featuredFoods.isNotEmpty()) {
+                if (foodIcons.isNotEmpty()) {
                     Text(
-                        text = "Signature Foods",
-                        color = Color(0xFF6F8FB0),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(bottom = 6.dp)
+                        text = "SIGNATURE DISHES",
+                        color = Color(0xFF5A7090),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp,
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    Text(
-                        text = featuredFoods.joinToString(" • "),
-                        color = Color(0xFFDCE7F3),
-                        fontSize = if (compact) 13.sp else 14.sp,
-                        lineHeight = if (compact) 18.sp else 20.sp,
-                        modifier = Modifier.padding(bottom = 14.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        foodIcons.take(3).forEach { foodType ->
+                            Box(
+                                modifier = Modifier
+                                    .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(10.dp))
+                                    .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(10.dp))
+                                    .padding(6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                FoodIcon(type = foodType, size = if (compact) 28.dp else 32.dp)
+                            }
+                        }
+                    }
                 }
 
                 if (progress.isUnlocked) {
@@ -891,6 +1044,28 @@ private fun BoxScope.GlobeCountryCard(
                             compact = compact
                         )
                     }
+
+                    // ── Star progress bar ──────────────────────────────────
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(Color.White.copy(alpha = 0.10f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(starProgressFraction)
+                                .fillMaxHeight()
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(Color(0xFFFFD700), Color(0xFFFFAA22))
+                                    ),
+                                    RoundedCornerShape(2.dp)
+                                )
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     // ── Play button ────────────────────────────────────────
                     val playButtonInteraction = remember { MutableInteractionSource() }
@@ -989,12 +1164,26 @@ private fun BoxScope.GlobeCountryCard(
                         }
                     }
 
+                    // ── View Levels secondary action ──────────────────────
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(
+                        onClick = onShowLevels,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "View All Levels",
+                            color = Color(0xFF5BA8D0),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
                 } else {
                     // ── Locked state ───────────────────────────────────────
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = Color(0xFF101824),
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -1002,10 +1191,59 @@ private fun BoxScope.GlobeCountryCard(
                         ) {
                             Text("🔒", fontSize = 22.sp, modifier = Modifier.padding(end = 12.dp))
                             Column {
-                                Text("Destination locked", color = Color(0xFF6688AA), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                Text("Collect $starsNeeded ⭐ to unlock", color = Color(0xFF445566), fontSize = 12.sp)
+                                Text(
+                                    "Destination locked",
+                                    color = Color(0xFF6688AA),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                if (starsRemaining > 0) {
+                                    Text(
+                                        "★ $starsRemaining more stars to unlock",
+                                        color = Color(0xFF4A7FAA),
+                                        fontSize = 12.sp
+                                    )
+                                }
                             }
                         }
+                    }
+                    // ── Unlock progress bar ────────────────────────────────
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(Color.White.copy(alpha = 0.08f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(lockProgressFraction)
+                                .fillMaxHeight()
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(Color(0xFF4A9FCC), Color(0xFF7ABDE0))
+                                    ),
+                                    RoundedCornerShape(2.dp)
+                                )
+                        )
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp, bottom = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "★ $currentTotalStars collected",
+                            color = Color(0xFF4A9FCC),
+                            fontSize = 11.sp
+                        )
+                        Text(
+                            "/ $starsNeeded needed",
+                            color = Color(0xFF445566),
+                            fontSize = 11.sp
+                        )
                     }
                     Button(
                         onClick = {},

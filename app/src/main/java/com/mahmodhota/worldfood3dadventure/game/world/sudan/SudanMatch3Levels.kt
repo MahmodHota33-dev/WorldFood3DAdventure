@@ -89,6 +89,46 @@ object SudanMatch3Levels {
             allowedTiles = listOf(FoodTileType.KISRA, FoodTileType.FUL_MEDAMES, FoodTileType.MULAH, FoodTileType.AGASHE, FoodTileType.SAMBUSA, FoodTileType.ASIDA),
             goals = listOf(LevelGoal.ScoreTarget(20000)),
             moves = 35
+        ),
+        // Level 11: Nile Harvest
+        Match3LevelDefinition(
+            levelNumber = 11,
+            countryId = "sudan",
+            allowedTiles = listOf(FoodTileType.KISRA, FoodTileType.TAGALIA, FoodTileType.TOMATO, FoodTileType.BASIL),
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.KISRA, 30)),
+            moves = 30
+        ),
+        // Level 12: Desert Delight
+        Match3LevelDefinition(
+            levelNumber = 12,
+            countryId = "sudan",
+            allowedTiles = listOf(FoodTileType.AGASHE, FoodTileType.SHAWAYA, FoodTileType.SAMBUSA, FoodTileType.GURRASA),
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.AGASHE, 25)),
+            moves = 28
+        ),
+        // Level 13: Ful Feast
+        Match3LevelDefinition(
+            levelNumber = 13,
+            countryId = "sudan",
+            allowedTiles = listOf(FoodTileType.FUL_MEDAMES, FoodTileType.ASIDA, FoodTileType.KISRA, FoodTileType.TOMATO),
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.FUL_MEDAMES, 22)),
+            moves = 32
+        ),
+        // Level 14: Sudan Mix
+        Match3LevelDefinition(
+            levelNumber = 14,
+            countryId = "sudan",
+            allowedTiles = listOf(FoodTileType.SAMBUSA, FoodTileType.TAGALIA, FoodTileType.GURRASA, FoodTileType.AGASHE),
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.SAMBUSA, 30), LevelGoal.CollectFood(FoodTileType.GURRASA, 20)),
+            moves = 35
+        ),
+        // Level 15: Nubian Finale
+        Match3LevelDefinition(
+            levelNumber = 15,
+            countryId = "sudan",
+            allowedTiles = FoodTileType.values().filter { it.name in listOf("KISRA", "FUL_MEDAMES", "MULAH", "TAGALIA", "AGASHE", "SAMBUSA", "SHAWAYA", "GURRASA", "ASIDA") },
+            goals = listOf(LevelGoal.ScoreTarget(40000), LevelGoal.CollectFood(FoodTileType.KISRA, 20)),
+            moves = 40
         )
     )
 

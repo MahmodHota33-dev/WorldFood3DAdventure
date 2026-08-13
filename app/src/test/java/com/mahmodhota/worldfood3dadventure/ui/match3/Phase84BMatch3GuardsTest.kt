@@ -86,4 +86,11 @@ class Phase84BMatch3GuardsTest {
         assertEquals(0, movesDeltaForSwapResult(SwapResult.NoMatch))
         assertEquals(0, movesDeltaForSwapResult(SwapResult.NotAdjacent))
     }
+
+    @Test
+    fun gameStatusEvaluationRunsOnlyDuringActivePlay() {
+        assertTrue(shouldEvaluateGameStatus(GameStatus.PLAYING))
+        assertFalse(shouldEvaluateGameStatus(GameStatus.WON))
+        assertFalse(shouldEvaluateGameStatus(GameStatus.LOST))
+    }
 }

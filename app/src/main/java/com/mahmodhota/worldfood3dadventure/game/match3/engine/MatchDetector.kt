@@ -82,6 +82,89 @@ object MatchDetector {
         return MatchResult(finalGroups, uniquePositions, specialSpawns)
     }
 
+    /**
+     * Efficiently checks if the board contains at least one match.
+     * Stops immediately when a match is found.
+     */
+    fun hasAnyMatch(board: Match3Board): Boolean {
+        // Horizontal scan
+        for (r in 0 until board.rows) {
+            var count = 1
+            for (c in 1 until board.columns) {
+                val t1 = board.tileAt(BoardPosition(r, c - 1))
+                val t2 = board.tileAt(BoardPosition(r, c))
+                if (t1 != null && t2 != null && t1.type == t2.type) {
+                    count++
+                    if (count >= 3) return true
+                } else {
+                    count = 1
+                }
+            }
+        }
+        // Vertical scan
+        for (c in 0 until board.columns) {
+            var count = 1
+            for (r in 1 until board.rows) {
+                val t1 = board.tileAt(BoardPosition(r - 1, c))
+                val t2 = board.tileAt(BoardPosition(r, c))
+                if (t1 != null && t2 != null && t1.type == t2.type) {
+                    count++
+                    if (count >= 3) return true
+                } else {
+                    count = 1
+                }
+            }
+        }
+        return false
+    }
+
+    /**
+     * Checks if there is a match intersecting a specific position.
+     */
+    fun hasMatchAt(board: Match3Board, pos: BoardPosition): Boolean {
+        val tile = board.tileAt(pos) ?: return false
+        
+        // Horizontal check around pos
+        var hCount = 1
+        // Look left
+        var c = pos.column - 1
+        while (c >= 0) {
+            if (board.tileAt(BoardPosition(pos.row, c))?.type == tile.type) {
+                hCount++
+                c--
+            } else break
+        }
+        // Look right
+        c = pos.column + 1
+        while (c < board.columns) {
+            if (board.tileAt(BoardPosition(pos.row, c))?.type == tile.type) {
+                hCount++
+                c++
+            } else break
+        }
+        if (hCount >= 3) return true
+
+        // Vertical check around pos
+        var vCount = 1
+        // Look up
+        var r = pos.row - 1
+        while (r >= 0) {
+            if (board.tileAt(BoardPosition(r, pos.column))?.type == tile.type) {
+                vCount++
+                r--
+            } else break
+        }
+        // Look down
+        r = pos.row + 1
+        while (r < board.rows) {
+            if (board.tileAt(BoardPosition(r, pos.column))?.type == tile.type) {
+                vCount++
+                r++
+            } else break
+        }
+        return vCount >= 3
+    }
+
     private fun chooseSpawnPoint(
         candidates: Set<BoardPosition>,
         preferredPositions: List<BoardPosition>

@@ -1,8 +1,22 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
 }
+
+val localSigningPropertiesFile = rootProject.file("keystore.properties")
+val localSigningProperties = Properties().apply {
+    if (localSigningPropertiesFile.exists()) {
+        localSigningPropertiesFile.inputStream().use { load(it) }
+    }
+}
+val localSigningStorePath = localSigningProperties.getProperty("storeFile")?.trim().orEmpty()
+val localSigningStoreFile = if (localSigningStorePath.isNotEmpty()) rootProject.file(localSigningStorePath) else null
+val hasLocalReleaseSigning = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+    .all { !localSigningProperties.getProperty(it).isNullOrBlank() } &&
+    (localSigningStoreFile?.exists() == true)
 
 android {
     namespace = "com.mahmodhota.worldfood3dadventure"
@@ -18,6 +32,17 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (hasLocalReleaseSigning) {
+            create("release") {
+                storeFile = localSigningStoreFile
+                storePassword = localSigningProperties.getProperty("storePassword")
+                keyAlias = localSigningProperties.getProperty("keyAlias")
+                keyPassword = localSigningProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -26,6 +51,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (hasLocalReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {

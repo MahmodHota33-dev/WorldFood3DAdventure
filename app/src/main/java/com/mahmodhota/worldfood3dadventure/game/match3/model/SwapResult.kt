@@ -11,7 +11,8 @@ sealed class SwapResult {
         val cascadeSteps: List<CascadeStep>,
         val scoreGained: Int,
         val totalMatchedTiles: Int,
-        val collectedCounts: Map<FoodTileType, Int>
+        val collectedCounts: Map<FoodTileType, Int>,
+        val wasReshuffled: Boolean = false
     ) : SwapResult()
 
     object NotAdjacent : SwapResult()

@@ -89,6 +89,46 @@ object MexicoMatch3Levels {
             allowedTiles = listOf(FoodTileType.TACO, FoodTileType.BURRITO, FoodTileType.GUACAMOLE, FoodTileType.NACHOS, FoodTileType.CHILI, FoodTileType.TAMALE),
             goals = listOf(LevelGoal.ScoreTarget(20000)),
             moves = 32
+        ),
+        // Level 11: Fiesta Nachos
+        Match3LevelDefinition(
+            levelNumber = 11,
+            countryId = "mexico",
+            allowedTiles = listOf(FoodTileType.NACHOS, FoodTileType.CHURROS, FoodTileType.TACO, FoodTileType.GUACAMOLE),
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.NACHOS, 30)),
+            moves = 28
+        ),
+        // Level 12: Pozole Pot
+        Match3LevelDefinition(
+            levelNumber = 12,
+            countryId = "mexico",
+            allowedTiles = listOf(FoodTileType.POZOLE, FoodTileType.TAMALE, FoodTileType.CHILI, FoodTileType.TOMATO),
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.POZOLE, 20)),
+            moves = 25
+        ),
+        // Level 13: Quesadilla Queen
+        Match3LevelDefinition(
+            levelNumber = 13,
+            countryId = "mexico",
+            allowedTiles = listOf(FoodTileType.QUESADILLA, FoodTileType.BURRITO, FoodTileType.TACO, FoodTileType.GUACAMOLE),
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.QUESADILLA, 22)),
+            moves = 30
+        ),
+        // Level 14: Street Food Mix
+        Match3LevelDefinition(
+            levelNumber = 14,
+            countryId = "mexico",
+            allowedTiles = listOf(FoodTileType.TACO, FoodTileType.TAMALE, FoodTileType.NACHOS, FoodTileType.CHURROS),
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.TACO, 25), LevelGoal.CollectFood(FoodTileType.CHURROS, 15)),
+            moves = 35
+        ),
+        // Level 15: Aztec Challenge
+        Match3LevelDefinition(
+            levelNumber = 15,
+            countryId = "mexico",
+            allowedTiles = FoodTileType.values().filter { it.name in listOf("TACO", "BURRITO", "GUACAMOLE", "NACHOS", "CHILI", "TAMALE", "POZOLE", "QUESADILLA", "CHURROS") },
+            goals = listOf(LevelGoal.ScoreTarget(35000), LevelGoal.CollectFood(FoodTileType.TAMALE, 15)),
+            moves = 40
         )
     )
 

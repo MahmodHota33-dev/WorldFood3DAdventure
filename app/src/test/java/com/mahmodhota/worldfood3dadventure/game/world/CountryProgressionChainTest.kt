@@ -34,7 +34,7 @@ class CountryProgressionChainTest {
         assertTrue("Germany should have 0 star requirement", germany.requiredStarsToUnlock == 0)
         assertTrue("Italy should require more stars than Germany", italy.requiredStarsToUnlock > germany.requiredStarsToUnlock)
         assertTrue("France should require more stars than Italy", france.requiredStarsToUnlock > italy.requiredStarsToUnlock)
-        assertEquals("Spain should unlock after France completion", 135, spain.requiredStarsToUnlock)
+        assertEquals("Spain should unlock at the approved balanced threshold", 90, spain.requiredStarsToUnlock)
     }
 
     @Test
@@ -73,9 +73,9 @@ class CountryProgressionChainTest {
         assertEquals("Italy should have 15 levels", 15, CountryProgressionChain.getTotalLevels("italy"))
         assertEquals("France should have 15 levels", 15, CountryProgressionChain.getTotalLevels("france"))
         assertEquals("Spain should have 15 levels", 15, CountryProgressionChain.getTotalLevels("spain"))
-        assertEquals("Japan should have 10 levels", 10, CountryProgressionChain.getTotalLevels("japan"))
-        assertEquals("Mexico should have 10 levels", 10, CountryProgressionChain.getTotalLevels("mexico"))
-        assertEquals("Sudan should have 10 levels", 10, CountryProgressionChain.getTotalLevels("sudan"))
+        assertEquals("Japan should have 15 levels", 15, CountryProgressionChain.getTotalLevels("japan"))
+        assertEquals("Mexico should have 15 levels", 15, CountryProgressionChain.getTotalLevels("mexico"))
+        assertEquals("Sudan should have 15 levels", 15, CountryProgressionChain.getTotalLevels("sudan"))
     }
 
     @Test

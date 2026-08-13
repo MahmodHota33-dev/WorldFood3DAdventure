@@ -31,11 +31,13 @@ class GlobeCameraState(
     @Volatile var velX: Float = 0f
 
     fun rotate(dY: Float, dX: Float) {
+        if (!dY.isFinite() || !dX.isFinite()) return
         rotationY = (rotationY + dY) % 360f
         rotationX = (rotationX + dX).coerceIn(-80f, 80f)
     }
 
     fun applyZoom(factor: Float) {
+        if (!factor.isFinite() || factor <= 0f) return
         zoom = (zoom * factor).coerceIn(0.6f, 2.2f)
     }
 
@@ -43,6 +45,10 @@ class GlobeCameraState(
     fun tickInertia() {
         if (!hasVelocity) return
         rotate(velY, velX)
+        // Keep rotationY in [0, 360) range
+        if (rotationY < 0f) rotationY += 360f
+        else if (rotationY >= 360f) rotationY -= 360f
+
         val speed = maxOf(abs(velY), abs(velX))
         val damping = when {
             speed > 3.5f -> 0.92f

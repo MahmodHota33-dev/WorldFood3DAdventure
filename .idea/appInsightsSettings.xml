@@ -6,14 +6,6 @@
         <entry key="Firebase Crashlytics">
           <value>
             <InsightsFilterSettings>
-              <option name="connection">
-                <ConnectionSetting>
-                  <option name="appId" value="com.mahmodhota.worldfood3dadventure" />
-                  <option name="mobileSdkAppId" value="1:862473079762:android:94ac1efe946facd4e8d60b" />
-                  <option name="projectId" value="worldfood3dadventure" />
-                  <option name="projectNumber" value="862473079762" />
-                </ConnectionSetting>
-              </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
               <option name="timeIntervalDays" value="THIRTY_DAYS" />
               <option name="visibilityType" value="ALL" />

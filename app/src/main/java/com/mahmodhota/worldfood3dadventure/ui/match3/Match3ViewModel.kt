@@ -71,7 +71,8 @@ data class Match3UiState(
     val activatedBooster: BoosterType? = null,
     val boosterActivationNonce: Int = 0,
     val spawnedSpecialTiles: Map<BoardPosition, SpecialTileType> = emptyMap(),
-    val spawnedSpecialNonce: Int = 0
+    val spawnedSpecialNonce: Int = 0,
+    val reshuffleNonce: Int = 0
 )
 
 internal fun shouldIgnoreTileSelectionInput(isAnimating: Boolean, status: GameStatus): Boolean {
@@ -93,6 +94,10 @@ internal fun shouldGrantFirstClearReward(rewardedInThisSession: Boolean): Boolea
     return !rewardedInThisSession
 }
 
+internal fun shouldEvaluateGameStatus(status: GameStatus): Boolean {
+    return status == GameStatus.PLAYING
+}
+
 internal fun movesDeltaForSwapResult(result: SwapResult): Int {
     return if (result is SwapResult.Success) -1 else 0
 }
@@ -111,6 +116,10 @@ class Match3ViewModel(
         ProgressionManager.completeLevel(country, level, score, stars)
     }
 ) : ViewModel() {
+    companion object {
+        private const val DefaultBoardRows = 8
+        private const val DefaultBoardColumns = 8
+    }
 
     private val levelDefinition = Match3LevelRegistry.getLevel(countryId, levelNumber)
         ?: throw IllegalArgumentException("Invalid level: $countryId $levelNumber")
@@ -118,19 +127,31 @@ class Match3ViewModel(
     private val engine = engineFactory(levelDefinition.allowedTiles)
     private val telemetryLevelId = Match3Telemetry.levelId(countryId, levelNumber)
     private var resolutionJob: Job? = null
+    private var boardInitJob: Job? = null
+    private var victoryFeedbackJob: Job? = null
     private var pendingBooster: BoosterType? = null
     private var rewardedInThisSession = false
 
     var uiState by mutableStateOf(
         Match3UiState(
-            board = engine.createStartBoard(),
+            board = createBootstrapBoard(
+                rows = DefaultBoardRows,
+                cols = DefaultBoardColumns,
+                allowedTiles = levelDefinition.allowedTiles
+            ),
             movesRemaining = levelDefinition.moves,
             goals = levelDefinition.goals,
             scoreThresholds = levelDefinition.scoreThresholds,
-            boosterInventory = boosterInventoryProvider()
+            boosterInventory = boosterInventoryProvider(),
+            isAnimating = true,
+            animationPhase = Match3AnimationPhase.Validating
         )
     )
         private set
+
+    init {
+        initializeBoardAsync()
+    }
     
     /**
      * Atomically cancel existing resolution job and start a new one.
@@ -147,6 +168,39 @@ class Match3ViewModel(
                 }
             }
         }
+    }
+
+    private fun initializeBoardAsync() {
+        boardInitJob?.cancel()
+        boardInitJob = viewModelScope.launch {
+            val generatedBoard = withContext(Dispatchers.Default) {
+                engine.createStartBoard(DefaultBoardRows, DefaultBoardColumns)
+            }
+            uiState = Match3UiState(
+                board = generatedBoard,
+                movesRemaining = levelDefinition.moves,
+                goals = levelDefinition.goals,
+                scoreThresholds = levelDefinition.scoreThresholds,
+                boosterInventory = boosterInventoryProvider()
+            )
+        }
+    }
+
+    private fun createBootstrapBoard(
+        rows: Int,
+        cols: Int,
+        allowedTiles: List<FoodTileType>
+    ): Match3Board {
+        val safeTiles = allowedTiles.ifEmpty { FoodTileType.values().toList() }
+        val tiles = mutableListOf<FoodTile>()
+        var tileId = 1L
+        for (row in 0 until rows) {
+            for (column in 0 until cols) {
+                val type = safeTiles[(row + (column * 2)) % safeTiles.size]
+                tiles.add(FoodTile(id = tileId++, type = type))
+            }
+        }
+        return Match3Board(rows, cols, tiles)
     }
 
     fun onTileSelected(position: BoardPosition) {
@@ -268,7 +322,8 @@ class Match3ViewModel(
                         result.cascadeSteps,
                         result.scoreGained,
                         result.collectedCounts,
-                        movesDelta = movesDeltaForSwapResult(result)
+                        movesDelta = movesDeltaForSwapResult(result),
+                        reshuffled = result.wasReshuffled
                     )
                 }
                 else -> {
@@ -346,7 +401,14 @@ class Match3ViewModel(
                 clearTransientAnimationState(isAnimating = false)
                 return@launchResolutionJob
             }
-            playCascadeResult(result.finalBoard, result.steps, result.totalScore, result.collectedCounts, movesDelta = 0)
+            playCascadeResult(
+                result.finalBoard,
+                result.steps,
+                result.totalScore,
+                result.collectedCounts,
+                movesDelta = 0,
+                reshuffled = result.wasReshuffled
+            )
         }
     }
 
@@ -436,7 +498,8 @@ class Match3ViewModel(
         cascadeSteps: List<CascadeStep>,
         scoreGained: Int,
         collectedCounts: Map<FoodTileType, Int>,
-        movesDelta: Int
+        movesDelta: Int,
+        reshuffled: Boolean = false
     ) {
         Match3Telemetry.log(
             event = Match3TelemetryEvent.CASCADE_START,
@@ -614,7 +677,9 @@ class Match3ViewModel(
             refillTileIds = emptySet(),
             landingTileIds = emptySet(),
             comboLabel = null,
-            boardShakeEnabled = false,
+            boardShakeEnabled = reshuffled,
+            boardShakeNonce = if (reshuffled) uiState.boardShakeNonce + 1 else uiState.boardShakeNonce,
+            reshuffleNonce = if (reshuffled) uiState.reshuffleNonce + 1 else uiState.reshuffleNonce,
             specialEffects = emptyList(),
             selectedBooster = null,
             floatingScoreText = null,
@@ -629,6 +694,13 @@ class Match3ViewModel(
             spawnedSpecialTiles = emptyMap(),
             spawnedSpecialNonce = 0
         )
+
+        if (reshuffled) {
+            playSfx(SfxType.CASCADE) // Or use a shuffle sfx if available
+            hapticMedium()
+            delay(Match3MotionTokens.BoardShakeDurationMs.toLong())
+            uiState = uiState.copy(boardShakeEnabled = false)
+        }
 
         Match3Telemetry.log(
             event = Match3TelemetryEvent.BOARD_STABLE,
@@ -653,6 +725,8 @@ class Match3ViewModel(
     }
 
     private fun checkGameStatus() {
+        if (!shouldEvaluateGameStatus(uiState.status)) return
+
         val won = uiState.goals.all { goal ->
             when (goal) {
                 is LevelGoal.ScoreTarget -> uiState.score >= goal.target
@@ -678,7 +752,8 @@ class Match3ViewModel(
             )
             playSfx(victorySfx)
             hapticHeavy()
-            viewModelScope.launch {
+            victoryFeedbackJob?.cancel()
+            victoryFeedbackJob = viewModelScope.launch {
                 delay(Match3MotionTokens.VictoryRewardDelayMs)
                 playSfx(SfxType.STAR_EARNED)
                 hapticMedium()
@@ -723,21 +798,59 @@ class Match3ViewModel(
 
     fun resetGame() {
         resolutionJob?.cancel()
+        boardInitJob?.cancel()
+        victoryFeedbackJob?.cancel()
         pendingBooster = null
         rewardedInThisSession = false
-        uiState = Match3UiState(
-            board = engine.createStartBoard(),
+        uiState = uiState.copy(
+            score = 0,
             movesRemaining = levelDefinition.moves,
+            collectedCounts = emptyMap(),
+            status = GameStatus.PLAYING,
+            selectedPosition = null,
+            isAnimating = true,
+            matchedPositions = emptySet(),
             goals = levelDefinition.goals,
             scoreThresholds = levelDefinition.scoreThresholds,
-            boosterInventory = boosterInventoryProvider()
+            comboCount = 0,
+            animationPhase = Match3AnimationPhase.Validating,
+            activeTileAnimationIds = emptySet(),
+            fallDistanceByTileId = emptyMap(),
+            refillTileIds = emptySet(),
+            landingTileIds = emptySet(),
+            comboLabel = null,
+            boardShakeEnabled = false,
+            specialEffects = emptyList(),
+            boosterInventory = boosterInventoryProvider(),
+            selectedBooster = null,
+            floatingScoreText = null,
+            floatingScoreNonce = 0,
+            floatingScoreAnchor = null,
+            specialEffectLabel = null,
+            specialEffectNonce = 0,
+            goalPulseType = null,
+            goalPulseNonce = 0,
+            activatedBooster = null,
+            boosterActivationNonce = 0,
+            spawnedSpecialTiles = emptyMap(),
+            spawnedSpecialNonce = 0
         )
+        initializeBoardAsync()
     }
 
     fun onScreenExit() {
         resolutionJob?.cancel()
+        boardInitJob?.cancel()
+        victoryFeedbackJob?.cancel()
         pendingBooster = null
         clearTransientAnimationState(isAnimating = false)
+    }
+
+    override fun onCleared() {
+        resolutionJob?.cancel()
+        boardInitJob?.cancel()
+        victoryFeedbackJob?.cancel()
+        super.onCleared()
     }
 
     private fun clearTransientAnimationState(isAnimating: Boolean) {

@@ -77,4 +77,19 @@ class Match3Board(
         }
         return Match3Board(rows, columns, newTiles.toList())
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Match3Board) return false
+        if (rows != other.rows) return false
+        if (columns != other.columns) return false
+        return tiles == other.tiles
+    }
+
+    override fun hashCode(): Int {
+        var result = rows
+        result = 31 * result + columns
+        result = 31 * result + tiles.hashCode()
+        return result
+    }
 }

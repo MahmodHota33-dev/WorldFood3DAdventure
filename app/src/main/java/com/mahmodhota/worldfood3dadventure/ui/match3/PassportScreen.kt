@@ -56,10 +56,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mahmodhota.worldfood3dadventure.game.progress.CountryProgress
 import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionQuery
 import com.mahmodhota.worldfood3dadventure.game.world.LevelRegistry
-import com.mahmodhota.worldfood3dadventure.game.world.france.FranceFoodBookEntries
-import com.mahmodhota.worldfood3dadventure.game.world.france.FrancePresentation
-import com.mahmodhota.worldfood3dadventure.game.world.spain.SpainFoodBookEntries
-import com.mahmodhota.worldfood3dadventure.game.world.spain.SpainPresentation
+import com.mahmodhota.worldfood3dadventure.game.world.model.CountryProgressionChain
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.BottomNavigationBar
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumColors
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumGameBackdrop
@@ -83,6 +80,7 @@ private data class PassportEntryUi(
 @Composable
 fun PassportScreen(
     onTabSelected: (String) -> Unit,
+    onSettingsClick: () -> Unit,
     progressViewModel: GameProgressViewModel = viewModel()
 ) {
     val gameState by progressViewModel.gameState.collectAsState()
@@ -91,15 +89,16 @@ fun PassportScreen(
     val completedCountries = ProgressionQuery.completedCountries(gameState)
     val stars = ProgressionQuery.totalStarsEarned(gameState)
     val progress = visitedCountries.toFloat() / totalCountries.toFloat()
-    val franceProgress = ProgressionQuery.countryProgressFor(gameState, "france")
-    val spainProgress = ProgressionQuery.countryProgressFor(gameState, "spain")
+    
     val knownStates = remember { mutableStateMapOf<String, PassportStampState>() }
     var highlightedCountryId by remember { mutableStateOf<String?>(null) }
 
     val passportEntries = remember(gameState) {
         ProgressionQuery.countryProgressMap(gameState)
             .values
-            .sortedBy { it.levelId }
+            .sortedBy { entry -> 
+                LevelRegistry.allCountryIds.indexOf(entry.levelId).let { if (it == -1) 999 else it }
+            }
             .mapNotNull { countryProgress ->
                 LevelRegistry.getCountry(countryProgress.levelId)?.let { country ->
                     countryProgress.toPassportEntry(
@@ -110,6 +109,13 @@ fun PassportScreen(
                 }
             }
     }
+    
+    val featuredCountry = remember(passportEntries) {
+        passportEntries.firstOrNull { it.state == PassportStampState.VISITED }
+            ?: passportEntries.firstOrNull { it.state == PassportStampState.COMPLETED }
+            ?: passportEntries.firstOrNull()
+    }
+
     LaunchedEffect(passportEntries) {
         var newlyActivatedId: String? = null
         passportEntries.forEach { entry ->
@@ -142,7 +148,7 @@ fun PassportScreen(
     )
 
     Scaffold(
-        topBar = { TopStatusBar(onSettingsClick = {}) },
+        topBar = { TopStatusBar(onSettingsClick = onSettingsClick) },
         bottomBar = { BottomNavigationBar(currentTab = "book", onTabSelected = onTabSelected) },
         containerColor = Color.Transparent
     ) { innerPadding ->
@@ -176,15 +182,12 @@ fun PassportScreen(
                         compact = compact
                     )
 
-                    FrancePassportFeatureCard(
-                        progress = franceProgress,
-                        compact = compact
-                    )
-
-                    SpainPassportFeatureCard(
-                        progress = spainProgress,
-                        compact = compact
-                    )
+                    featuredCountry?.let { entry ->
+                        PassportFeatureCard(
+                            entry = entry,
+                            compact = compact
+                        )
+                    }
 
                     Text(
                         text = "COUNTRY STAMPS",
@@ -325,19 +328,19 @@ private fun PassportHeroCard(
 }
 
 @Composable
-private fun FrancePassportFeatureCard(
-    progress: CountryProgress,
+private fun PassportFeatureCard(
+    entry: PassportEntryUi,
     compact: Boolean
 ) {
-    val levelsCompleted = progress.levels.count { it.isCompleted }
-    val totalLevels = 15
-    val completionPercent = (levelsCompleted * 100) / totalLevels
-    val foodsDiscovered = ((levelsCompleted * FranceFoodBookEntries.entries.size) + totalLevels - 1) / totalLevels
-    val stampText = when {
-        progress.isCompleted -> "PASSPORT STAMPED"
-        progress.isUnlocked -> "ENTRY VERIFIED"
-        else -> "LOCKED VISA"
+    val totalLevels = CountryProgressionChain.getSpec(entry.countryId)?.totalLevels ?: 15
+    val completionPercent = (entry.levelsCompleted * 100) / totalLevels
+    val stampText = when (entry.state) {
+        PassportStampState.COMPLETED -> "PASSPORT STAMPED"
+        PassportStampState.VISITED -> "ENTRY VERIFIED"
+        PassportStampState.COMING_SOON -> "COMING SOON"
+        PassportStampState.LOCKED -> "LOCKED VISA"
     }
+    val foods = LevelRegistry.getRepresentativeFoods(entry.countryId)
 
     Surface(
         modifier = Modifier
@@ -359,18 +362,18 @@ private fun FrancePassportFeatureCard(
                         .border(2.dp, PremiumColors.Gold.copy(alpha = 0.48f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("🇫🇷", fontSize = if (compact) 28.sp else 34.sp)
+                    Text(entry.flag, fontSize = if (compact) 28.sp else 34.sp)
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = "FRANCE",
+                        text = entry.countryName.uppercase(),
                         color = PremiumColors.Gold,
                         fontSize = if (compact) 18.sp else 20.sp,
                         fontWeight = FontWeight.ExtraBold,
                         letterSpacing = 1.1.sp
                     )
                     Text(
-                        text = "Explore the elegance of France, famous for its cuisine, culture, cafés and world-famous landmarks.",
+                        text = entry.description,
                         color = Color.White.copy(alpha = 0.78f),
                         fontSize = if (compact) 11.sp else 12.sp,
                         lineHeight = if (compact) 15.sp else 16.sp,
@@ -382,112 +385,20 @@ private fun FrancePassportFeatureCard(
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 PassportInfoChip("COMPLETE", "$completionPercent%", Modifier.weight(1f))
-                PassportInfoChip("STARS", progress.totalStars.toString(), Modifier.weight(1f))
-                PassportInfoChip("LEVELS", "$levelsCompleted/15", Modifier.weight(1f))
+                PassportInfoChip("STARS", entry.stars.toString(), Modifier.weight(1f))
+                PassportInfoChip("LEVELS", "${entry.levelsCompleted}/$totalLevels", Modifier.weight(1f))
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                PassportInfoChip("FOODS", "$foodsDiscovered / ${FranceFoodBookEntries.entries.size}", Modifier.weight(1f))
-                PassportInfoChip("STAMP", stampText, Modifier.weight(1f))
-            }
+            
+            PassportInfoChip("STAMP", stampText, Modifier.fillMaxWidth())
 
-            Text(
-                text = "Signature foods: ${FrancePresentation.signatureFoods.joinToString("  •  ") { "${it.emoji} ${it.name}" }}",
-                color = Color.White.copy(alpha = 0.74f),
-                fontSize = if (compact) 11.sp else 12.sp,
-                lineHeight = if (compact) 15.sp else 16.sp
-            )
-        }
-    }
-}
-
-@Composable
-private fun SpainPassportFeatureCard(
-    progress: CountryProgress,
-    compact: Boolean
-) {
-    val levelsCompleted = progress.levels.count { it.isCompleted }
-    val totalLevels = 15
-    val completionPercent = (levelsCompleted * 100) / totalLevels
-    val foodsDiscovered = ((levelsCompleted * SpainFoodBookEntries.entries.size) + totalLevels - 1) / totalLevels
-    val badgeText = if (progress.isCompleted) SpainPresentation.completionBadge else "LOCKED BADGE"
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .premiumPanel()
-            .border(1.dp, Color(0xFFD4AF37).copy(alpha = 0.30f), PremiumShapes.PanelShape),
-        color = Color.Transparent
-    ) {
-        Column(
-            modifier = Modifier.padding(if (compact) 14.dp else 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(
-                    modifier = Modifier
-                        .size(if (compact) 70.dp else 84.dp)
-                        .clip(CircleShape)
-                        .background(Brush.radialGradient(listOf(Color(0xFFE74C3C), Color(0xFF1F3C88)))),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("🇪🇸", fontSize = if (compact) 28.sp else 34.sp)
-                }
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = "SPAIN",
-                        color = Color(0xFFD4AF37),
-                        fontSize = if (compact) 18.sp else 20.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.1.sp
-                    )
-                    Text(
-                        text = "Explore sunlit plazas, coastlines, and a premium tapas journey across Spain.",
-                        color = Color.White.copy(alpha = 0.78f),
-                        fontSize = if (compact) 11.sp else 12.sp,
-                        lineHeight = if (compact) 15.sp else 16.sp,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+            if (foods.isNotEmpty()) {
+                Text(
+                    text = "Signature foods: ${foods.joinToString("  •  ") { it.name.replace('_', ' ') }}",
+                    color = Color.White.copy(alpha = 0.74f),
+                    fontSize = if (compact) 11.sp else 12.sp,
+                    lineHeight = if (compact) 15.sp else 16.sp
+                )
             }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                PassportInfoChip("COMPLETE", "$completionPercent%", Modifier.weight(1f))
-                PassportInfoChip("STARS", progress.totalStars.toString(), Modifier.weight(1f))
-                PassportInfoChip("LEVELS", "$levelsCompleted/15", Modifier.weight(1f))
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                PassportInfoChip("FOODS", "$foodsDiscovered / ${SpainFoodBookEntries.entries.size}", Modifier.weight(1f))
-                PassportInfoChip("BADGE", badgeText, Modifier.weight(1f))
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                PassportInfoChip("CAPITAL", SpainPresentation.countryFacts[1].value, Modifier.weight(1f))
-                PassportInfoChip("LANGUAGE", SpainPresentation.countryFacts[3].value, Modifier.weight(1f))
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                PassportInfoChip("CURRENCY", SpainPresentation.countryFacts[4].value, Modifier.weight(1f))
-                PassportInfoChip("POPULATION", SpainPresentation.countryFacts[2].value, Modifier.weight(1f))
-            }
-
-            Text(
-                text = SpainPresentation.countryFacts[0].value,
-                color = Color.White.copy(alpha = 0.74f),
-                fontSize = if (compact) 11.sp else 12.sp,
-                lineHeight = if (compact) 15.sp else 16.sp
-            )
-            Text(
-                text = "Landmarks: ${SpainPresentation.countryFacts[5].value}",
-                color = Color.White.copy(alpha = 0.74f),
-                fontSize = if (compact) 11.sp else 12.sp,
-                lineHeight = if (compact) 15.sp else 16.sp
-            )
-            Text(
-                text = "Signature foods: ${SpainPresentation.signatureFoods.joinToString("  •  ") { "${it.emoji} ${it.name}" }}",
-                color = Color.White.copy(alpha = 0.74f),
-                fontSize = if (compact) 11.sp else 12.sp,
-                lineHeight = if (compact) 15.sp else 16.sp
-            )
         }
     }
 }

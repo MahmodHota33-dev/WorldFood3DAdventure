@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -14,7 +13,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
@@ -46,15 +44,7 @@ fun Match3GameScreen(
         onDispose { viewModel.onScreenExit() }
     }
     
-    val backgroundColor = when (countryId) {
-        "germany" -> Color(0xFF1B5E20)
-        "italy" -> Color(0xFFE1F5FE) // Light Sky Blue
-        "france" -> Color(0xFFF3E5F5) // Lavender Mist
-        "japan" -> Color(0xFFFCE4EC) // Soft Pink
-        "mexico" -> Color(0xFFFFF3E0) // Warm Sand
-        "sudan" -> Color(0xFFFFF9C4) // Sunset Yellow
-        else -> Color(0xFF121212)
-    }
+    val backgroundColor = Color(0xFF080B14) // deep navy for all — background composables handle identity
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -67,18 +57,14 @@ fun Match3GameScreen(
                 .padding(innerPadding)
                 .windowInsetsPadding(WindowInsets.safeDrawing)
         ) {
-            if (countryId == "germany") {
-                GermanyBackground()
-            } else if (countryId == "italy") {
-                ItalyBackground()
-            } else if (countryId == "france") {
-                FranceBackground()
-            } else if (countryId == "japan") {
-                JapanBackground()
-            } else if (countryId == "mexico") {
-                MexicoBackground()
-            } else if (countryId == "sudan") {
-                SudanBackground()
+            when (countryId) {
+                "germany" -> GermanyBackground()
+                "italy"   -> ItalyBackground()
+                "france"  -> FranceBackground()
+                "spain"   -> SpainBackground()
+                "japan"   -> JapanBackground()
+                "mexico"  -> MexicoBackground()
+                "sudan"   -> SudanBackground()
             }
 
             Column(
@@ -232,163 +218,6 @@ fun Match3GameScreen(
             onContinue = onBackToMap,
             onReplay = { viewModel.resetGame() }
         )
-    }
-}
-
-@Composable
-private fun SudanBackground() {
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Nile River and Sunset Sky
-        Box(modifier = Modifier.fillMaxSize().background(
-            Brush.verticalGradient(listOf(Color(0xFFFFB300), Color(0xFFFBC02D), Color(0xFF0D47A1).copy(alpha = 0.2f)))
-        ).alpha(0.5f))
-        
-        // Nile river silhouette (bottom)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(120.dp)
-                .align(Alignment.BottomCenter)
-                .background(Color(0xFF01579B).copy(alpha = 0.15f))
-        )
-
-        // Abstract Palm trees / Pyramids
-        repeat(3) { i ->
-            Box(
-                modifier = Modifier
-                    .size(60.dp, 120.dp)
-                    .offset(x = (40 + i * 120).dp, y = 520.dp)
-                    .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
-                    .background(Color(0xFF2E7D32).copy(alpha = 0.15f))
-            )
-        }
-    }
-}
-
-@Composable
-private fun MexicoBackground() {
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Desert Sunset
-        Box(modifier = Modifier.fillMaxSize().background(
-            Brush.verticalGradient(listOf(Color(0xFFFFB74D), Color(0xFFFFCC80), Color(0xFFD84315).copy(alpha = 0.3f)))
-        ).alpha(0.5f))
-        
-        // Cactus Silhouettes
-        repeat(3) { i ->
-            Box(
-                modifier = Modifier
-                    .size(40.dp, 100.dp)
-                    .offset(x = (50 + i * 140).dp, y = 500.dp)
-                    .background(Color(0xFF2E7D32).copy(alpha = 0.2f), RoundedCornerShape(20.dp))
-            )
-        }
-
-        // Colorful village hint (Bottom right)
-        Box(
-            modifier = Modifier
-                .size(120.dp, 60.dp)
-                .align(Alignment.BottomEnd)
-                .background(Color(0xFFE91E63).copy(alpha = 0.15f), RoundedCornerShape(topStart = 40.dp))
-        )
-    }
-}
-
-@Composable
-private fun JapanBackground() {
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Soft Pink Atmosphere
-        Box(modifier = Modifier.fillMaxSize().background(
-            Brush.verticalGradient(listOf(Color(0xFFFCE4EC), Color(0xFFF8BBD0), Color(0xFFFFEB3B).copy(alpha = 0.1f)))
-        ).alpha(0.5f))
-        
-        // Abstract Cherry Blossoms / Mountain
-        Box(
-            modifier = Modifier
-                .size(200.dp)
-                .align(Alignment.BottomStart)
-                .offset(y = 100.dp)
-                .clip(CircleShape)
-                .background(Color(0xFFFF80AB).copy(alpha = 0.2f))
-        )
-
-        // Torii Gate hint (Top left)
-        Box(
-            modifier = Modifier
-                .padding(24.dp)
-                .size(40.dp, 6.dp)
-                .background(Color(0xFFD32F2F), RoundedCornerShape(2.dp))
-        )
-    }
-}
-
-@Composable
-private fun FranceBackground() {
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Evening Lavender Sky
-        Box(modifier = Modifier.fillMaxSize().background(
-            Brush.verticalGradient(listOf(Color(0xFFE1BEE7), Color(0xFFF3E5F5), Color(0xFFFFF9C4)))
-        ).alpha(0.5f))
-        
-        // Lavender fields silhouettes
-        repeat(3) { i ->
-            Box(
-                modifier = Modifier
-                    .size(200.dp, 100.dp)
-                    .offset(x = (i * 150).dp, y = 550.dp)
-                    .clip(RoundedCornerShape(topStart = 80.dp, topEnd = 80.dp))
-                    .background(Color(0xFF9575CD).copy(alpha = 0.2f))
-            )
-        }
-        
-        // Café awning hint (Top corner)
-        Box(
-            modifier = Modifier
-                .size(100.dp, 40.dp)
-                .align(Alignment.TopEnd)
-                .background(Brush.horizontalGradient(listOf(Color.Red.copy(alpha = 0.2f), Color.White.copy(alpha = 0.2f))))
-        )
-    }
-}
-
-@Composable
-private fun ItalyBackground() {
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Mediterranean Sea and Coast
-        Box(modifier = Modifier.fillMaxSize().background(
-            Brush.verticalGradient(listOf(Color(0xFFE1F5FE), Color(0xFF039BE5), Color(0xFF8D6E63)))
-        ).alpha(0.4f))
-        
-        // Abstract coastal features (Vineyards/Olive Trees feel)
-        repeat(4) { i ->
-            Box(
-                modifier = Modifier
-                    .size(120.dp, 80.dp)
-                    .offset(x = (i * 100).dp, y = 500.dp)
-                    .clip(RoundedCornerShape(topStart = 60.dp, topEnd = 60.dp))
-                    .background(Color(0xFF558B2F).copy(alpha = 0.2f))
-            )
-        }
-    }
-}
-
-@Composable
-private fun GermanyBackground() {
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Soft gradient for landscape
-        Box(modifier = Modifier.fillMaxSize().background(
-            Brush.verticalGradient(listOf(Color(0xFF81D4FA), Color(0xFF1B5E20)))
-        ).alpha(0.3f))
-        
-        // Abstract trees / forest feel
-        repeat(5) { i ->
-            Box(
-                modifier = Modifier
-                    .size(100.dp, 150.dp)
-                    .offset(x = (i * 80).dp, y = 400.dp)
-                    .clip(RoundedCornerShape(topStart = 50.dp, topEnd = 50.dp))
-                    .background(Color(0xFF0D47A1).copy(alpha = 0.1f))
-            )
-        }
     }
 }
 

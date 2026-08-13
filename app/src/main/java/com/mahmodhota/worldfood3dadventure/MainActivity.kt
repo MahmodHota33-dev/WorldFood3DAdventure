@@ -78,14 +78,38 @@ class MainActivity : ComponentActivity() {
         setContent {
             WorldFood3DAdventureTheme {
                 var currentScreen by remember { mutableStateOf(AppScreen.WORLD_MAP_V2) }
+                var previousScreen by remember { mutableStateOf<AppScreen?>(null) }
                 var selectedLevelId by remember { mutableStateOf<String?>(null) }
                 var selectedMatch3Level by remember { mutableStateOf(1) }
+                // Tracks whether PREMIUM_ADVENTURE was entered from LEVEL_SELECTION (true)
+                // or directly from the Globe Continue button (false).
+                var showLevelsForReturn by remember { mutableStateOf(false) }
+
+                var showSettings by remember { mutableStateOf(false) }
+
+                if (showSettings) {
+                    com.mahmodhota.worldfood3dadventure.ui.match3.components.SettingsDialog(onDismiss = { showSettings = false })
+                }
+
+                // Navigation Debounce: prevent rapid double-clicks from double-navigating
+                var lastNavTime by remember { mutableStateOf(0L) }
+                fun navigateTo(screen: AppScreen, debounce: Boolean = true) {
+                    val now = System.currentTimeMillis()
+                    if (debounce && now - lastNavTime < 500) return
+                    lastNavTime = now
+                    previousScreen = currentScreen
+                    currentScreen = screen
+                }
 
                 // Music Controller
                 LaunchedEffect(currentScreen, selectedLevelId) {
                     when (currentScreen) {
                         AppScreen.WORLD_MAP_V2 -> GlobalSystemManager.audio.playMusic(MusicType.WORLD_MAP)
-                        AppScreen.PREMIUM_ADVENTURE -> GlobalSystemManager.audio.playMusic(MusicType.WORLD_MAP)
+                        AppScreen.PREMIUM_ADVENTURE -> {
+                            selectedLevelId?.let { id ->
+                                GlobalSystemManager.audio.playMusic(SoundRepository.getMusicForCountry(id))
+                            } ?: GlobalSystemManager.audio.playMusic(MusicType.WORLD_MAP)
+                        }
                         AppScreen.MATCH3_GAME -> {
                             selectedLevelId?.let { id ->
                                 GlobalSystemManager.audio.playMusic(SoundRepository.getMusicForCountry(id))
@@ -96,7 +120,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // Check if progression is initialized
-                val isProgressLoaded = ProgressionManager.progressMap.isNotEmpty()
+                val isProgressLoaded = ProgressionManager.isInitialized
 
                 if (!isProgressLoaded) {
                     Box(
@@ -108,20 +132,29 @@ class MainActivity : ComponentActivity() {
                 } else {
                     // System back button handling
                     BackHandler(enabled = currentScreen != AppScreen.WORLD_MAP_V2) {
-                        currentScreen = when (currentScreen) {
+                        val next = when (currentScreen) {
                             AppScreen.MATCH3_GAME -> AppScreen.LEVEL_SELECTION
                             AppScreen.LEVEL_SELECTION -> AppScreen.WORLD_MAP_V2
-                            AppScreen.PREMIUM_ADVENTURE -> AppScreen.WORLD_MAP_V2
+                            AppScreen.PREMIUM_ADVENTURE ->
+                                if (showLevelsForReturn) AppScreen.LEVEL_SELECTION
+                                else AppScreen.WORLD_MAP_V2
                             else -> AppScreen.WORLD_MAP_V2
                         }
+                        navigateTo(next, debounce = false)
                     }
 
                     Box(modifier = Modifier.fillMaxSize().background(PremiumColors.DeepNavy)) {
                         AnimatedContent(
                             targetState = currentScreen,
                             transitionSpec = {
-                                (fadeIn(animationSpec = tween(300)) + scaleIn(initialScale = 0.95f))
-                                    .togetherWith(fadeOut(animationSpec = tween(300)))
+                                val isForward = isForwardTransition(initialState, targetState)
+                                if (isForward) {
+                                    (slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(400)) + fadeIn())
+                                        .togetherWith(slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(400)) + fadeOut())
+                                } else {
+                                    (slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(400)) + fadeIn())
+                                        .togetherWith(slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(400)) + fadeOut())
+                                }
                             },
                             label = "screenTransition"
                         ) { targetScreen ->
@@ -131,32 +164,48 @@ class MainActivity : ComponentActivity() {
                                         onLevelSelected = { countryId, levelNum ->
                                             selectedLevelId = countryId
                                             selectedMatch3Level = levelNum
-                                            currentScreen = AppScreen.PREMIUM_ADVENTURE
+                                            showLevelsForReturn = false
+                                            navigateTo(AppScreen.PREMIUM_ADVENTURE)
+                                        },
+                                        onShowLevels = { countryId ->
+                                            selectedLevelId = countryId
+                                            navigateTo(AppScreen.LEVEL_SELECTION)
                                         },
                                         onTabSelected = { tab ->
-                                            currentScreen = when (tab) {
+                                            val next = when (tab) {
                                                 "book" -> AppScreen.FOOD_BOOK
                                                 "rewards" -> AppScreen.REWARDS
                                                 "profile" -> AppScreen.PROFILE
                                                 else -> AppScreen.WORLD_MAP_V2
                                             }
-                                        }
+                                            if (next != currentScreen) navigateTo(next)
+                                        },
+                                        onSettingsClick = { showSettings = true }
                                     )
                                 }
                                 AppScreen.PREMIUM_ADVENTURE -> {
                                     PremiumAdventureScreen(
                                         countryId = selectedLevelId ?: "germany",
                                         levelNumber = selectedMatch3Level,
+                                        onReturn = {
+                                            val next = if (showLevelsForReturn) AppScreen.LEVEL_SELECTION
+                                            else AppScreen.WORLD_MAP_V2
+                                            navigateTo(next)
+                                        },
+                                        onNextLevelSelected = { nextLevel ->
+                                            selectedMatch3Level = nextLevel
+                                        },
                                         onTabSelected = { tab ->
-                                            currentScreen = when (tab) {
+                                            val next = when (tab) {
                                                 "world" -> AppScreen.WORLD_MAP_V2
                                                 "rewards" -> AppScreen.REWARDS
                                                 "book" -> AppScreen.FOOD_BOOK
                                                 "profile" -> AppScreen.PROFILE
                                                 else -> AppScreen.PREMIUM_ADVENTURE
                                             }
+                                            if (next != currentScreen) navigateTo(next)
                                         },
-                                        onSettingsClick = { /* Handle settings */ }
+                                        onSettingsClick = { showSettings = true }
                                     )
                                 }
                                 AppScreen.LEVEL_SELECTION -> {
@@ -164,48 +213,71 @@ class MainActivity : ComponentActivity() {
                                         countryId = selectedLevelId ?: "germany",
                                         onLevelSelected = { num ->
                                             selectedMatch3Level = num
-                                            currentScreen = AppScreen.MATCH3_GAME
+                                            showLevelsForReturn = true
+                                            navigateTo(AppScreen.PREMIUM_ADVENTURE)
                                         },
-                                        onBackToMap = { currentScreen = AppScreen.WORLD_MAP_V2 }
+                                        onBackToMap = { navigateTo(AppScreen.WORLD_MAP_V2) },
+                                        onSettingsClick = { showSettings = true }
                                     )
                                 }
-                                    AppScreen.MATCH3_GAME -> {
+                                AppScreen.MATCH3_GAME -> {
                                     Match3GameScreen(
                                         countryId = selectedLevelId ?: "germany",
                                         levelNumber = selectedMatch3Level,
-                                        onBackToMap = { currentScreen = AppScreen.LEVEL_SELECTION }
+                                        onBackToMap = { navigateTo(AppScreen.LEVEL_SELECTION) }
                                     )
                                 }
-                                AppScreen.FOOD_BOOK -> PassportScreen(onTabSelected = { tab ->
-                                    currentScreen = when (tab) {
-                                        "world" -> AppScreen.WORLD_MAP_V2
-                                        "rewards" -> AppScreen.REWARDS
-                                        "profile" -> AppScreen.PROFILE
-                                        else -> AppScreen.FOOD_BOOK
-                                    }
-                                })
-                                AppScreen.REWARDS -> RewardsScreen(onTabSelected = { tab ->
-                                    currentScreen = when (tab) {
-                                        "world" -> AppScreen.WORLD_MAP_V2
-                                        "book" -> AppScreen.FOOD_BOOK
-                                        "profile" -> AppScreen.PROFILE
-                                        else -> AppScreen.REWARDS
-                                    }
-                                })
-                                AppScreen.PROFILE -> ProfileScreenV2(onTabSelected = { tab ->
-                                    currentScreen = when (tab) {
-                                        "world" -> AppScreen.WORLD_MAP_V2
-                                        "book" -> AppScreen.FOOD_BOOK
-                                        "rewards" -> AppScreen.REWARDS
-                                        else -> AppScreen.PROFILE
-                                    }
-                                })
+                                AppScreen.FOOD_BOOK -> PassportScreen(
+                                    onTabSelected = { tab ->
+                                        val next = when (tab) {
+                                            "world" -> AppScreen.WORLD_MAP_V2
+                                            "rewards" -> AppScreen.REWARDS
+                                            "profile" -> AppScreen.PROFILE
+                                            else -> AppScreen.FOOD_BOOK
+                                        }
+                                        if (next != currentScreen) navigateTo(next)
+                                    },
+                                    onSettingsClick = { showSettings = true }
+                                )
+                                AppScreen.REWARDS -> RewardsScreen(
+                                    onTabSelected = { tab ->
+                                        val next = when (tab) {
+                                            "world" -> AppScreen.WORLD_MAP_V2
+                                            "book" -> AppScreen.FOOD_BOOK
+                                            "profile" -> AppScreen.PROFILE
+                                            else -> AppScreen.REWARDS
+                                        }
+                                        if (next != currentScreen) navigateTo(next)
+                                    },
+                                    onSettingsClick = { showSettings = true }
+                                )
+                                AppScreen.PROFILE -> ProfileScreenV2(
+                                    onTabSelected = { tab ->
+                                        val next = when (tab) {
+                                            "world" -> AppScreen.WORLD_MAP_V2
+                                            "book" -> AppScreen.FOOD_BOOK
+                                            "rewards" -> AppScreen.REWARDS
+                                            else -> AppScreen.PROFILE
+                                        }
+                                        if (next != currentScreen) navigateTo(next)
+                                    },
+                                    onSettingsClick = { showSettings = true }
+                                )
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    private fun isForwardTransition(from: AppScreen, to: AppScreen): Boolean {
+        // Hierarchy: WORLD_MAP (0) < LEVEL_SELECTION (1) < PREMIUM_ADVENTURE (2)
+        // Others (Profile/Rewards/Book) are siblings of WORLD_MAP but for animation
+        // we'll treat them as forward from world map.
+        val fromVal = from.ordinal
+        val toVal = to.ordinal
+        return toVal > fromVal
     }
 
     override fun onDestroy() {

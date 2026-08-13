@@ -57,7 +57,7 @@ object CountryProgressionChain {
             countryId = "spain",
             displayName = "Spain",
             unlockedInitially = false,
-            requiredStarsToUnlock = 135,
+            requiredStarsToUnlock = 90,  // ~67% of G+I+F max (135)
             totalLevels = 15,
             completionRequirement = 15,
             rewardCoinsOnCompletion = 500,
@@ -67,9 +67,9 @@ object CountryProgressionChain {
             countryId = "japan",
             displayName = "Japan",
             unlockedInitially = false,
-            requiredStarsToUnlock = 180,
-            totalLevels = 10,
-            completionRequirement = 10,
+            requiredStarsToUnlock = 120,  // ~67% of G+I+F+S max (180)
+            totalLevels = 15,
+            completionRequirement = 15,
             rewardCoinsOnCompletion = 150,
             rewardXpOnCompletion = 500
         ),
@@ -77,9 +77,9 @@ object CountryProgressionChain {
             countryId = "mexico",
             displayName = "Mexico",
             unlockedInitially = false,
-            requiredStarsToUnlock = 210,
-            totalLevels = 10,
-            completionRequirement = 10,
+            requiredStarsToUnlock = 145,  // ~69% of G+I+F+S+J max (225)
+            totalLevels = 15,
+            completionRequirement = 15,
             rewardCoinsOnCompletion = 150,
             rewardXpOnCompletion = 500
         ),
@@ -87,9 +87,9 @@ object CountryProgressionChain {
             countryId = "sudan",
             displayName = "Sudan",
             unlockedInitially = false,
-            requiredStarsToUnlock = 240,
-            totalLevels = 10,
-            completionRequirement = 10,
+            requiredStarsToUnlock = 185,  // ~77% of all-prior max (270) — Chapter 1 finale
+            totalLevels = 15,
+            completionRequirement = 15,
             rewardCoinsOnCompletion = 200,
             rewardXpOnCompletion = 1000
         )

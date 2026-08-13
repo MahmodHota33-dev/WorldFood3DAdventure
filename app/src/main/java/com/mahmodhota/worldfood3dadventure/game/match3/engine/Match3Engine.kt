@@ -50,7 +50,7 @@ class Match3Engine(
             }
         }
 
-        val stableBoard = ensurePlayableBoard(cascadeResult.finalBoard)
+        val (stableBoard, reshuffled) = ensurePlayableBoardWithStatus(cascadeResult.finalBoard)
         return SwapResult.Success(
             initialBoard = board,
             swappedBoard = swappedBoard,
@@ -58,18 +58,35 @@ class Match3Engine(
             cascadeSteps = cascadeResult.steps,
             scoreGained = cascadeResult.totalScore,
             totalMatchedTiles = cascadeResult.totalMatchedTiles,
-            collectedCounts = cascadeResult.collectedCounts
+            collectedCounts = cascadeResult.collectedCounts,
+            wasReshuffled = reshuffled
         )
     }
 
-    fun applyHammer(board: Match3Board, position: BoardPosition): CascadeResult? {
+    data class HammerResult(
+        val finalBoard: Match3Board,
+        val steps: List<CascadeStep>,
+        val totalScore: Int,
+        val collectedCounts: Map<FoodTileType, Int>,
+        val wasReshuffled: Boolean
+    )
+
+    fun applyHammer(board: Match3Board, position: BoardPosition): HammerResult? {
         if (!board.contains(position)) return null
-        return cascadeProcessor.process(
+        val cascadeResult = cascadeProcessor.process(
             initialBoard = board,
             forcedInitialResolution = ForcedBoardResolution(
                 clearedPositions = setOf(position),
                 scoreBonus = Match3SpecialConfig.HammerScorePerTile
             )
+        )
+        val (stableBoard, reshuffled) = ensurePlayableBoardWithStatus(cascadeResult.finalBoard)
+        return HammerResult(
+            finalBoard = stableBoard,
+            steps = cascadeResult.steps,
+            totalScore = cascadeResult.totalScore,
+            collectedCounts = cascadeResult.collectedCounts,
+            wasReshuffled = reshuffled
         )
     }
 
@@ -77,11 +94,11 @@ class Match3Engine(
         return generator.generate(board.rows, board.columns, allowedTiles)
     }
 
-    private fun ensurePlayableBoard(board: Match3Board): Match3Board {
+    private fun ensurePlayableBoardWithStatus(board: Match3Board): Pair<Match3Board, Boolean> {
         if (!MatchDetector.findMatches(board).hasMatches && MoveFinder.hasValidMove(board)) {
-            return board
+            return board to false
         }
-        return generator.generate(board.rows, board.columns, allowedTiles)
+        return generator.generate(board.rows, board.columns, allowedTiles) to true
     }
 
     private fun buildSpecialSwapResolution(

@@ -1,6 +1,7 @@
 package com.mahmodhota.worldfood3dadventure.game.match3.engine
 
 import com.mahmodhota.worldfood3dadventure.game.match3.model.BoardPosition
+import com.mahmodhota.worldfood3dadventure.game.match3.model.FoodTileType
 import com.mahmodhota.worldfood3dadventure.game.match3.model.Match3Board
 
 /**
@@ -33,12 +34,60 @@ object MoveFinder {
         return false
     }
 
-    /**
-     * Checks if swapping two tiles results in any match.
-     */
     fun wouldCreateMatch(board: Match3Board, pos1: BoardPosition, pos2: BoardPosition): Boolean {
-        val swapped = board.swap(pos1, pos2)
-        return MatchDetector.findMatches(swapped).hasMatches
+        val t1 = board.tileAt(pos1) ?: return false
+        val t2 = board.tileAt(pos2) ?: return false
+
+        // t1 is moving to pos2, t2 is moving to pos1
+        if (checkVirtualMatch(board, pos1.row, pos1.column, t2.type, pos1, pos2, t1.type, t2.type)) return true
+        if (checkVirtualMatch(board, pos2.row, pos2.column, t1.type, pos1, pos2, t1.type, t2.type)) return true
+        
+        return false
+    }
+
+    private fun checkVirtualMatch(
+        board: Match3Board,
+        row: Int,
+        col: Int,
+        matchType: FoodTileType,
+        p1: BoardPosition,
+        p2: BoardPosition,
+        t1Type: FoodTileType,
+        t2Type: FoodTileType
+    ): Boolean {
+        // Horizontal
+        var hCount = 1
+        // Left
+        for (c in col - 1 downTo 0) {
+            val cur = BoardPosition(row, c)
+            val type = if (cur == p1) t2Type else if (cur == p2) t1Type else board.tileAt(cur)?.type
+            if (type == matchType) hCount++ else break
+        }
+        // Right
+        for (c in col + 1 until board.columns) {
+            val cur = BoardPosition(row, c)
+            val type = if (cur == p1) t2Type else if (cur == p2) t1Type else board.tileAt(cur)?.type
+            if (type == matchType) hCount++ else break
+        }
+        if (hCount >= 3) return true
+
+        // Vertical
+        var vCount = 1
+        // Up
+        for (r in row - 1 downTo 0) {
+            val cur = BoardPosition(r, col)
+            val type = if (cur == p1) t2Type else if (cur == p2) t1Type else board.tileAt(cur)?.type
+            if (type == matchType) vCount++ else break
+        }
+        // Down
+        for (r in row + 1 until board.rows) {
+            val cur = BoardPosition(r, col)
+            val type = if (cur == p1) t2Type else if (cur == p2) t1Type else board.tileAt(cur)?.type
+            if (type == matchType) vCount++ else break
+        }
+        if (vCount >= 3) return true
+
+        return false
     }
 
     /**

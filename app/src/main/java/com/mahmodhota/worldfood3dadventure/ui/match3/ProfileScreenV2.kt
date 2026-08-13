@@ -45,8 +45,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mahmodhota.worldfood3dadventure.game.progress.PlayerLevelProgression
 import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionQuery
-import com.mahmodhota.worldfood3dadventure.game.world.france.FrancePresentation
-import com.mahmodhota.worldfood3dadventure.game.world.spain.SpainPresentation
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.BottomNavigationBar
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumColors
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumGameBackdrop
@@ -57,6 +55,7 @@ import com.mahmodhota.worldfood3dadventure.ui.match3.components.premiumPanel
 @Composable
 fun ProfileScreenV2(
     onTabSelected: (String) -> Unit,
+    onSettingsClick: () -> Unit,
     progressViewModel: GameProgressViewModel = viewModel()
 ) {
     val gameState by progressViewModel.gameState.collectAsState()
@@ -66,17 +65,15 @@ fun ProfileScreenV2(
     val totalCountries = ProgressionQuery.totalCountries().coerceAtLeast(1)
     val visitedCountries = ProgressionQuery.visitedCountries(gameState)
     val completedCountries = ProgressionQuery.completedCountries(gameState)
-    val franceCompletion = ProgressionQuery.completionPercentageForCountry(gameState, "france")
-    val favoriteFood = FrancePresentation.favoriteFood(gameState)
-    val spainCompletion = ProgressionQuery.completionPercentageForCountry(gameState, "spain")
-    val spainFavoriteFood = SpainPresentation.favoriteFood(gameState)
+    
+    val favoriteFood = "Pizza" // Placeholder or implement logic
     val playTimeText = formatPlayTime(stats.totalPlayTimeMillis)
     val xpSnapshot = PlayerLevelProgression.snapshot(totalXp = player.xp, storedLevel = player.level)
     val travelRank = travelRankForLevel(xpSnapshot.level)
     val xpProgress = (xpSnapshot.xpIntoCurrentLevel.toFloat() / xpSnapshot.xpForNextLevel.toFloat()).coerceIn(0f, 1f)
 
     Scaffold(
-        topBar = { TopStatusBar(onSettingsClick = {}) },
+        topBar = { TopStatusBar(onSettingsClick = onSettingsClick) },
         bottomBar = { BottomNavigationBar(currentTab = "profile", onTabSelected = onTabSelected) },
         containerColor = Color.Transparent
     ) { innerPadding ->
@@ -150,10 +147,7 @@ fun ProfileScreenV2(
                             completedCountries = completedCountries,
                             totalCountries = totalCountries,
                             highestCombo = stats.highestCombo,
-                            franceCompletion = franceCompletion,
-                            spainCompletion = spainCompletion,
                             favoriteFood = favoriteFood,
-                            spainFavoriteFood = spainFavoriteFood,
                             playTimeText = playTimeText,
                             rank = travelRank,
                             compact = compact
@@ -311,10 +305,7 @@ private fun ProfileSummaryCard(
     completedCountries: Int,
     totalCountries: Int,
     highestCombo: Int,
-    franceCompletion: Int,
-    spainCompletion: Int,
     favoriteFood: String,
-    spainFavoriteFood: String,
     playTimeText: String,
     rank: String,
     compact: Boolean
@@ -335,13 +326,10 @@ private fun ProfileSummaryCard(
                 letterSpacing = 1.sp
             )
             SummaryLine("Levels completed", completedLevels.toString())
-            SummaryLine("France completion", "$franceCompletion%")
-            SummaryLine("Spain completion", "$spainCompletion%")
             SummaryLine("Countries visited", "$visitedCountries / $totalCountries")
             SummaryLine("Countries completed", completedCountries.toString())
             SummaryLine("Highest combo", highestCombo.toString())
             SummaryLine("Favorite food", favoriteFood)
-            SummaryLine("Favorite Spanish food", spainFavoriteFood)
             SummaryLine("Play time", playTimeText)
             SummaryLine("Travel rank", rank)
         }

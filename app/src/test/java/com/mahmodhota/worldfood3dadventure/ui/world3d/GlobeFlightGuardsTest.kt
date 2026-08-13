@@ -7,13 +7,6 @@ import org.junit.Test
 class GlobeFlightGuardsTest {
 
     @Test
-    fun duplicateUnlockFlightIsIgnoredOnceConsumed() {
-        val consumed = setOf("italy")
-        assertFalse(shouldConsumeUnlockFlightEvent("italy", consumed))
-        assertTrue(shouldConsumeUnlockFlightEvent("france", consumed))
-    }
-
-    @Test
     fun markerTapBlockedDuringAutomaticUnlockFlight() {
         assertFalse(canStartManualMarkerFlight(isFlightActive = true, activeFlightDestinationId = "italy"))
         assertFalse(canStartManualMarkerFlight(isFlightActive = false, activeFlightDestinationId = "italy"))

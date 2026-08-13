@@ -3,6 +3,7 @@ package com.mahmodhota.worldfood3dadventure.game.world
 import com.mahmodhota.worldfood3dadventure.game.world.model.CountryDefinition
 import com.mahmodhota.worldfood3dadventure.game.world.model.CountryMetadata
 import com.mahmodhota.worldfood3dadventure.game.world.germany.GermanyMatch3Levels
+import com.mahmodhota.worldfood3dadventure.game.match3.model.FoodTileType
 import com.mahmodhota.worldfood3dadventure.game.world.france.FranceFoodBookEntries
 import com.mahmodhota.worldfood3dadventure.game.world.france.FranceMatch3Levels
 import com.mahmodhota.worldfood3dadventure.game.world.italy.ItalyMatch3Levels
@@ -113,7 +114,28 @@ object LevelRegistry {
 
     fun getCountry(id: String): CountryDefinition? = registry[id]
 
-    val allCountries: List<CountryMetadata> get() = registry.values.map { it.metadata }
-    
-    val allCountryIds: List<String> get() = registry.keys.toList()
+    /** Presentation-layer helper: 3 representative food icons per country. */
+    fun getRepresentativeFoods(countryId: String): List<FoodTileType> = when(countryId) {
+        "germany" -> listOf(FoodTileType.PRETZEL, FoodTileType.BRATWURST, FoodTileType.BLACK_FOREST_CAKE)
+        "italy"   -> listOf(FoodTileType.PIZZA, FoodTileType.PASTA, FoodTileType.GELATO)
+        "france"  -> listOf(FoodTileType.CROISSANT, FoodTileType.MACARON, FoodTileType.CREPE)
+        "spain"   -> listOf(FoodTileType.PAELLA, FoodTileType.CHURROS, FoodTileType.CREMA_CATALANA)
+        "japan"   -> listOf(FoodTileType.SUSHI, FoodTileType.RAMEN, FoodTileType.MOCHI)
+        "mexico"  -> listOf(FoodTileType.TACO, FoodTileType.GUACAMOLE, FoodTileType.NACHOS)
+        "sudan"   -> listOf(FoodTileType.KISRA, FoodTileType.FUL_MEDAMES, FoodTileType.SAMBUSA)
+        else -> emptyList()
+    }
+
+    val allCountries: List<CountryMetadata> get() = COUNTRY_PROGRESSION_ORDER.mapNotNull { registry[it]?.metadata }
+
+    /**
+     * Authoritative ordered list of country IDs matching the progression chain.
+     * Using an explicit list rather than registry insertion order makes the sequence
+     * stable regardless of future registration order changes.
+     */
+    val allCountryIds: List<String>
+        get() = COUNTRY_PROGRESSION_ORDER.filter { it in registry }
 }
+
+/** Canonical progression order — must match CountryProgressionChain.UNLOCK_ORDER. */
+val COUNTRY_PROGRESSION_ORDER = listOf("germany", "italy", "france", "spain", "japan", "mexico", "sudan")

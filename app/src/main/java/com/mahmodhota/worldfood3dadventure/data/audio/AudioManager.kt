@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Orchestrates SFX and Music.
@@ -44,9 +45,11 @@ class AudioManager(private val context: Context) {
         soundPool.setOnLoadCompleteListener { pool, sampleId, status ->
             val type = sampleIdToSfx.remove(sampleId) ?: return@setOnLoadCompleteListener
             loadingSfx.remove(type)
+            android.util.Log.d("AudioDebug", "SFX Load Complete: $type Status: $status")
             if (status == 0) {
                 loadedSfx[type] = sampleId
                 if (pendingSfxPlay.remove(type) && sfxVolume > 0f && !released) {
+                    android.util.Log.d("AudioDebug", "Playing pending SFX: $type")
                     pool.play(sampleId, sfxVolume, sfxVolume, 1, 0, 1f)
                 }
             } else {
@@ -57,6 +60,7 @@ class AudioManager(private val context: Context) {
 
     fun setMusicVolume(volume: Float) {
         musicVolume = volume.coerceIn(0f, 1f)
+        android.util.Log.d("AudioDebug", "setMusicVolume: $musicVolume")
         try {
             mediaPlayer?.setVolume(musicVolume, musicVolume)
         } catch (e: Exception) { /* Released */ }
@@ -64,13 +68,14 @@ class AudioManager(private val context: Context) {
 
     fun setSfxVolume(volume: Float) {
         sfxVolume = volume.coerceIn(0f, 1f)
+        android.util.Log.d("AudioDebug", "setSfxVolume: $sfxVolume")
     }
 
-    /**
-     * Plays a sound effect.
-     */
     fun playSfx(type: SfxType) {
-        if (released || sfxVolume <= 0f) return
+        if (released || sfxVolume <= 0f) {
+            if (sfxVolume <= 0f) android.util.Log.v("AudioDebug", "playSfx $type suppressed (volume 0)")
+            return
+        }
         val now = SystemClock.elapsedRealtime()
         val lastPlay = lastSfxPlayAtMs[type] ?: 0L
         if (now - lastPlay < 40L) return
@@ -80,23 +85,31 @@ class AudioManager(private val context: Context) {
         try {
             val loadedSampleId = loadedSfx[type]
             if (loadedSampleId != null) {
-                soundPool.play(loadedSampleId, sfxVolume, sfxVolume, 1, 0, 1f)
+                val streamId = soundPool.play(loadedSampleId, sfxVolume, sfxVolume, 1, 0, 1f)
+                android.util.Log.d("AudioDebug", "playSfx: $type (sample: $loadedSampleId stream: $streamId vol: $sfxVolume)")
+                if (streamId == 0) {
+                    android.util.Log.w("AudioDebug", "playSfx: $type FAILED to play (streamId 0)")
+                }
                 return
             }
 
             if (type in loadingSfx) {
+                android.util.Log.d("AudioDebug", "playSfx: $type is still loading")
                 pendingSfxPlay.add(type)
                 return
             }
 
+            android.util.Log.d("AudioDebug", "playSfx: loading $type from res $resId")
             val sampleId = soundPool.load(context, resId, 1)
             if (sampleId > 0) {
                 loadingSfx.add(type)
                 sampleIdToSfx[sampleId] = type
                 pendingSfxPlay.add(type)
+            } else {
+                android.util.Log.e("AudioDebug", "playSfx: soundPool.load failed for $type")
             }
         } catch (e: Exception) {
-            // Missing/invalid resource should fail silently.
+            android.util.Log.e("AudioDebug", "playSfx error: $type", e)
         }
     }
 
@@ -105,13 +118,15 @@ class AudioManager(private val context: Context) {
      */
     fun playMusic(type: MusicType) {
         if (released) return
-        if (currentMusicType == type) return
+        if (currentMusicType == type && mediaPlayer?.isPlaying == true) return
         
+        android.util.Log.d("AudioDebug", "playMusic request: $type (Old: $currentMusicType)")
         fadeJob?.cancel()
         fadeJob = scope.launch {
             // Fade out current
             fadeOut()
             
+            android.util.Log.d("AudioDebug", "Music release: $currentMusicType")
             mediaPlayer?.release()
             mediaPlayer = null
             currentMusicType = type
@@ -121,7 +136,12 @@ class AudioManager(private val context: Context) {
             val resId = SoundRepository.getMusicResId(context, type) ?: return@launch
 
             try {
-                mediaPlayer = MediaPlayer.create(context, resId)?.apply {
+                // Creation off main thread
+                val newPlayer = withContext(Dispatchers.IO) {
+                    MediaPlayer.create(context, resId)
+                }
+                mediaPlayer = newPlayer
+                mediaPlayer?.apply {
                     isLooping = true
                     setVolume(0f, 0f)
                     start()

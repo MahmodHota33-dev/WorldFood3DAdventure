@@ -28,9 +28,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.mahmodhota.worldfood3dadventure.game.match3.model.FoodTileType
+import com.mahmodhota.worldfood3dadventure.game.world.LevelRegistry
+import com.mahmodhota.worldfood3dadventure.game.world.model.CountryUnlockSpec
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.Match3MotionTokens.RewardCountDurationMs
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.Match3MotionTokens.VictoryRewardDelayMs
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.Match3MotionTokens.VictoryXpDelayMs
+import androidx.compose.ui.text.font.FontStyle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -46,10 +49,15 @@ fun PremiumCompletionDialog(
     collected: Map<FoodTileType, Int>,
     xpReward: Int = 0,
     coinReward: Int = 0,
+    unlockedCountry: CountryUnlockSpec? = null,
+    hasNextLevel: Boolean = false,
+    isChapterFinale: Boolean = false,
     onContinue: () -> Unit,
+    onNextLevel: (() -> Unit)? = null,
     onReplay: () -> Unit
 ) {
     var closing by remember { mutableStateOf(false) }
+    var selectedAction by remember { mutableStateOf<String?>(null) }
     var scaleTarget by remember(isWin, score, xpReward, coinReward) { mutableFloatStateOf(0.94f) }
     var scoreTarget by remember(isWin, score) { mutableIntStateOf(if (isWin) 0 else score) }
     var xpTarget by remember(isWin, xpReward) { mutableIntStateOf(0) }
@@ -138,6 +146,24 @@ fun PremiumCompletionDialog(
                     textAlign = TextAlign.Center
                 )
 
+                if (isWin && isChapterFinale) {
+                    Spacer(Modifier.height(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = PremiumColors.Gold.copy(alpha = 0.2f),
+                        border = BorderStroke(1.5.dp, PremiumColors.Gold)
+                    ) {
+                        Text(
+                            text = "🏆 CHAPTER 1 COMPLETE",
+                            color = PremiumColors.Gold,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 12.sp,
+                            letterSpacing = 1.sp,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+
                 Spacer(Modifier.height(24.dp))
 
                 // Stars Animation
@@ -225,6 +251,58 @@ fun PremiumCompletionDialog(
                     }
                 }
 
+                // Unlock Celebration Section
+                if (isWin && unlockedCountry != null) {
+                    val metadata = LevelRegistry.getCountry(unlockedCountry.countryId)?.metadata
+                    val foods = LevelRegistry.getRepresentativeFoods(unlockedCountry.countryId)
+                    
+                    Spacer(Modifier.height(32.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
+                            .border(1.dp, PremiumColors.Gold.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "NEW DESTINATION UNLOCKED",
+                            color = PremiumColors.Gold,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(Modifier.height(14.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(metadata?.flagEmoji ?: "🌍", fontSize = 32.sp)
+                            Spacer(Modifier.width(14.dp))
+                            Text(
+                                metadata?.displayName?.uppercase() ?: unlockedCountry.displayName.uppercase(),
+                                color = Color.White,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                        
+                        if (foods.isNotEmpty()) {
+                            Spacer(Modifier.height(12.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                foods.take(3).forEach { type ->
+                                    FoodIcon(type = type, size = 22.dp)
+                                }
+                            }
+                        }
+                        
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Culinary Adventure Awaits",
+                            color = Color.Gray,
+                            fontSize = 11.sp,
+                            fontStyle = FontStyle.Italic
+                        )
+                    }
+                }
+
                 if (isWin) {
                     AnimatedVisibility(
                         visible = achievementVisible,
@@ -255,17 +333,38 @@ fun PremiumCompletionDialog(
 
                 // Buttons
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    val primaryActionText = when {
+                        !isWin -> "BACK TO HUB"
+                        hasNextLevel -> "NEXT LEVEL"
+                        else -> "CONTINUE ADVENTURE"
+                    }
                     PremiumDialogButton(
-                        text = if (isWin) "CONTINUE ADVENTURE" else "BACK TO HUB",
+                        text = primaryActionText,
                         containerColor = if (isWin) Color(0xFF4CAF50) else PremiumColors.DarkSlate,
                         onClick = {
                             if (shouldFireCompletionCallback(closing, callbackFired)) {
+                                selectedAction = if (isWin && hasNextLevel) "next" else "continue"
                                 closing = true
                                 callbackFired = true
                             }
                         }
                     )
                      
+                    if (isWin && hasNextLevel) {
+                         PremiumDialogButton(
+                            text = "BACK TO MAP",
+                            containerColor = Color.Transparent,
+                            borderColor = Color.White.copy(alpha = 0.3f),
+                            onClick = {
+                                if (shouldFireCompletionCallback(closing, callbackFired)) {
+                                    selectedAction = "continue"
+                                    closing = true
+                                    callbackFired = true
+                                }
+                            }
+                        )
+                    }
+
                     if (!isWin) {
                         PremiumDialogButton(
                             text = "TRY AGAIN",
@@ -274,6 +373,7 @@ fun PremiumCompletionDialog(
                             textColor = PremiumColors.Gold,
                             onClick = {
                                 if (shouldFireCompletionCallback(closing, callbackFired)) {
+                                    selectedAction = "replay"
                                     closing = true
                                     callbackFired = true
                                 }
@@ -289,8 +389,11 @@ fun PremiumCompletionDialog(
         if (closing && callbackFired) {
             delay(170)
             if (callbackFired) {
-                val winClicked = scaleTarget == 1f && !rewardCardsVisible
-                if (winClicked || isWin) onContinue() else onReplay()
+                when (selectedAction) {
+                    "next" -> onNextLevel?.invoke() ?: onContinue()
+                    "replay" -> onReplay()
+                    else -> onContinue()
+                }
             }
         }
     }

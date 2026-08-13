@@ -89,6 +89,46 @@ object JapanMatch3Levels {
             allowedTiles = listOf(FoodTileType.SUSHI, FoodTileType.RAMEN, FoodTileType.TEMPURA, FoodTileType.ONIGIRI, FoodTileType.MOCHI, FoodTileType.MATCHA),
             goals = listOf(LevelGoal.ScoreTarget(20000)),
             moves = 32
+        ),
+        // Level 11: Tempura Feast
+        Match3LevelDefinition(
+            levelNumber = 11,
+            countryId = "japan",
+            allowedTiles = listOf(FoodTileType.TEMPURA, FoodTileType.UDON, FoodTileType.SUSHI, FoodTileType.ONIGIRI),
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.TEMPURA, 25)),
+            moves = 28
+        ),
+        // Level 12: Matcha Ceremony
+        Match3LevelDefinition(
+            levelNumber = 12,
+            countryId = "japan",
+            allowedTiles = listOf(FoodTileType.MATCHA, FoodTileType.DORAYAKI, FoodTileType.MOCHI, FoodTileType.ONIGIRI),
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.MATCHA, 20)),
+            moves = 25
+        ),
+        // Level 13: Udon Rush
+        Match3LevelDefinition(
+            levelNumber = 13,
+            countryId = "japan",
+            allowedTiles = listOf(FoodTileType.UDON, FoodTileType.TAKOYAKI, FoodTileType.RAMEN, FoodTileType.SUSHI),
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.UDON, 22)),
+            moves = 30
+        ),
+        // Level 14: Sweet Treats
+        Match3LevelDefinition(
+            levelNumber = 14,
+            countryId = "japan",
+            allowedTiles = listOf(FoodTileType.MOCHI, FoodTileType.DORAYAKI, FoodTileType.MATCHA, FoodTileType.TAKOYAKI),
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.MOCHI, 30), LevelGoal.CollectFood(FoodTileType.DORAYAKI, 20)),
+            moves = 35
+        ),
+        // Level 15: Imperial Challenge
+        Match3LevelDefinition(
+            levelNumber = 15,
+            countryId = "japan",
+            allowedTiles = FoodTileType.values().filter { it.name in listOf("SUSHI", "RAMEN", "TEMPURA", "ONIGIRI", "MOCHI", "MATCHA", "DORAYAKI", "TAKOYAKI", "UDON") },
+            goals = listOf(LevelGoal.ScoreTarget(35000), LevelGoal.CollectFood(FoodTileType.SUSHI, 25)),
+            moves = 40
         )
     )
 

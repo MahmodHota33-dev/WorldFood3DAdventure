@@ -12,6 +12,7 @@ import com.mahmodhota.worldfood3dadventure.telemetry.Match3TelemetryEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Manages game progression logic. Bridges in-memory state with Persistence.
@@ -20,9 +21,13 @@ object ProgressionManager {
 
     private val levelChain get() = LevelRegistry.allCountryIds
     private val scope = CoroutineScope(Dispatchers.IO)
+    @Volatile
+    private var initialized = false
 
     private val _progressMap = mutableStateMapOf<String, CountryProgress>()
     private val _playerProgress = mutableStateOf(PlayerProgress())
+    private val _isInitialized = mutableStateOf(false)
+    private val _newlyUnlockedCountry = mutableStateOf<com.mahmodhota.worldfood3dadventure.game.world.model.CountryUnlockSpec?>(null)
 
     /**
      * Observable map of country progress.
@@ -30,16 +35,23 @@ object ProgressionManager {
     val progressMap: Map<String, CountryProgress> get() = _progressMap
     val playerProgress: PlayerProgress get() = _playerProgress.value
     val boosterInventory: BoosterInventory get() = _playerProgress.value.boosterInventory
+    val isInitialized: Boolean get() = _isInitialized.value
+    val newlyUnlockedCountry: com.mahmodhota.worldfood3dadventure.game.world.model.CountryUnlockSpec? get() = _newlyUnlockedCountry.value
+
+    fun consumeUnlockEvent() {
+        _newlyUnlockedCountry.value = null
+    }
 
     /**
      * Initializes the manager by observing the repository.
      */
     fun initialize() {
+        if (initialized) return
+        initialized = true
         scope.launch {
             GameProgressManager.repository.state.collect { gameState ->
-                // Sync repository data to our observable Compose map
-                gameState.countries.forEach { (id, countryData) ->
-                    _progressMap[id] = CountryProgress(
+                val mappedProgress = gameState.countries.mapValues { (id, countryData) ->
+                    CountryProgress(
                         levelId = id,
                         isUnlocked = countryData.isUnlocked,
                         isCompleted = countryData.isCompleted,
@@ -54,7 +66,22 @@ object ProgressionManager {
                         }
                     )
                 }
-                _playerProgress.value = gameState.player
+                // Compose state is updated on Main to avoid cross-thread snapshot contention
+                withContext(Dispatchers.Main.immediate) {
+                    // Surgical update: update existing or add new, avoid clearing the whole map
+                    // to prevent MainActivity from seeing an empty state and resetting the UI.
+                    mappedProgress.forEach { (id, progress) ->
+                        if (_progressMap[id] != progress) {
+                            _progressMap[id] = progress
+                        }
+                    }
+                    // Optional: remove keys that no longer exist in DataStore (unlikely in this game)
+                    val keysToRemove = _progressMap.keys.filter { it !in mappedProgress }
+                    keysToRemove.forEach { _progressMap.remove(it) }
+
+                    _playerProgress.value = gameState.player
+                    _isInitialized.value = true
+                }
                 Match3Telemetry.log(
                     event = Match3TelemetryEvent.PASSPORT_UPDATED,
                     levelId = Match3Telemetry.levelId(gameState.lastSelectedCountry, gameState.lastSelectedLevel),
@@ -71,9 +98,15 @@ object ProgressionManager {
 
     /**
      * Returns the progress for a specific country.
+     * Uses [CountryProgressionChain.isInitiallyUnlocked] as fallback so Germany
+     * is never shown as locked on a fresh install.
      */
     fun getCountryProgress(levelId: String): CountryProgress {
-        return _progressMap[levelId] ?: CountryProgress(levelId = levelId)
+        return _progressMap[levelId] ?: CountryProgress(
+            levelId = levelId,
+            isUnlocked = com.mahmodhota.worldfood3dadventure.game.world.model.CountryProgressionChain
+                .isInitiallyUnlocked(levelId)
+        )
     }
 
     /**
@@ -81,7 +114,7 @@ object ProgressionManager {
      */
     fun completeLevel(countryId: String, levelNumber: Int, score: Int, stars: Int) {
         scope.launch {
-            GameProgressManager.repository.saveLevelProgress(
+            val newlyUnlockedIds = GameProgressManager.repository.saveLevelProgress(
                 countryId = countryId,
                 levelNumber = levelNumber,
                 stars = stars,
@@ -89,6 +122,13 @@ object ProgressionManager {
                 xpReward = 50 * stars,
                 coinReward = 10 * stars
             )
+            
+            if (newlyUnlockedIds.isNotEmpty()) {
+                withContext(Dispatchers.Main.immediate) {
+                    val spec = com.mahmodhota.worldfood3dadventure.game.world.model.CountryProgressionChain.getSpec(newlyUnlockedIds.first())
+                    _newlyUnlockedCountry.value = spec
+                }
+            }
         }
     }
 
