@@ -41,4 +41,4 @@ If you have any questions about this Privacy Policy, please contact us at:
 **Website**: [https://mahmodhota.com](https://mahmodhota.com)
 
 ---
-*This privacy policy is also available online at: [https://mahmodhota.com/worldfood/privacy](https://mahmodhota.com/worldfood/privacy)*
+*This privacy policy is also available online at: [https://wadtaktok-dev.github.io/WorldFood3DAdventure/privacy.html](https://wadtaktok-dev.github.io/WorldFood3DAdventure/privacy.html)*

@@ -20,3 +20,20 @@ keystore.properties
 .kotlin/sessions/
 signing.properties
 /app/google-services.json
+
+# Debug / Temporary files
+*.png
+smoke_*
+v*.xml
+v*.png
+startup.png
+zte.png
+zte_fresh.png
+emu.png
+emu_ai.png
+s.png
+s1.png
+s1_final.png
+s2.png
+small.png
+view_*.xml
