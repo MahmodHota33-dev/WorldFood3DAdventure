@@ -10,7 +10,7 @@ object SpainMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 1,
             countryId = "spain",
-            allowedTiles = listOf(FoodTileType.PAELLA, FoodTileType.TOMATO, FoodTileType.CHEESE, FoodTileType.BREAD),
+            allowedTiles = listOf(FoodTileType.PAELLA, FoodTileType.TOMATO, FoodTileType.CHEESE, FoodTileType.BREAD, FoodTileType.OLIVES),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.PAELLA, 16)),
             moves = 24,
             title = "Madrid"
@@ -18,7 +18,7 @@ object SpainMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 2,
             countryId = "spain",
-            allowedTiles = listOf(FoodTileType.TORTILLA_ESPANOLA, FoodTileType.PAELLA, FoodTileType.CHEESE, FoodTileType.POTATO),
+            allowedTiles = listOf(FoodTileType.TORTILLA_ESPANOLA, FoodTileType.PAELLA, FoodTileType.CHEESE, FoodTileType.POTATO, FoodTileType.TOMATO),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.TORTILLA_ESPANOLA, 18)),
             moves = 24,
             title = "Barcelona"
@@ -26,7 +26,7 @@ object SpainMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 3,
             countryId = "spain",
-            allowedTiles = listOf(FoodTileType.JAMON_IBERICO, FoodTileType.BREAD, FoodTileType.CHEESE, FoodTileType.TOMATO),
+            allowedTiles = listOf(FoodTileType.JAMON_IBERICO, FoodTileType.BREAD, FoodTileType.CHEESE, FoodTileType.TOMATO, FoodTileType.OLIVES),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.JAMON_IBERICO, 18)),
             moves = 25,
             title = "Valencia"
@@ -34,7 +34,7 @@ object SpainMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 4,
             countryId = "spain",
-            allowedTiles = listOf(FoodTileType.CHURROS, FoodTileType.GELATO, FoodTileType.MACARON, FoodTileType.BREAD),
+            allowedTiles = listOf(FoodTileType.CHURROS, FoodTileType.GELATO, FoodTileType.MACARON, FoodTileType.BREAD, FoodTileType.COFFEE),
             goals = listOf(LevelGoal.ScoreTarget(8200)),
             moves = 25,
             title = "Seville"
@@ -42,7 +42,7 @@ object SpainMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 5,
             countryId = "spain",
-            allowedTiles = listOf(FoodTileType.GAZPACHO, FoodTileType.TOMATO, FoodTileType.BASIL, FoodTileType.CHEESE),
+            allowedTiles = listOf(FoodTileType.GAZPACHO, FoodTileType.TOMATO, FoodTileType.BASIL, FoodTileType.CHEESE, FoodTileType.BREAD),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.GAZPACHO, 20)),
             moves = 26,
             title = "Granada"
@@ -50,15 +50,15 @@ object SpainMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 6,
             countryId = "spain",
-            allowedTiles = listOf(FoodTileType.CROQUETAS, FoodTileType.BREAD, FoodTileType.CHEESE, FoodTileType.POTATO),
-            goals = listOf(LevelGoal.CollectFood(FoodTileType.CROQUETAS, 20)),
+            allowedTiles = listOf(FoodTileType.PATATAS_BRAVAS, FoodTileType.BREAD, FoodTileType.CHEESE, FoodTileType.POTATO, FoodTileType.TOMATO),
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.PATATAS_BRAVAS, 20)),
             moves = 26,
             title = "Bilbao"
         ),
         Match3LevelDefinition(
             levelNumber = 7,
             countryId = "spain",
-            allowedTiles = listOf(FoodTileType.PATATAS_BRAVAS, FoodTileType.POTATO, FoodTileType.TOMATO, FoodTileType.CHILI),
+            allowedTiles = listOf(FoodTileType.PATATAS_BRAVAS, FoodTileType.POTATO, FoodTileType.TOMATO, FoodTileType.CHILI, FoodTileType.OLIVES),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.PATATAS_BRAVAS, 22)),
             moves = 27,
             title = "Malaga"
@@ -66,7 +66,7 @@ object SpainMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 8,
             countryId = "spain",
-            allowedTiles = listOf(FoodTileType.PULPO_A_LA_GALLEGA, FoodTileType.POTATO, FoodTileType.BREAD, FoodTileType.CHEESE),
+            allowedTiles = listOf(FoodTileType.PULPO_A_LA_GALLEGA, FoodTileType.POTATO, FoodTileType.BREAD, FoodTileType.CHEESE, FoodTileType.TOMATO),
             goals = listOf(LevelGoal.ScoreTarget(10500)),
             moves = 28,
             title = "Toledo"
@@ -74,7 +74,7 @@ object SpainMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 9,
             countryId = "spain",
-            allowedTiles = listOf(FoodTileType.SANGRIA, FoodTileType.MACARON, FoodTileType.CREPE, FoodTileType.BREAD),
+            allowedTiles = listOf(FoodTileType.SANGRIA, FoodTileType.PAELLA, FoodTileType.CHURROS, FoodTileType.BREAD, FoodTileType.APPLE),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.SANGRIA, 14)),
             moves = 28,
             title = "Mallorca"
@@ -82,7 +82,7 @@ object SpainMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 10,
             countryId = "spain",
-            allowedTiles = listOf(FoodTileType.CREMA_CATALANA, FoodTileType.CROISSANT, FoodTileType.MACARON, FoodTileType.CHEESE),
+            allowedTiles = listOf(FoodTileType.CREMA_CATALANA, FoodTileType.CROISSANT, FoodTileType.MACARON, FoodTileType.CHEESE, FoodTileType.MILK),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.CREMA_CATALANA, 16)),
             moves = 28,
             title = "Zaragoza"
@@ -90,7 +90,7 @@ object SpainMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 11,
             countryId = "spain",
-            allowedTiles = listOf(FoodTileType.PAELLA, FoodTileType.PATATAS_BRAVAS, FoodTileType.TORTILLA_ESPANOLA, FoodTileType.TOMATO),
+            allowedTiles = listOf(FoodTileType.PAELLA, FoodTileType.PATATAS_BRAVAS, FoodTileType.TORTILLA_ESPANOLA, FoodTileType.TOMATO, FoodTileType.OLIVES),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.PAELLA, 24), LevelGoal.ScoreTarget(6000)),
             moves = 29,
             title = "Costa Brava"
@@ -98,7 +98,7 @@ object SpainMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 12,
             countryId = "spain",
-            allowedTiles = listOf(FoodTileType.PATATAS_BRAVAS, FoodTileType.TORTILLA_ESPANOLA, FoodTileType.CROQUETAS, FoodTileType.CHURROS),
+            allowedTiles = listOf(FoodTileType.PATATAS_BRAVAS, FoodTileType.TORTILLA_ESPANOLA, FoodTileType.PAELLA, FoodTileType.CHURROS, FoodTileType.COFFEE),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.PATATAS_BRAVAS, 20)),
             moves = 30,
             title = "Canary Islands"
@@ -106,16 +106,16 @@ object SpainMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 13,
             countryId = "spain",
-            allowedTiles = listOf(FoodTileType.CROQUETAS, FoodTileType.PULPO_A_LA_GALLEGA, FoodTileType.CREMA_CATALANA, FoodTileType.BREAD),
-            goals = listOf(LevelGoal.CollectFood(FoodTileType.CROQUETAS, 22)),
+            allowedTiles = listOf(FoodTileType.PAELLA, FoodTileType.PULPO_A_LA_GALLEGA, FoodTileType.CREMA_CATALANA, FoodTileType.BREAD, FoodTileType.CHEESE),
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.PAELLA, 22)),
             moves = 30,
             title = "Santiago de Compostela"
         ),
         Match3LevelDefinition(
             levelNumber = 14,
             countryId = "spain",
-            allowedTiles = listOf(FoodTileType.SANGRIA, FoodTileType.CHURROS, FoodTileType.GAZPACHO, FoodTileType.MACARON),
-            goals = listOf(LevelGoal.CollectFood(FoodTileType.SANGRIA, 18), LevelGoal.ScoreTarget(9000)),
+            allowedTiles = listOf(FoodTileType.JAMON_IBERICO, FoodTileType.CHURROS, FoodTileType.GAZPACHO, FoodTileType.MACARON, FoodTileType.TOMATO),
+            goals = listOf(LevelGoal.CollectFood(FoodTileType.JAMON_IBERICO, 18), LevelGoal.ScoreTarget(9000)),
             moves = 31,
             title = "Ibiza"
         ),
@@ -128,11 +128,13 @@ object SpainMatch3Levels {
                 FoodTileType.JAMON_IBERICO,
                 FoodTileType.CHURROS,
                 FoodTileType.GAZPACHO,
-                FoodTileType.CROQUETAS,
                 FoodTileType.PATATAS_BRAVAS,
                 FoodTileType.PULPO_A_LA_GALLEGA,
-                FoodTileType.SANGRIA,
-                FoodTileType.CREMA_CATALANA
+                FoodTileType.CREMA_CATALANA,
+                FoodTileType.OLIVES,
+                FoodTileType.TOMATO,
+                FoodTileType.BREAD,
+                FoodTileType.CHEESE
             ),
             goals = listOf(
                 LevelGoal.ScoreTarget(26000),

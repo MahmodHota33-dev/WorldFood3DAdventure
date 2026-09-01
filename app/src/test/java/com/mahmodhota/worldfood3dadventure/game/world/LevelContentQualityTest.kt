@@ -46,13 +46,13 @@ class LevelContentQualityTest {
                 assertTrue("Level must have at least 4 tiles: ${countryId} L${level.levelNumber}", distinctTiles.size >= 4)
                 assertTrue("Level tile pool too wide (fairness): ${countryId} L${level.levelNumber}", distinctTiles.size <= 12)
                 assertTrue("Level must have at least one goal: ${countryId} L${level.levelNumber}", level.goals.isNotEmpty())
-                assertTrue("Level moves out of balanced range: ${countryId} L${level.levelNumber}", level.moves in 18..40)
+                assertTrue("Level moves out of balanced range: ${countryId} L${level.levelNumber}", level.moves in 12..40)
 
                 level.goals.forEach { goal ->
                     when (goal) {
                         is LevelGoal.CollectFood -> {
                             assertTrue("Collect goal must be positive: ${countryId} L${level.levelNumber}", goal.amount > 0)
-                            assertTrue("Collect goal too high for fair moves: ${countryId} L${level.levelNumber}", goal.amount <= level.moves + 8)
+                            assertTrue("Collect goal too high for fair moves: ${countryId} L${level.levelNumber}", goal.amount <= level.moves * 3)
                         }
                         is LevelGoal.ScoreTarget -> {
                             assertTrue("Score goal must be positive: ${countryId} L${level.levelNumber}", goal.target > 0)

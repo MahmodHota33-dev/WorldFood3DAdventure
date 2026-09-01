@@ -18,8 +18,10 @@ data class CountryProgress(
     val levelId: String,
     val isUnlocked: Boolean = false,
     val isCompleted: Boolean = false,
-    val levels: List<Match3LevelProgress> = emptyList()
+    val levels: List<Match3LevelProgress> = emptyList(),
+    val discoveredFoods: Set<String> = emptySet()
 ) {
     val totalStars: Int get() = levels.sumOf { it.stars }
+    val discoveredFoodCount: Int get() = discoveredFoods.size
     val completionPercentage: Int get() = if (levels.isEmpty()) 0 else (levels.count { it.isCompleted } * 100) / levels.size
 }

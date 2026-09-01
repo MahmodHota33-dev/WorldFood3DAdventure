@@ -12,10 +12,16 @@ enum class SfxType {
     SWAP_INVALID,
     MATCH_SMALL,
     MATCH_LARGE,
+    MATCH_3,
+    MATCH_4,
+    MATCH_5,
     COMBO_1,
     COMBO_2,
     COMBO_3,
     CASCADE,
+    CASCADE_1,
+    CASCADE_2,
+    CASCADE_3_PLUS,
     COIN_COLLECT,
     STAR_EARNED,
     XP_GAINED,
@@ -25,7 +31,25 @@ enum class SfxType {
     DEFEAT,
     ITALY_VICTORY,
     JAPAN_VICTORY,
-    MEXICO_VICTORY
+    MEXICO_VICTORY,
+    SPECIAL_EXPLOSION,
+    ROCKET_ACTIVATE,
+    ROCKET_SWEEP,
+    BOMB_EXPLOSION,
+    COLOR_BOMB_ACTIVATE,
+    COLOR_BOMB_FINISH,
+    BOOSTER_HAMMER,
+    BOOSTER_ROCKET,
+    BOOSTER_HAND,
+    RECOVERY_5MOVES,
+    FOOD_DISCOVERY_CHIME,
+    FOOD_REVEAL,
+    COUNTRY_MARKER_SELECT,
+    COUNTRY_CARD_OPEN,
+    TRAVEL_AMBIENCE,
+    TRAVEL_ARRIVAL,
+    UI_FILTER_SELECT,
+    PASSPORT_STAMP
 }
 
 /**
@@ -78,6 +102,30 @@ object SoundRepository {
             SfxType.ITALY_VICTORY -> com.mahmodhota.worldfood3dadventure.R.raw.italy_victory
             SfxType.JAPAN_VICTORY -> com.mahmodhota.worldfood3dadventure.R.raw.japan_victory
             SfxType.MEXICO_VICTORY -> com.mahmodhota.worldfood3dadventure.R.raw.mexico_victory
+            SfxType.SPECIAL_EXPLOSION -> com.mahmodhota.worldfood3dadventure.R.raw.match_large // Placeholder
+            SfxType.MATCH_3 -> com.mahmodhota.worldfood3dadventure.R.raw.match_small
+            SfxType.MATCH_4 -> com.mahmodhota.worldfood3dadventure.R.raw.match_large
+            SfxType.MATCH_5 -> com.mahmodhota.worldfood3dadventure.R.raw.match_large
+            SfxType.CASCADE_1 -> com.mahmodhota.worldfood3dadventure.R.raw.cascade
+            SfxType.CASCADE_2 -> com.mahmodhota.worldfood3dadventure.R.raw.cascade
+            SfxType.CASCADE_3_PLUS -> com.mahmodhota.worldfood3dadventure.R.raw.cascade
+            SfxType.ROCKET_ACTIVATE -> 0
+            SfxType.ROCKET_SWEEP -> 0
+            SfxType.BOMB_EXPLOSION -> 0
+            SfxType.COLOR_BOMB_ACTIVATE -> 0
+            SfxType.COLOR_BOMB_FINISH -> 0
+            SfxType.BOOSTER_HAMMER -> 0
+            SfxType.BOOSTER_ROCKET -> 0
+            SfxType.BOOSTER_HAND -> 0
+            SfxType.RECOVERY_5MOVES -> 0
+            SfxType.FOOD_DISCOVERY_CHIME -> 0
+            SfxType.FOOD_REVEAL -> 0
+            SfxType.COUNTRY_MARKER_SELECT -> 0
+            SfxType.COUNTRY_CARD_OPEN -> 0
+            SfxType.TRAVEL_AMBIENCE -> 0
+            SfxType.TRAVEL_ARRIVAL -> 0
+            SfxType.UI_FILTER_SELECT -> 0
+            SfxType.PASSPORT_STAMP -> 0
         }
         return if (rid == 0) resolveRawResourceId(context, type.name.lowercase()) else rid
     }

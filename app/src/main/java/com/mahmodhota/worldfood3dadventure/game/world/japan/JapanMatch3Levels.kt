@@ -5,7 +5,7 @@ import com.mahmodhota.worldfood3dadventure.game.match3.model.LevelGoal
 import com.mahmodhota.worldfood3dadventure.game.match3.model.Match3LevelDefinition
 
 /**
- * 10 Playable Match-3 levels for the Japan chapter.
+ * 15 Playable Match-3 levels for the Japan chapter.
  */
 object JapanMatch3Levels {
     
@@ -14,7 +14,7 @@ object JapanMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 1,
             countryId = "japan",
-            allowedTiles = listOf(FoodTileType.SUSHI, FoodTileType.RAMEN, FoodTileType.ONIGIRI, FoodTileType.MATCHA),
+            allowedTiles = listOf(FoodTileType.SUSHI, FoodTileType.RAMEN, FoodTileType.ONIGIRI, FoodTileType.MATCHA, FoodTileType.RICE),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.SUSHI, 20)),
             moves = 20
         ),
@@ -22,7 +22,7 @@ object JapanMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 2,
             countryId = "japan",
-            allowedTiles = listOf(FoodTileType.RAMEN, FoodTileType.UDON, FoodTileType.ONIGIRI, FoodTileType.MATCHA),
+            allowedTiles = listOf(FoodTileType.RAMEN, FoodTileType.UDON, FoodTileType.ONIGIRI, FoodTileType.MATCHA, FoodTileType.FISH),
             goals = listOf(LevelGoal.ScoreTarget(5000)),
             moves = 22
         ),
@@ -30,7 +30,7 @@ object JapanMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 3,
             countryId = "japan",
-            allowedTiles = listOf(FoodTileType.TEMPURA, FoodTileType.SUSHI, FoodTileType.ONIGIRI, FoodTileType.MATCHA),
+            allowedTiles = listOf(FoodTileType.TEMPURA, FoodTileType.SUSHI, FoodTileType.ONIGIRI, FoodTileType.MATCHA, FoodTileType.RICE),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.TEMPURA, 15)),
             moves = 24
         ),
@@ -38,7 +38,7 @@ object JapanMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 4,
             countryId = "japan",
-            allowedTiles = listOf(FoodTileType.ONIGIRI, FoodTileType.SUSHI, FoodTileType.UDON, FoodTileType.MATCHA),
+            allowedTiles = listOf(FoodTileType.ONIGIRI, FoodTileType.SUSHI, FoodTileType.UDON, FoodTileType.MATCHA, FoodTileType.TEMPURA),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.ONIGIRI, 25)),
             moves = 25
         ),
@@ -46,7 +46,7 @@ object JapanMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 5,
             countryId = "japan",
-            allowedTiles = listOf(FoodTileType.MOCHI, FoodTileType.DORAYAKI, FoodTileType.MATCHA, FoodTileType.ONIGIRI),
+            allowedTiles = listOf(FoodTileType.MOCHI, FoodTileType.DORAYAKI, FoodTileType.MATCHA, FoodTileType.ONIGIRI, FoodTileType.SUSHI),
             goals = listOf(LevelGoal.ScoreTarget(7000)),
             moves = 26
         ),
@@ -54,7 +54,7 @@ object JapanMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 6,
             countryId = "japan",
-            allowedTiles = listOf(FoodTileType.TAKOYAKI, FoodTileType.RAMEN, FoodTileType.SUSHI, FoodTileType.TEMPURA),
+            allowedTiles = listOf(FoodTileType.TAKOYAKI, FoodTileType.RAMEN, FoodTileType.SUSHI, FoodTileType.TEMPURA, FoodTileType.FISH),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.TAKOYAKI, 20)),
             moves = 28
         ),
@@ -62,7 +62,7 @@ object JapanMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 7,
             countryId = "japan",
-            allowedTiles = listOf(FoodTileType.UDON, FoodTileType.RAMEN, FoodTileType.ONIGIRI, FoodTileType.SUSHI),
+            allowedTiles = listOf(FoodTileType.UDON, FoodTileType.RAMEN, FoodTileType.ONIGIRI, FoodTileType.SUSHI, FoodTileType.MATCHA),
             goals = listOf(LevelGoal.ScoreTarget(8000)),
             moves = 28
         ),
@@ -70,7 +70,7 @@ object JapanMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 8,
             countryId = "japan",
-            allowedTiles = listOf(FoodTileType.MATCHA, FoodTileType.MOCHI, FoodTileType.DORAYAKI, FoodTileType.SUSHI),
+            allowedTiles = listOf(FoodTileType.MATCHA, FoodTileType.MOCHI, FoodTileType.DORAYAKI, FoodTileType.SUSHI, FoodTileType.TAKOYAKI),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.MATCHA, 12)),
             moves = 30
         ),
@@ -78,7 +78,7 @@ object JapanMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 9,
             countryId = "japan",
-            allowedTiles = listOf(FoodTileType.DORAYAKI, FoodTileType.MOCHI, FoodTileType.SUSHI, FoodTileType.RAMEN),
+            allowedTiles = listOf(FoodTileType.DORAYAKI, FoodTileType.MOCHI, FoodTileType.SUSHI, FoodTileType.RAMEN, FoodTileType.UDON),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.DORAYAKI, 15)),
             moves = 30
         ),
@@ -86,7 +86,7 @@ object JapanMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 10,
             countryId = "japan",
-            allowedTiles = listOf(FoodTileType.SUSHI, FoodTileType.RAMEN, FoodTileType.TEMPURA, FoodTileType.ONIGIRI, FoodTileType.MOCHI, FoodTileType.MATCHA),
+            allowedTiles = listOf(FoodTileType.SUSHI, FoodTileType.RAMEN, FoodTileType.TEMPURA, FoodTileType.ONIGIRI, FoodTileType.MOCHI, FoodTileType.MATCHA, FoodTileType.TAKOYAKI, FoodTileType.UDON),
             goals = listOf(LevelGoal.ScoreTarget(20000)),
             moves = 32
         ),
@@ -94,7 +94,7 @@ object JapanMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 11,
             countryId = "japan",
-            allowedTiles = listOf(FoodTileType.TEMPURA, FoodTileType.UDON, FoodTileType.SUSHI, FoodTileType.ONIGIRI),
+            allowedTiles = listOf(FoodTileType.TEMPURA, FoodTileType.UDON, FoodTileType.SUSHI, FoodTileType.ONIGIRI, FoodTileType.FISH),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.TEMPURA, 25)),
             moves = 28
         ),
@@ -102,7 +102,7 @@ object JapanMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 12,
             countryId = "japan",
-            allowedTiles = listOf(FoodTileType.MATCHA, FoodTileType.DORAYAKI, FoodTileType.MOCHI, FoodTileType.ONIGIRI),
+            allowedTiles = listOf(FoodTileType.MATCHA, FoodTileType.DORAYAKI, FoodTileType.MOCHI, FoodTileType.ONIGIRI, FoodTileType.SUSHI),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.MATCHA, 20)),
             moves = 25
         ),
@@ -110,7 +110,7 @@ object JapanMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 13,
             countryId = "japan",
-            allowedTiles = listOf(FoodTileType.UDON, FoodTileType.TAKOYAKI, FoodTileType.RAMEN, FoodTileType.SUSHI),
+            allowedTiles = listOf(FoodTileType.UDON, FoodTileType.TAKOYAKI, FoodTileType.RAMEN, FoodTileType.SUSHI, FoodTileType.TEMPURA),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.UDON, 22)),
             moves = 30
         ),
@@ -118,7 +118,7 @@ object JapanMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 14,
             countryId = "japan",
-            allowedTiles = listOf(FoodTileType.MOCHI, FoodTileType.DORAYAKI, FoodTileType.MATCHA, FoodTileType.TAKOYAKI),
+            allowedTiles = listOf(FoodTileType.MOCHI, FoodTileType.DORAYAKI, FoodTileType.MATCHA, FoodTileType.TAKOYAKI, FoodTileType.ONIGIRI),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.MOCHI, 30), LevelGoal.CollectFood(FoodTileType.DORAYAKI, 20)),
             moves = 35
         ),
@@ -126,7 +126,7 @@ object JapanMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 15,
             countryId = "japan",
-            allowedTiles = FoodTileType.values().filter { it.name in listOf("SUSHI", "RAMEN", "TEMPURA", "ONIGIRI", "MOCHI", "MATCHA", "DORAYAKI", "TAKOYAKI", "UDON") },
+            allowedTiles = FoodTileType.values().filter { it.name in listOf("SUSHI", "RAMEN", "TEMPURA", "ONIGIRI", "MOCHI", "MATCHA", "DORAYAKI", "TAKOYAKI", "UDON", "RICE", "FISH") },
             goals = listOf(LevelGoal.ScoreTarget(35000), LevelGoal.CollectFood(FoodTileType.SUSHI, 25)),
             moves = 40
         )

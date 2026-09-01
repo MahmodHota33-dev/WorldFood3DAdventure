@@ -9,38 +9,14 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,16 +29,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.mahmodhota.worldfood3dadventure.data.audio.GlobalSystemManager
+import com.mahmodhota.worldfood3dadventure.data.audio.SfxType
 import com.mahmodhota.worldfood3dadventure.game.progress.CountryProgress
 import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionQuery
 import com.mahmodhota.worldfood3dadventure.game.world.LevelRegistry
 import com.mahmodhota.worldfood3dadventure.game.world.model.CountryProgressionChain
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.BottomNavigationBar
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumColors
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumGameBackdrop
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumShapes
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.TopStatusBar
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.premiumPanel
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.*
 
 private enum class PassportStampState { LOCKED, VISITED, COMPLETED, COMING_SOON }
 
@@ -74,6 +47,8 @@ private data class PassportEntryUi(
     val stars: Int,
     val levelsCompleted: Int,
     val totalLevels: Int,
+    val discoveredFoodCount: Int,
+    val totalFoodCount: Int,
     val state: PassportStampState
 )
 
@@ -88,7 +63,7 @@ fun PassportScreen(
     val visitedCountries = ProgressionQuery.visitedCountries(gameState)
     val completedCountries = ProgressionQuery.completedCountries(gameState)
     val stars = ProgressionQuery.totalStarsEarned(gameState)
-    val progress = visitedCountries.toFloat() / totalCountries.toFloat()
+    val globalProgressValue = (visitedCountries.toFloat() / totalCountries.toFloat()).coerceIn(0f, 1f)
     
     val knownStates = remember { mutableStateMapOf<String, PassportStampState>() }
     var highlightedCountryId by remember { mutableStateOf<String?>(null) }
@@ -129,6 +104,7 @@ fun PassportScreen(
             knownStates[entry.countryId] = entry.state
         }
         if (newlyActivatedId != null) {
+            GlobalSystemManager.audio.playSfx(SfxType.PASSPORT_STAMP)
             highlightedCountryId = newlyActivatedId
             kotlinx.coroutines.delay(1500)
             if (highlightedCountryId == newlyActivatedId) {
@@ -157,19 +133,21 @@ fun PassportScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            PremiumGameBackdrop()
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val screenWidth = maxWidth
+                val isCompact = screenWidth < 390.dp
+                val gridColumns = when {
+                    screenWidth < 360.dp -> 2
+                    screenWidth < 600.dp -> 3
+                    else -> 4
+                }
 
-            BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
-            ) {
-                val compact = maxWidth < 390.dp
-                val cardMinSize = if (compact) 144.dp else 158.dp
+                PremiumGameBackdrop()
 
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                         .widthIn(max = 820.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -178,14 +156,14 @@ fun PassportScreen(
                         completed = completedCountries,
                         total = totalCountries,
                         stars = stars,
-                        progress = progress,
-                        compact = compact
+                        progress = globalProgressValue,
+                        compact = isCompact
                     )
 
                     featuredCountry?.let { entry ->
                         PassportFeatureCard(
                             entry = entry,
-                            compact = compact
+                            compact = isCompact
                         )
                     }
 
@@ -193,12 +171,12 @@ fun PassportScreen(
                         text = "COUNTRY STAMPS",
                         color = Color.White,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = if (compact) 12.sp else 13.sp,
+                        fontSize = if (isCompact) 12.sp else 13.sp,
                         letterSpacing = 1.2.sp
                     )
 
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = cardMinSize),
+                        columns = GridCells.Fixed(gridColumns),
                         modifier = Modifier
                             .weight(1f)
                             .graphicsLayer {
@@ -214,7 +192,7 @@ fun PassportScreen(
                         items(passportEntries, key = { it.countryId }) { entry ->
                             PassportStampCard(
                                 entry = entry,
-                                compact = compact,
+                                compact = isCompact,
                                 highlighted = highlightedCountryId == entry.countryId
                             )
                         }
@@ -230,12 +208,13 @@ private fun CountryProgress.toPassportEntry(
     flag: String,
     description: String
 ): PassportEntryUi {
-    val totalLevels = levels.size.coerceAtLeast(1)
-    val levelsCompleted = levels.count { it.isCompleted }
+    val totalLevelsCount = levels.size.coerceAtLeast(1)
+    val levelsCompletedCount = levels.count { it.isCompleted }
+    val totalFoodsCount = LevelRegistry.getRepresentativeFoods(levelId).size
     val state = when {
         LevelRegistry.getCountry(levelId)?.isComingSoon == true -> PassportStampState.COMING_SOON
         isCompleted -> PassportStampState.COMPLETED
-        isUnlocked && levelsCompleted > 0 -> PassportStampState.VISITED
+        isUnlocked && levelsCompletedCount > 0 -> PassportStampState.VISITED
         else -> PassportStampState.LOCKED
     }
     return PassportEntryUi(
@@ -244,8 +223,10 @@ private fun CountryProgress.toPassportEntry(
         flag = flag,
         description = description,
         stars = totalStars,
-        levelsCompleted = levelsCompleted,
-        totalLevels = totalLevels,
+        levelsCompleted = levelsCompletedCount,
+        totalLevels = totalLevelsCount,
+        discoveredFoodCount = discoveredFoods.size,
+        totalFoodCount = totalFoodsCount,
         state = state
     )
 }
@@ -386,7 +367,7 @@ private fun PassportFeatureCard(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 PassportInfoChip("COMPLETE", "$completionPercent%", Modifier.weight(1f))
                 PassportInfoChip("STARS", entry.stars.toString(), Modifier.weight(1f))
-                PassportInfoChip("LEVELS", "${entry.levelsCompleted}/$totalLevels", Modifier.weight(1f))
+                PassportInfoChip("FOODS", "${entry.discoveredFoodCount}/${entry.totalFoodCount}", Modifier.weight(1f))
             }
             
             PassportInfoChip("STAMP", stampText, Modifier.fillMaxWidth())
@@ -524,19 +505,33 @@ private fun PassportStampCard(
                     color = stampColor.copy(alpha = 0.13f),
                     border = androidx.compose.foundation.BorderStroke(1.dp, stampColor.copy(alpha = 0.38f))
                 ) {
-                    Text(
-                        text = when (entry.state) {
-                            PassportStampState.COMPLETED -> "PASSPORT STAMPED"
-                            PassportStampState.VISITED -> "ENTRY VERIFIED"
-                            PassportStampState.COMING_SOON -> "COMING SOON"
-                            PassportStampState.LOCKED -> "LOCKED VISA"
-                        },
-                        color = stampColor,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 0.9.sp,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = when (entry.state) {
+                                PassportStampState.COMPLETED -> "STAMPED"
+                                PassportStampState.VISITED -> "VERIFIED"
+                                PassportStampState.COMING_SOON -> "COMING SOON"
+                                PassportStampState.LOCKED -> "LOCKED"
+                            },
+                            color = stampColor,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.9.sp
+                        )
+                        if (entry.state != PassportStampState.LOCKED && entry.state != PassportStampState.COMING_SOON) {
+                            Box(modifier = Modifier.size(1.dp, 10.dp).background(stampColor.copy(alpha = 0.3f)))
+                            Text(
+                                text = "🍱 ${entry.discoveredFoodCount}/${entry.totalFoodCount}",
+                                color = Color.White,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
 
                 Text(

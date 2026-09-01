@@ -22,10 +22,10 @@ internal object FlightPath {
 
     fun sample(start: GlobeGeoPoint, end: GlobeGeoPoint, tRaw: Float): FlightSample {
         val t = tRaw.coerceIn(0f, 1f)
-        val p0 = latLonToXyz(start.latDeg, start.lonDeg)
-        val p1 = latLonToXyz(end.latDeg, end.lonDeg)
+        val p0 = GlobeMath.latLonToXyz(start.latDeg, start.lonDeg)
+        val p1 = GlobeMath.latLonToXyz(end.latDeg, end.lonDeg)
 
-        val dot = (p0[0] * p1[0] + p0[1] * p1[1] + p0[2] * p1[2]).coerceIn(-1f, 1f)
+        val dot = ((p0[0] * p1[0]) + (p0[1] * p1[1]) + (p0[2] * p1[2])).coerceIn(-1f, 1f)
         val omega = acos(dot)
 
         val xyz = if (!omega.isFinite() || omega < 0.0001f) {
@@ -57,8 +57,8 @@ internal object FlightPath {
     }
 
     fun angularDistanceDeg(start: GlobeGeoPoint, end: GlobeGeoPoint): Float {
-        val a = latLonToXyz(start.latDeg, start.lonDeg)
-        val b = latLonToXyz(end.latDeg, end.lonDeg)
+        val a = GlobeMath.latLonToXyz(start.latDeg, start.lonDeg)
+        val b = GlobeMath.latLonToXyz(end.latDeg, end.lonDeg)
         val dot = (a[0] * b[0] + a[1] * b[1] + a[2] * b[2]).coerceIn(-1f, 1f)
         return acos(dot) * RAD2DEG
     }

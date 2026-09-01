@@ -16,4 +16,9 @@ object GameProgressManager {
             _repository = GameProgressRepository(context.applicationContext)
         }
     }
+
+    /** For unit testing only. */
+    fun setRepositoryForTesting(repository: GameProgressRepository) {
+        _repository = repository
+    }
 }

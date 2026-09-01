@@ -19,3 +19,4 @@ keystore.properties
 .kotlin/errors/
 .kotlin/sessions/
 signing.properties
+/app/google-services.json

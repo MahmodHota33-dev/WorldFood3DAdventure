@@ -45,15 +45,15 @@ class Match3FeedbackPolicyTest {
         )
 
         assertEquals("Nice!", chainTwo.comboLabel)
-        assertEquals(SfxType.COMBO_1, chainTwo.sfxType)
+        assertEquals(SfxType.CASCADE_2, chainTwo.sfxType)
         assertEquals(HapticFeedbackStrength.MEDIUM, chainTwo.haptic)
         assertEquals("Great!", chainThree.comboLabel)
-        assertEquals(SfxType.COMBO_2, chainThree.sfxType)
+        assertEquals(SfxType.CASCADE_3_PLUS, chainThree.sfxType)
         assertEquals("Delicious!", chainFour.comboLabel)
-        assertEquals(SfxType.COMBO_3, chainFour.sfxType)
+        assertEquals(SfxType.CASCADE_3_PLUS, chainFour.sfxType)
         assertEquals(HapticFeedbackStrength.HEAVY, chainFour.haptic)
         assertEquals("Amazing!", chainFive.comboLabel)
-        assertEquals(SfxType.COMBO_3, chainFive.sfxType)
+        assertEquals(SfxType.CASCADE_3_PLUS, chainFive.sfxType)
         assertEquals(HapticFeedbackStrength.HEAVY, chainFive.haptic)
     }
 
@@ -148,7 +148,7 @@ class Match3FeedbackPolicyTest {
             specialEffects = emptyList()
         )
 
-        assertEquals(HapticFeedbackStrength.MEDIUM, normal.haptic)
+        assertEquals(HapticFeedbackStrength.LIGHT, normal.haptic)
         assertEquals(HapticFeedbackStrength.MEDIUM, special.haptic)
         assertEquals(HapticFeedbackStrength.HEAVY, fiveMatch.haptic)
     }

@@ -5,7 +5,7 @@ import com.mahmodhota.worldfood3dadventure.game.match3.model.LevelGoal
 import com.mahmodhota.worldfood3dadventure.game.match3.model.Match3LevelDefinition
 
 /**
- * 10 Playable Match-3 levels for the France chapter.
+ * 15 Playable Match-3 levels for the France chapter.
  */
 object FranceMatch3Levels {
     
@@ -14,7 +14,7 @@ object FranceMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 1,
             countryId = "france",
-            allowedTiles = listOf(FoodTileType.CROISSANT, FoodTileType.MACARON, FoodTileType.CREPE, FoodTileType.FRENCH_CHEESE),
+            allowedTiles = listOf(FoodTileType.CROISSANT, FoodTileType.MACARON, FoodTileType.CREPE, FoodTileType.FRENCH_CHEESE, FoodTileType.BAGUETTE),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.CROISSANT, 20)),
             moves = 20
         ),
@@ -22,7 +22,7 @@ object FranceMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 2,
             countryId = "france",
-            allowedTiles = listOf(FoodTileType.BAGUETTE, FoodTileType.BREAD, FoodTileType.FRENCH_CHEESE, FoodTileType.CROISSANT),
+            allowedTiles = listOf(FoodTileType.BAGUETTE, FoodTileType.BREAD, FoodTileType.FRENCH_CHEESE, FoodTileType.CROISSANT, FoodTileType.CREPE),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.BAGUETTE, 25)),
             moves = 22
         ),
@@ -30,7 +30,7 @@ object FranceMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 3,
             countryId = "france",
-            allowedTiles = listOf(FoodTileType.FRENCH_CHEESE, FoodTileType.BREAD, FoodTileType.TOMATO, FoodTileType.BASIL),
+            allowedTiles = listOf(FoodTileType.FRENCH_CHEESE, FoodTileType.BREAD, FoodTileType.TOMATO, FoodTileType.BASIL, FoodTileType.BAGUETTE),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.FRENCH_CHEESE, 20)),
             moves = 24
         ),
@@ -38,7 +38,7 @@ object FranceMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 4,
             countryId = "france",
-            allowedTiles = listOf(FoodTileType.CREPE, FoodTileType.MACARON, FoodTileType.CROISSANT, FoodTileType.FRENCH_CHEESE),
+            allowedTiles = listOf(FoodTileType.CREPE, FoodTileType.MACARON, FoodTileType.CROISSANT, FoodTileType.FRENCH_CHEESE, FoodTileType.GELATO),
             goals = listOf(LevelGoal.ScoreTarget(7500)),
             moves = 25
         ),
@@ -46,7 +46,7 @@ object FranceMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 5,
             countryId = "france",
-            allowedTiles = listOf(FoodTileType.MACARON, FoodTileType.GELATO, FoodTileType.CROISSANT, FoodTileType.ECLAIR),
+            allowedTiles = listOf(FoodTileType.MACARON, FoodTileType.GELATO, FoodTileType.CROISSANT, FoodTileType.ECLAIR, FoodTileType.CREPE),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.MACARON, 24)),
             moves = 26
         ),
@@ -54,7 +54,7 @@ object FranceMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 6,
             countryId = "france",
-            allowedTiles = listOf(FoodTileType.RATATOUILLE, FoodTileType.TOMATO, FoodTileType.BASIL, FoodTileType.POTATO),
+            allowedTiles = listOf(FoodTileType.RATATOUILLE, FoodTileType.TOMATO, FoodTileType.BASIL, FoodTileType.POTATO, FoodTileType.FRENCH_CHEESE),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.RATATOUILLE, 20)),
             moves = 28
         ),
@@ -62,7 +62,7 @@ object FranceMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 7,
             countryId = "france",
-            allowedTiles = listOf(FoodTileType.ECLAIR, FoodTileType.MACARON, FoodTileType.TIRAMISU, FoodTileType.BLACK_FOREST_CAKE),
+            allowedTiles = listOf(FoodTileType.ECLAIR, FoodTileType.MACARON, FoodTileType.TIRAMISU, FoodTileType.BLACK_FOREST_CAKE, FoodTileType.CREPE),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.ECLAIR, 15)),
             moves = 28
         ),
@@ -70,7 +70,7 @@ object FranceMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 8,
             countryId = "france",
-            allowedTiles = listOf(FoodTileType.SOUFFLE, FoodTileType.CREPE, FoodTileType.FRENCH_CHEESE, FoodTileType.CROISSANT),
+            allowedTiles = listOf(FoodTileType.SOUFFLE, FoodTileType.CREPE, FoodTileType.FRENCH_CHEESE, FoodTileType.CROISSANT, FoodTileType.ECLAIR),
             goals = listOf(LevelGoal.ScoreTarget(10000)),
             moves = 30
         ),
@@ -78,7 +78,7 @@ object FranceMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 9,
             countryId = "france",
-            allowedTiles = listOf(FoodTileType.TARTE_TATIN, FoodTileType.APPLE, FoodTileType.CROISSANT, FoodTileType.MACARON),
+            allowedTiles = listOf(FoodTileType.TARTE_TATIN, FoodTileType.APPLE, FoodTileType.CROISSANT, FoodTileType.MACARON, FoodTileType.SOUFFLE),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.TARTE_TATIN, 15), LevelGoal.ScoreTarget(5000)),
             moves = 30
         ),
@@ -86,7 +86,7 @@ object FranceMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 10,
             countryId = "france",
-            allowedTiles = listOf(FoodTileType.CROISSANT, FoodTileType.BAGUETTE, FoodTileType.FRENCH_CHEESE, FoodTileType.MACARON, FoodTileType.RATATOUILLE, FoodTileType.SOUFFLE),
+            allowedTiles = listOf(FoodTileType.CROISSANT, FoodTileType.BAGUETTE, FoodTileType.FRENCH_CHEESE, FoodTileType.MACARON, FoodTileType.RATATOUILLE, FoodTileType.SOUFFLE, FoodTileType.ECLAIR),
             goals = listOf(LevelGoal.ScoreTarget(17500)),
             moves = 32
         ),
@@ -94,7 +94,7 @@ object FranceMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 11,
             countryId = "france",
-            allowedTiles = listOf(FoodTileType.CROISSANT, FoodTileType.BAGUETTE, FoodTileType.BREAD, FoodTileType.FRENCH_CHEESE),
+            allowedTiles = listOf(FoodTileType.CROISSANT, FoodTileType.BAGUETTE, FoodTileType.BREAD, FoodTileType.FRENCH_CHEESE, FoodTileType.CREPE),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.CROISSANT, 30)),
             moves = 25
         ),
@@ -102,7 +102,7 @@ object FranceMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 12,
             countryId = "france",
-            allowedTiles = listOf(FoodTileType.MACARON, FoodTileType.ECLAIR, FoodTileType.SOUFFLE, FoodTileType.TARTE_TATIN),
+            allowedTiles = listOf(FoodTileType.MACARON, FoodTileType.ECLAIR, FoodTileType.SOUFFLE, FoodTileType.TARTE_TATIN, FoodTileType.GELATO),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.MACARON, 25)),
             moves = 25
         ),
@@ -110,7 +110,7 @@ object FranceMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 13,
             countryId = "france",
-            allowedTiles = listOf(FoodTileType.SOUFFLE, FoodTileType.CREPE, FoodTileType.FRENCH_CHEESE, FoodTileType.CROISSANT),
+            allowedTiles = listOf(FoodTileType.SOUFFLE, FoodTileType.CREPE, FoodTileType.FRENCH_CHEESE, FoodTileType.CROISSANT, FoodTileType.BAGUETTE),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.SOUFFLE, 12)),
             moves = 22
         ),
@@ -118,7 +118,7 @@ object FranceMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 14,
             countryId = "france",
-            allowedTiles = listOf(FoodTileType.RATATOUILLE, FoodTileType.TOMATO, FoodTileType.BASIL, FoodTileType.POTATO),
+            allowedTiles = listOf(FoodTileType.RATATOUILLE, FoodTileType.TOMATO, FoodTileType.BASIL, FoodTileType.POTATO, FoodTileType.FRENCH_CHEESE),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.RATATOUILLE, 20)),
             moves = 26
         ),

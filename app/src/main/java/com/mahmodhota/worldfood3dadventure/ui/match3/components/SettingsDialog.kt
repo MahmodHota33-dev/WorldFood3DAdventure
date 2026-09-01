@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.window.Dialog
 import com.mahmodhota.worldfood3dadventure.data.progress.GameProgressManager
 import kotlinx.coroutines.launch
@@ -20,6 +21,7 @@ fun SettingsDialog(onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     val gameState by GameProgressManager.repository.state.collectAsState()
     val settings = gameState.settings
+    val uriHandler = LocalUriHandler.current
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -72,6 +74,22 @@ fun SettingsDialog(onDismiss: () -> Unit) {
 
                 Spacer(Modifier.height(8.dp))
 
+                HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+
+                TextButton(
+                    onClick = { uriHandler.openUri("https://mahmodhota.com/worldfood/privacy") },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Privacy Policy", color = Color(0xFF64B5F6), fontSize = 12.sp)
+                }
+
+                TextButton(
+                    onClick = { uriHandler.openUri("market://details?id=com.mahmodhota.worldfood3dadventure") },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Rate WorldFood 3D", color = PremiumColors.Gold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+
                 Button(
                     onClick = onDismiss,
                     colors = ButtonDefaults.buttonColors(containerColor = PremiumColors.Gold),
@@ -81,7 +99,7 @@ fun SettingsDialog(onDismiss: () -> Unit) {
                 }
 
                 Text(
-                    text = "Version 1.0.0-rc1",
+                    text = "Version 1.0.0",
                     color = Color.Gray,
                     fontSize = 10.sp
                 )

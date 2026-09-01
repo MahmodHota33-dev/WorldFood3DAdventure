@@ -78,12 +78,34 @@ object ProgressionQuery {
                 // on a fresh install before the first DataStore emission.
                 isUnlocked = persisted?.isUnlocked ?: CountryProgressionChain.isInitiallyUnlocked(countryId),
                 isCompleted = persisted?.isCompleted ?: false,
-                levels = levels
+                levels = levels,
+                discoveredFoods = persisted?.discoveredFoods ?: emptySet()
             )
         }
 
     fun countryProgressFor(state: PersistedGameState, countryId: String): CountryProgress =
         countryProgressMap(state)[countryId] ?: CountryProgress(levelId = countryId)
+
+    // ============= FOOD QUERIES =============
+
+    fun totalFoodsDiscovered(state: PersistedGameState): Int =
+        state.countries.values.sumOf { it.discoveredFoods.size }
+
+    fun totalAvailableFoods(): Int =
+        LevelRegistry.allCountryIds.sumOf { LevelRegistry.getRepresentativeFoods(it).size }
+
+    fun getMostCollectedFood(state: PersistedGameState): com.mahmodhota.worldfood3dadventure.game.match3.model.FoodTileType? {
+        // Since we don't track usage counts for each food type yet, we'll return a random discovered one 
+        // or the first one from the most progressed country.
+        val discovered = state.countries.values.flatMap { it.discoveredFoods }
+        if (discovered.isEmpty()) return null
+        
+        return try {
+            com.mahmodhota.worldfood3dadventure.game.match3.model.FoodTileType.valueOf(discovered.first())
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     // ============= UNLOCK QUERIES =============
 

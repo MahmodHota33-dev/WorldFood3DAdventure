@@ -5,7 +5,7 @@ import com.mahmodhota.worldfood3dadventure.game.match3.model.LevelGoal
 import com.mahmodhota.worldfood3dadventure.game.match3.model.Match3LevelDefinition
 
 /**
- * 10 Playable Match-3 levels for the Germany chapter.
+ * 15 Playable Match-3 levels for the Germany chapter.
  */
 object GermanyMatch3Levels {
     
@@ -14,7 +14,7 @@ object GermanyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 1,
             countryId = "germany",
-            allowedTiles = listOf(FoodTileType.PRETZEL, FoodTileType.POTATO, FoodTileType.APPLE, FoodTileType.CHEESE),
+            allowedTiles = listOf(FoodTileType.PRETZEL, FoodTileType.POTATO, FoodTileType.APPLE, FoodTileType.CHEESE, FoodTileType.BREAD),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.PRETZEL, 10)),
             moves = 25,
             title = "The Golden Pretzel Hunt"
@@ -23,7 +23,7 @@ object GermanyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 2,
             countryId = "germany",
-            allowedTiles = listOf(FoodTileType.BRATWURST, FoodTileType.BREAD, FoodTileType.CHEESE, FoodTileType.POTATO),
+            allowedTiles = listOf(FoodTileType.BRATWURST, FoodTileType.BREAD, FoodTileType.CHEESE, FoodTileType.POTATO, FoodTileType.PRETZEL),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.BRATWURST, 15)),
             moves = 20,
             title = "Bratwurst Banquet"
@@ -32,7 +32,7 @@ object GermanyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 3,
             countryId = "germany",
-            allowedTiles = listOf(FoodTileType.POTATO, FoodTileType.BREAD, FoodTileType.APPLE, FoodTileType.CHEESE),
+            allowedTiles = listOf(FoodTileType.POTATO, FoodTileType.BREAD, FoodTileType.APPLE, FoodTileType.CHEESE, FoodTileType.BRATWURST),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.POTATO, 20)),
             moves = 25
         ),
@@ -40,7 +40,7 @@ object GermanyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 4,
             countryId = "germany",
-            allowedTiles = listOf(FoodTileType.APPLE, FoodTileType.PRETZEL, FoodTileType.CHEESE, FoodTileType.POTATO),
+            allowedTiles = listOf(FoodTileType.APPLE, FoodTileType.PRETZEL, FoodTileType.CHEESE, FoodTileType.POTATO, FoodTileType.BREAD),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.APPLE, 25)),
             moves = 30
         ),
@@ -48,7 +48,7 @@ object GermanyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 5,
             countryId = "germany",
-            allowedTiles = listOf(FoodTileType.CHEESE, FoodTileType.BREAD, FoodTileType.BRATWURST, FoodTileType.POTATO),
+            allowedTiles = listOf(FoodTileType.CHEESE, FoodTileType.BREAD, FoodTileType.BRATWURST, FoodTileType.POTATO, FoodTileType.APPLE),
             goals = listOf(LevelGoal.ScoreTarget(2000)),
             moves = 20
         ),
@@ -56,7 +56,7 @@ object GermanyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 6,
             countryId = "germany",
-            allowedTiles = listOf(FoodTileType.BREAD, FoodTileType.PRETZEL, FoodTileType.APPLE, FoodTileType.CHEESE),
+            allowedTiles = listOf(FoodTileType.BREAD, FoodTileType.PRETZEL, FoodTileType.APPLE, FoodTileType.CHEESE, FoodTileType.BRATWURST),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.BREAD, 30)),
             moves = 30
         ),
@@ -64,7 +64,7 @@ object GermanyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 7,
             countryId = "germany",
-            allowedTiles = listOf(FoodTileType.BLACK_FOREST_CAKE, FoodTileType.APPLE, FoodTileType.CHEESE, FoodTileType.POTATO, FoodTileType.PRETZEL),
+            allowedTiles = listOf(FoodTileType.BLACK_FOREST_CAKE, FoodTileType.APPLE, FoodTileType.CHEESE, FoodTileType.POTATO, FoodTileType.PRETZEL, FoodTileType.BREAD),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.BLACK_FOREST_CAKE, 5)),
             moves = 20
         ),
@@ -72,7 +72,7 @@ object GermanyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 8,
             countryId = "germany",
-            allowedTiles = FoodTileType.values().filter { it.name in listOf("PRETZEL", "BRATWURST", "POTATO", "BREAD", "CHEESE", "APPLE") },
+            allowedTiles = FoodTileType.values().filter { it.name in listOf("PRETZEL", "BRATWURST", "POTATO", "BREAD", "CHEESE", "APPLE", "BLACK_FOREST_CAKE") },
             goals = listOf(LevelGoal.ScoreTarget(5000)),
             moves = 35
         ),
@@ -112,7 +112,7 @@ object GermanyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 11,
             countryId = "germany",
-            allowedTiles = listOf(FoodTileType.BRATWURST, FoodTileType.POTATO, FoodTileType.BREAD, FoodTileType.PRETZEL),
+            allowedTiles = listOf(FoodTileType.BRATWURST, FoodTileType.POTATO, FoodTileType.BREAD, FoodTileType.PRETZEL, FoodTileType.APPLE),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.BRATWURST, 20), LevelGoal.CollectFood(FoodTileType.POTATO, 20)),
             moves = 35
         ),
@@ -120,7 +120,7 @@ object GermanyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 12,
             countryId = "germany",
-            allowedTiles = listOf(FoodTileType.APPLE, FoodTileType.BREAD, FoodTileType.CHEESE, FoodTileType.POTATO),
+            allowedTiles = listOf(FoodTileType.APPLE, FoodTileType.BREAD, FoodTileType.CHEESE, FoodTileType.POTATO, FoodTileType.PRETZEL),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.APPLE, 30), LevelGoal.CollectFood(FoodTileType.BREAD, 20)),
             moves = 30
         ),
@@ -128,7 +128,7 @@ object GermanyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 13,
             countryId = "germany",
-            allowedTiles = listOf(FoodTileType.PRETZEL, FoodTileType.APPLE, FoodTileType.BRATWURST, FoodTileType.POTATO),
+            allowedTiles = listOf(FoodTileType.PRETZEL, FoodTileType.APPLE, FoodTileType.BRATWURST, FoodTileType.POTATO, FoodTileType.BREAD),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.PRETZEL, 28)),
             moves = 24
         ),
@@ -136,7 +136,7 @@ object GermanyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 14,
             countryId = "germany",
-            allowedTiles = listOf(FoodTileType.BLACK_FOREST_CAKE, FoodTileType.APPLE, FoodTileType.BREAD, FoodTileType.CHEESE),
+            allowedTiles = listOf(FoodTileType.BLACK_FOREST_CAKE, FoodTileType.APPLE, FoodTileType.BREAD, FoodTileType.CHEESE, FoodTileType.BRATWURST),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.BLACK_FOREST_CAKE, 12)),
             moves = 24
         ),

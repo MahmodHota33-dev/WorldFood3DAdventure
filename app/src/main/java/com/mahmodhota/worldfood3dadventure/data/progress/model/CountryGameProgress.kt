@@ -7,5 +7,6 @@ data class CountryGameProgress(
     val countryId: String,
     val isUnlocked: Boolean = false,
     val isCompleted: Boolean = false,
-    val levels: Map<Int, LevelProgress> = emptyMap()
+    val levels: Map<Int, LevelProgress> = emptyMap(),
+    val discoveredFoods: Set<String> = emptySet()
 )

@@ -14,7 +14,7 @@ object ItalyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 1,
             countryId = "italy",
-            allowedTiles = listOf(FoodTileType.PIZZA, FoodTileType.TOMATO, FoodTileType.CHEESE, FoodTileType.BASIL),
+            allowedTiles = listOf(FoodTileType.PIZZA, FoodTileType.TOMATO, FoodTileType.CHEESE, FoodTileType.BASIL, FoodTileType.BREAD),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.PIZZA, 15)),
             moves = 30,
             title = "Delicious Pizza Adventure"
@@ -23,7 +23,7 @@ object ItalyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 2,
             countryId = "italy",
-            allowedTiles = listOf(FoodTileType.TOMATO, FoodTileType.BASIL, FoodTileType.CHEESE, FoodTileType.PIZZA),
+            allowedTiles = listOf(FoodTileType.TOMATO, FoodTileType.BASIL, FoodTileType.CHEESE, FoodTileType.PIZZA, FoodTileType.PASTA),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.TOMATO, 20)),
             moves = 25
         ),
@@ -31,7 +31,7 @@ object ItalyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 3,
             countryId = "italy",
-            allowedTiles = listOf(FoodTileType.CHEESE, FoodTileType.TOMATO, FoodTileType.BASIL, FoodTileType.PIZZA),
+            allowedTiles = listOf(FoodTileType.CHEESE, FoodTileType.TOMATO, FoodTileType.BASIL, FoodTileType.PIZZA, FoodTileType.BREAD),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.CHEESE, 25)),
             moves = 25
         ),
@@ -39,7 +39,7 @@ object ItalyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 4,
             countryId = "italy",
-            allowedTiles = listOf(FoodTileType.SPAGHETTI, FoodTileType.CHEESE, FoodTileType.PASTA, FoodTileType.BASIL),
+            allowedTiles = listOf(FoodTileType.SPAGHETTI, FoodTileType.CHEESE, FoodTileType.PASTA, FoodTileType.BASIL, FoodTileType.EGG),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.SPAGHETTI, 15)),
             moves = 28
         ),
@@ -47,7 +47,7 @@ object ItalyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 5,
             countryId = "italy",
-            allowedTiles = listOf(FoodTileType.LASAGNE, FoodTileType.TOMATO, FoodTileType.CHEESE, FoodTileType.PASTA),
+            allowedTiles = listOf(FoodTileType.LASAGNE, FoodTileType.TOMATO, FoodTileType.CHEESE, FoodTileType.PASTA, FoodTileType.BREAD),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.LASAGNE, 10)),
             moves = 22
         ),
@@ -55,7 +55,7 @@ object ItalyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 6,
             countryId = "italy",
-            allowedTiles = listOf(FoodTileType.RAVIOLI, FoodTileType.TOMATO, FoodTileType.BASIL, FoodTileType.CHEESE),
+            allowedTiles = listOf(FoodTileType.RAVIOLI, FoodTileType.TOMATO, FoodTileType.BASIL, FoodTileType.CHEESE, FoodTileType.PASTA),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.RAVIOLI, 20)),
             moves = 30
         ),
@@ -63,7 +63,7 @@ object ItalyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 7,
             countryId = "italy",
-            allowedTiles = listOf(FoodTileType.GNOCCHI, FoodTileType.TOMATO, FoodTileType.CHEESE, FoodTileType.BASIL),
+            allowedTiles = listOf(FoodTileType.GNOCCHI, FoodTileType.TOMATO, FoodTileType.CHEESE, FoodTileType.BASIL, FoodTileType.POTATO),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.GNOCCHI, 20)),
             moves = 25
         ),
@@ -71,7 +71,7 @@ object ItalyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 8,
             countryId = "italy",
-            allowedTiles = listOf(FoodTileType.GELATO, FoodTileType.TIRAMISU, FoodTileType.CHEESE, FoodTileType.BASIL),
+            allowedTiles = listOf(FoodTileType.GELATO, FoodTileType.TIRAMISU, FoodTileType.CHEESE, FoodTileType.BASIL, FoodTileType.MILK),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.GELATO, 15)),
             moves = 20
         ),
@@ -79,7 +79,7 @@ object ItalyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 9,
             countryId = "italy",
-            allowedTiles = listOf(FoodTileType.TIRAMISU, FoodTileType.GELATO, FoodTileType.CHEESE, FoodTileType.BASIL),
+            allowedTiles = listOf(FoodTileType.TIRAMISU, FoodTileType.GELATO, FoodTileType.CHEESE, FoodTileType.BASIL, FoodTileType.COFFEE),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.TIRAMISU, 12)),
             moves = 20
         ),
@@ -95,7 +95,7 @@ object ItalyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 11,
             countryId = "italy",
-            allowedTiles = listOf(FoodTileType.PIZZA, FoodTileType.TOMATO, FoodTileType.CHEESE, FoodTileType.BASIL),
+            allowedTiles = listOf(FoodTileType.PIZZA, FoodTileType.TOMATO, FoodTileType.CHEESE, FoodTileType.BASIL, FoodTileType.OLIVES),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.PIZZA, 30)),
             moves = 25
         ),
@@ -103,7 +103,7 @@ object ItalyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 12,
             countryId = "italy",
-            allowedTiles = listOf(FoodTileType.SPAGHETTI, FoodTileType.CHEESE, FoodTileType.PASTA, FoodTileType.TOMATO),
+            allowedTiles = listOf(FoodTileType.SPAGHETTI, FoodTileType.CHEESE, FoodTileType.PASTA, FoodTileType.TOMATO, FoodTileType.BASIL),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.SPAGHETTI, 25)),
             moves = 25
         ),
@@ -111,7 +111,7 @@ object ItalyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 13,
             countryId = "italy",
-            allowedTiles = listOf(FoodTileType.LASAGNE, FoodTileType.CHEESE, FoodTileType.TOMATO, FoodTileType.BASIL),
+            allowedTiles = listOf(FoodTileType.LASAGNE, FoodTileType.CHEESE, FoodTileType.TOMATO, FoodTileType.BASIL, FoodTileType.BREAD),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.LASAGNE, 20)),
             moves = 30
         ),
@@ -119,7 +119,7 @@ object ItalyMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 14,
             countryId = "italy",
-            allowedTiles = listOf(FoodTileType.GELATO, FoodTileType.TIRAMISU, FoodTileType.CHEESE, FoodTileType.BASIL),
+            allowedTiles = listOf(FoodTileType.GELATO, FoodTileType.TIRAMISU, FoodTileType.CHEESE, FoodTileType.BASIL, FoodTileType.MILK),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.GELATO, 18)),
             moves = 24
         ),

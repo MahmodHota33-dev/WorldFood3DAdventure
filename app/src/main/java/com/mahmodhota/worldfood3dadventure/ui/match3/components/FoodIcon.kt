@@ -9,6 +9,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -125,10 +126,287 @@ private fun DrawScope.drawFoodIcon(type: FoodTileType, s: Float) {
         FoodTileType.PULPO_A_LA_GALLEGA -> drawPremiumPulpo(s)
         FoodTileType.SANGRIA -> drawPremiumSangria(s)
         FoodTileType.CREMA_CATALANA -> drawPremiumCremaCatalana(s)
+
+        // NEW Global Expansion
+        FoodTileType.BURGER -> drawPremiumBurger(s)
+        FoodTileType.FRIES -> drawPremiumFries(s)
+        FoodTileType.HOT_DOG -> drawPremiumHotDog(s)
+        FoodTileType.DONUT -> drawPremiumDonut(s)
+        FoodTileType.PANCAKE -> drawPremiumPancake(s)
+        FoodTileType.STEAK -> drawPremiumSteak(s)
+        FoodTileType.FISH_AND_CHIPS -> drawPremiumFishAndChips(s)
+        FoodTileType.SCONE -> drawPremiumScone(s)
+        FoodTileType.TEA -> drawPremiumTea(s)
+        FoodTileType.POT_PIE -> drawPremiumPotPie(s)
+        FoodTileType.DIM_SUM -> drawPremiumDimSum(s)
+        FoodTileType.DUMPLING -> drawPremiumDumpling(s)
+        FoodTileType.FRIED_RICE -> drawPremiumFriedRice(s)
+        FoodTileType.PEKING_DUCK -> drawPremiumDuck(s)
+        FoodTileType.SPRING_ROLL -> drawPremiumSpringRoll(s)
+        FoodTileType.CURRY -> drawPremiumCurry(s)
+        FoodTileType.NAAN -> drawPremiumNaan(s)
+        FoodTileType.BIRYANI -> drawPremiumBiryani(s)
+        FoodTileType.TANDOORI_CHICKEN -> drawPremiumTandoori(s)
+        FoodTileType.GULAB_JAMUN -> drawPremiumGulabJamun(s)
+        FoodTileType.FEIJOADA -> drawPremiumFeijoada(s)
+        FoodTileType.BRIGADEIRO -> drawPremiumBrigadeiro(s)
+        FoodTileType.COXINHA -> drawPremiumCoxinha(s)
+        FoodTileType.PADE_QUEIJO -> drawPremiumPaoDeQueijo(s)
+        FoodTileType.KOSHARY -> drawPremiumKoshary(s)
+        FoodTileType.FALAFEL -> drawPremiumFalafel(s)
+        FoodTileType.SHAWARMA -> drawPremiumShawarma(s)
+        FoodTileType.BAKLAVA -> drawPremiumBaklava(s)
+        FoodTileType.GYROS -> drawPremiumGyros(s)
+        FoodTileType.MOUSSAKA -> drawPremiumMoussaka(s)
+        FoodTileType.FETA -> drawPremiumFeta(s)
+        FoodTileType.OLIVES -> drawPremiumOlives(s)
+        FoodTileType.PAD_THAI -> drawPremiumPadThai(s)
+        FoodTileType.TOM_YUM -> drawPremiumTomYum(s)
+        FoodTileType.MANGO_STICKY_RICE -> drawPremiumMangoRice(s)
+        FoodTileType.KIMCHI -> drawPremiumKimchi(s)
+        FoodTileType.BIBIMBAP -> drawPremiumBibimbap(s)
+        FoodTileType.BULGOGI -> drawPremiumBulgogi(s)
+        FoodTileType.KEBAB -> drawPremiumKebab(s)
+        FoodTileType.TURKISH_DELIGHT -> drawPremiumTurkishDelight(s)
+        FoodTileType.KOFTE -> drawPremiumKofte(s)
+        FoodTileType.COFFEE -> drawPremiumCoffee(s)
+        FoodTileType.MILK -> drawPremiumMilk(s)
+        FoodTileType.EGG -> drawPremiumEgg(s)
+        FoodTileType.CORN -> drawPremiumCorn(s)
+        FoodTileType.FISH -> drawPremiumFish(s)
+        FoodTileType.CHICKEN -> drawPremiumChicken(s)
+        FoodTileType.RICE -> drawPremiumRice(s)
     }
 
     // Shared Premium Gloss Layer
     drawPremiumGloss(s)
+}
+
+// --- NEW Expansion Drawing Methods ---
+
+private fun DrawScope.drawPremiumBurger(s: Float) {
+    drawRoundRect(Color(0xFF8D6E63), topLeft = Offset(s * 0.2f, s * 0.55f), size = Size(s * 0.6f, s * 0.2f), cornerRadius = CornerRadius(s * 0.05f))
+    drawRoundRect(Color(0xFFFFA000), topLeft = Offset(s * 0.2f, s * 0.3f), size = Size(s * 0.6f, s * 0.25f), cornerRadius = CornerRadius(s * 0.15f))
+    drawRect(Color(0xFF4CAF50), topLeft = Offset(s * 0.2f, s * 0.5f), size = Size(s * 0.6f, s * 0.05f))
+}
+
+private fun DrawScope.drawPremiumFries(s: Float) {
+    drawRect(Color(0xFFE53935), topLeft = Offset(s * 0.25f, s * 0.5f), size = Size(s * 0.5f, s * 0.35f))
+    repeat(4) { i ->
+        drawRect(Color(0xFFFFEB3B), topLeft = Offset(s * (0.3f + i * 0.1f), s * 0.2f), size = Size(s * 0.08f, s * 0.4f))
+    }
+}
+
+private fun DrawScope.drawPremiumHotDog(s: Float) {
+    drawRoundRect(Color(0xFFD2691E), topLeft = Offset(s * 0.15f, s * 0.35f), size = Size(s * 0.7f, s * 0.3f), cornerRadius = CornerRadius(s * 0.1f))
+    drawRoundRect(Color(0xFF8B0000), topLeft = Offset(s * 0.1f, s * 0.45f), size = Size(s * 0.8f, s * 0.1f), cornerRadius = CornerRadius(s * 0.05f))
+}
+
+private fun DrawScope.drawPremiumDonut(s: Float) {
+    drawCircle(Color(0xFFE91E63), radius = s * 0.4f)
+    drawCircle(Color.Black, radius = s * 0.12f, blendMode = BlendMode.Clear)
+}
+
+private fun DrawScope.drawPremiumPancake(s: Float) {
+    repeat(3) { i ->
+        drawCircle(Color(0xFFF5DEB3), radius = s * 0.35f, center = Offset(s * 0.5f, s * (0.4f + i * 0.05f)))
+    }
+}
+
+private fun DrawScope.drawPremiumSteak(s: Float) {
+    drawOval(Color(0xFF5D4037), topLeft = Offset(s * 0.2f, s * 0.3f), size = Size(s * 0.6f, s * 0.4f))
+    drawLine(Color.White.copy(alpha = 0.2f), start = Offset(s * 0.3f, s * 0.4f), end = Offset(s * 0.7f, s * 0.6f), strokeWidth = 2f)
+}
+
+private fun DrawScope.drawPremiumFishAndChips(s: Float) {
+    drawRoundRect(Color(0xFFD2691E), topLeft = Offset(s * 0.2f, s * 0.35f), size = Size(s * 0.4f, s * 0.3f), cornerRadius = CornerRadius(s * 0.05f))
+    drawRect(Color(0xFFFFEB3B), topLeft = Offset(s * 0.65f, s * 0.4f), size = Size(s * 0.1f, s * 0.3f))
+}
+
+private fun DrawScope.drawPremiumScone(s: Float) {
+    drawCircle(Color(0xFFF5DEB3), radius = s * 0.3f)
+    drawCircle(Color(0xFFE91E63), radius = s * 0.1f, center = Offset(s * 0.5f, s * 0.45f))
+}
+
+private fun DrawScope.drawPremiumTea(s: Float) {
+    drawArc(Color.White, startAngle = 0f, sweepAngle = 180f, useCenter = true, topLeft = Offset(s * 0.25f, s * 0.4f), size = Size(s * 0.5f, s * 0.4f))
+    drawRect(Color(0xFF5D4037), topLeft = Offset(s * 0.3f, s * 0.35f), size = Size(s * 0.4f, s * 0.05f))
+}
+
+private fun DrawScope.drawPremiumPotPie(s: Float) {
+    drawCircle(Color(0xFFD2691E), radius = s * 0.4f)
+    drawLine(Color.Black.copy(alpha = 0.2f), start = Offset(s * 0.3f, s * 0.5f), end = Offset(s * 0.7f, s * 0.5f))
+}
+
+private fun DrawScope.drawPremiumDimSum(s: Float) {
+    drawCircle(Color(0xFFFDFEFE), radius = s * 0.35f)
+    repeat(3) { i -> drawCircle(Color(0xFFFDFEFE), radius = s * 0.12f, center = Offset(s * (0.4f + i * 0.1f), s * 0.5f)) }
+}
+
+private fun DrawScope.drawPremiumDumpling(s: Float) {
+    val path = Path().apply {
+        moveTo(s * 0.3f, s * 0.6f)
+        quadraticTo(s * 0.5f, s * 0.2f, s * 0.7f, s * 0.6f)
+        close()
+    }
+    drawPath(path, Color(0xFFFDFEFE))
+}
+
+private fun DrawScope.drawPremiumFriedRice(s: Float) {
+    drawCircle(Color(0xFFFFF9C4), radius = s * 0.35f)
+    drawCircle(Color(0xFF4CAF50), radius = s * 0.05f, center = Offset(s * 0.4f, s * 0.4f))
+}
+
+private fun DrawScope.drawPremiumDuck(s: Float) {
+    drawOval(Color(0xFF8B4513), topLeft = Offset(s * 0.2f, s * 0.35f), size = Size(s * 0.6f, s * 0.3f))
+}
+
+private fun DrawScope.drawPremiumSpringRoll(s: Float) {
+    drawRoundRect(Color(0xFFD4AC0D), topLeft = Offset(s * 0.2f, s * 0.4f), size = Size(s * 0.6f, s * 0.2f), cornerRadius = CornerRadius(s * 0.05f))
+}
+
+private fun DrawScope.drawPremiumCurry(s: Float) {
+    drawCircle(Color(0xFFD35400), radius = s * 0.38f)
+    drawCircle(Color(0xFFF39C12), radius = s * 0.3f)
+}
+
+private fun DrawScope.drawPremiumNaan(s: Float) {
+    drawOval(Color(0xFFFEF9E7), topLeft = Offset(s * 0.2f, s * 0.3f), size = Size(s * 0.6f, s * 0.4f))
+}
+
+private fun DrawScope.drawPremiumBiryani(s: Float) {
+    drawCircle(Color(0xFFF4D03F), radius = s * 0.35f)
+    drawCircle(Color(0xFFBA4A00), radius = s * 0.1f, center = Offset(s * 0.5f, s * 0.5f))
+}
+
+private fun DrawScope.drawPremiumTandoori(s: Float) {
+    drawRoundRect(Color(0xFFC0392B), topLeft = Offset(s * 0.3f, s * 0.3f), size = Size(s * 0.4f, s * 0.4f), cornerRadius = CornerRadius(s * 0.05f))
+}
+
+private fun DrawScope.drawPremiumGulabJamun(s: Float) {
+    drawCircle(Color(0xFF6E2C00), radius = s * 0.15f, center = Offset(s * 0.5f, s * 0.5f))
+}
+
+private fun DrawScope.drawPremiumFeijoada(s: Float) {
+    drawCircle(Color(0xFF1C1C1C), radius = s * 0.38f)
+}
+
+private fun DrawScope.drawPremiumBrigadeiro(s: Float) {
+    drawCircle(Color(0xFF3E2723), radius = s * 0.2f, center = Offset(s * 0.5f, s * 0.5f))
+}
+
+private fun DrawScope.drawPremiumCoxinha(s: Float) {
+    val path = Path().apply {
+        moveTo(s * 0.5f, s * 0.2f)
+        lineTo(s * 0.7f, s * 0.7f)
+        lineTo(s * 0.3f, s * 0.7f)
+        close()
+    }
+    drawPath(path, Color(0xFFD4AC0D))
+}
+
+private fun DrawScope.drawPremiumPaoDeQueijo(s: Float) {
+    drawCircle(Color(0xFFFFF9C4), radius = s * 0.25f, center = Offset(s * 0.5f, s * 0.5f))
+}
+
+private fun DrawScope.drawPremiumKoshary(s: Float) {
+    drawCircle(Color(0xFFE59866), radius = s * 0.38f)
+    drawRect(Color(0xFFC0392B), topLeft = Offset(s * 0.4f, s * 0.3f), size = Size(s * 0.2f, s * 0.1f))
+}
+
+private fun DrawScope.drawPremiumFalafel(s: Float) {
+    repeat(3) { i -> drawCircle(Color(0xFF6E2C00), radius = s * 0.12f, center = Offset(s * (0.35f + i * 0.15f), s * 0.5f)) }
+}
+
+private fun DrawScope.drawPremiumShawarma(s: Float) {
+    drawRoundRect(Color(0xFFF5DEB3), topLeft = Offset(s * 0.3f, s * 0.25f), size = Size(s * 0.4f, s * 0.5f), cornerRadius = CornerRadius(s * 0.05f))
+}
+
+private fun DrawScope.drawPremiumBaklava(s: Float) {
+    drawRect(Color(0xFFD4AC0D), topLeft = Offset(s * 0.3f, s * 0.35f), size = Size(s * 0.4f, s * 0.3f))
+}
+
+private fun DrawScope.drawPremiumGyros(s: Float) {
+    drawArc(Color(0xFFF5DEB3), startAngle = 0f, sweepAngle = 180f, useCenter = true, topLeft = Offset(s * 0.2f, s * 0.3f), size = Size(s * 0.6f, s * 0.4f))
+}
+
+private fun DrawScope.drawPremiumMoussaka(s: Float) {
+    drawRect(Color(0xFF5D4037), topLeft = Offset(s * 0.25f, s * 0.3f), size = Size(s * 0.5f, s * 0.4f))
+}
+
+private fun DrawScope.drawPremiumFeta(s: Float) {
+    drawRect(Color.White, topLeft = Offset(s * 0.3f, s * 0.35f), size = Size(s * 0.4f, s * 0.3f))
+}
+
+private fun DrawScope.drawPremiumOlives(s: Float) {
+    drawCircle(Color(0xFF1B5E20), radius = s * 0.1f, center = Offset(s * 0.4f, s * 0.5f))
+    drawCircle(Color(0xFF1B5E20), radius = s * 0.1f, center = Offset(s * 0.6f, s * 0.5f))
+}
+
+private fun DrawScope.drawPremiumPadThai(s: Float) {
+    drawCircle(Color(0xFFE59866), radius = s * 0.35f)
+}
+
+private fun DrawScope.drawPremiumTomYum(s: Float) {
+    drawCircle(Color(0xFFC0392B), radius = s * 0.38f)
+}
+
+private fun DrawScope.drawPremiumMangoRice(s: Float) {
+    drawRect(Color.White, topLeft = Offset(s * 0.3f, s * 0.5f), size = Size(s * 0.4f, s * 0.2f))
+    drawCircle(Color(0xFFFFC107), radius = s * 0.15f, center = Offset(s * 0.5f, s * 0.4f))
+}
+
+private fun DrawScope.drawPremiumKimchi(s: Float) {
+    drawRect(Color(0xFFC0392B), topLeft = Offset(s * 0.3f, s * 0.35f), size = Size(s * 0.4f, s * 0.4f))
+}
+
+private fun DrawScope.drawPremiumBibimbap(s: Float) {
+    drawCircle(Color(0xFFFDFEFE), radius = s * 0.38f)
+}
+
+private fun DrawScope.drawPremiumBulgogi(s: Float) {
+    drawRoundRect(Color(0xFF5D4037), topLeft = Offset(s * 0.25f, s * 0.35f), size = Size(s * 0.5f, s * 0.3f), cornerRadius = CornerRadius(s * 0.05f))
+}
+
+private fun DrawScope.drawPremiumKebab(s: Float) {
+    repeat(3) { i -> drawCircle(Color(0xFF5D4037), radius = s * 0.1f, center = Offset(s * 0.5f, s * (0.3f + i * 0.2f))) }
+}
+
+private fun DrawScope.drawPremiumTurkishDelight(s: Float) {
+    drawRect(Color(0xFFF48FB1), topLeft = Offset(s * 0.35f, s * 0.35f), size = Size(s * 0.3f, s * 0.3f))
+}
+
+private fun DrawScope.drawPremiumKofte(s: Float) {
+    drawOval(Color(0xFF5D4037), topLeft = Offset(s * 0.3f, s * 0.35f), size = Size(s * 0.4f, s * 0.2f))
+}
+
+private fun DrawScope.drawPremiumCoffee(s: Float) {
+    drawRect(Color(0xFF5D4037), topLeft = Offset(s * 0.35f, s * 0.4f), size = Size(s * 0.3f, s * 0.35f))
+}
+
+private fun DrawScope.drawPremiumMilk(s: Float) {
+    drawRect(Color.White, topLeft = Offset(s * 0.35f, s * 0.3f), size = Size(s * 0.3f, s * 0.5f))
+}
+
+private fun DrawScope.drawPremiumEgg(s: Float) {
+    drawCircle(Color.White, radius = s * 0.3f, center = Offset(s * 0.5f, s * 0.5f))
+    drawCircle(Color(0xFFFFC107), radius = s * 0.12f, center = Offset(s * 0.5f, s * 0.5f))
+}
+
+private fun DrawScope.drawPremiumCorn(s: Float) {
+    drawRoundRect(Color(0xFFF4D03F), topLeft = Offset(s * 0.4f, s * 0.25f), size = Size(s * 0.2f, s * 0.5f), cornerRadius = CornerRadius(s * 0.1f))
+}
+
+private fun DrawScope.drawPremiumFish(s: Float) {
+    drawOval(Color(0xFF85C1E9), topLeft = Offset(s * 0.2f, s * 0.4f), size = Size(s * 0.6f, s * 0.2f))
+}
+
+private fun DrawScope.drawPremiumChicken(s: Float) {
+    drawOval(Color(0xFFE59866), topLeft = Offset(s * 0.25f, s * 0.35f), size = Size(s * 0.5f, s * 0.3f))
+}
+
+private fun DrawScope.drawPremiumRice(s: Float) {
+    drawCircle(Color(0xFFFDFEFE), radius = s * 0.35f)
 }
 
 // --- Group 1: Core Foods ---

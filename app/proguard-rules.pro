@@ -5,3 +5,8 @@
 # Entry point initialized from AndroidManifest.xml.
 -keep class com.mahmodhota.worldfood3dadventure.WorldFoodAdventureApplication { <init>(); }
 
+# Filament 3D Engine
+-keep class com.google.android.filament.** { *; }
+-keep class com.google.android.filament.utils.** { *; }
+-keep class com.google.android.filament.gltfio.** { *; }
+

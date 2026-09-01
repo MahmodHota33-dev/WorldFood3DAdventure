@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mahmodhota.worldfood3dadventure.game.match3.model.BoosterInventory
 import com.mahmodhota.worldfood3dadventure.game.match3.model.BoosterType
+import com.mahmodhota.worldfood3dadventure.data.audio.SfxType
 
 /**
  * Premium Booster Panel for the game screen.
@@ -55,8 +56,10 @@ fun PremiumBoosterPanel(
 ) {
     val boosters = listOf(
         BoosterUiModel(BoosterType.HAMMER, "Hammer", "🔨", inventory.hammer),
-        BoosterUiModel(BoosterType.SHUFFLE, "Shuffle", "🔀", inventory.shuffle),
-        BoosterUiModel(BoosterType.EXTRA_MOVES, "Extra Moves", "➕", inventory.extraMoves)
+        BoosterUiModel(BoosterType.ROCKET, "Rocket", "🚀", inventory.rocket),
+        BoosterUiModel(BoosterType.HAND, "Hand", "🖐️", inventory.hand),
+        BoosterUiModel(BoosterType.EXTRA_MOVES, "Extra Moves", "➕", inventory.extraMoves),
+        BoosterUiModel(BoosterType.SHUFFLE, "Shuffle", "🔀", inventory.shuffle)
     )
 
     if (isHorizontal) {
@@ -123,18 +126,18 @@ private fun BoosterSlot(
     val isPressed by interactionSource.collectIsPressedAsState()
     val boostScale by animateFloatAsState(
         targetValue = when {
-            isPressed -> 0.9f
-            isSelected -> 1.06f
+            isPressed -> 0.88f
+            isSelected -> 1.12f
             else -> 1f
         },
-        animationSpec = spring(dampingRatio = 0.72f, stiffness = 520f),
+        animationSpec = spring(dampingRatio = 0.65f, stiffness = 600f),
         label = "boosterScale"
     )
     val activationGlow = remember(booster.type) { Animatable(0f) }
     LaunchedEffect(isActivated, activationNonce) {
         if (isActivated && activationNonce > 0) {
-            activationGlow.snapTo(0.9f)
-            activationGlow.animateTo(0f, animationSpec = tween(durationMillis = 260))
+            activationGlow.snapTo(1f)
+            activationGlow.animateTo(0f, animationSpec = tween(durationMillis = 350))
         }
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -173,9 +176,13 @@ private fun BoosterSlot(
                     shape = CircleShape
                 )
                 .clickable(
-                    enabled = enabled && !isLocked,
-                    interactionSource = interactionSource
-                ) { onClick(booster.type) }
+                    enabled = enabled,
+                    interactionSource = interactionSource,
+                    indication = null
+                ) { 
+                    com.mahmodhota.worldfood3dadventure.data.audio.GlobalSystemManager.audio.playSfx(SfxType.BUTTON_CLICK)
+                    onClick(booster.type) 
+                }
                 .semantics {
                     contentDescription = "${booster.label} booster ${booster.count} remaining"
                 },

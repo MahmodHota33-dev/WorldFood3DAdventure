@@ -63,7 +63,7 @@ class Match3Engine(
         )
     }
 
-    data class HammerResult(
+    data class BoosterResult(
         val finalBoard: Match3Board,
         val steps: List<CascadeStep>,
         val totalScore: Int,
@@ -71,7 +71,7 @@ class Match3Engine(
         val wasReshuffled: Boolean
     )
 
-    fun applyHammer(board: Match3Board, position: BoardPosition): HammerResult? {
+    fun applyHammer(board: Match3Board, position: BoardPosition): BoosterResult? {
         if (!board.contains(position)) return null
         val cascadeResult = cascadeProcessor.process(
             initialBoard = board,
@@ -81,10 +81,54 @@ class Match3Engine(
             )
         )
         val (stableBoard, reshuffled) = ensurePlayableBoardWithStatus(cascadeResult.finalBoard)
-        return HammerResult(
+        return BoosterResult(
             finalBoard = stableBoard,
             steps = cascadeResult.steps,
             totalScore = cascadeResult.totalScore,
+            collectedCounts = cascadeResult.collectedCounts,
+            wasReshuffled = reshuffled
+        )
+    }
+
+    fun applyRocket(board: Match3Board, position: BoardPosition): BoosterResult? {
+        if (!board.contains(position)) return null
+        // Rocket can be a random line clear (horizontal or vertical)
+        val type = if (Random.nextBoolean()) SpecialTileType.ROW_CLEAR else SpecialTileType.COLUMN_CLEAR
+        val cascadeResult = cascadeProcessor.process(
+            initialBoard = board,
+            forcedInitialResolution = ForcedBoardResolution(
+                clearedPositions = specialAreaFor(board, position, type) + position,
+                scoreBonus = Match3SpecialConfig.HammerScorePerTile * 2
+            )
+        )
+        val (stableBoard, reshuffled) = ensurePlayableBoardWithStatus(cascadeResult.finalBoard)
+        return BoosterResult(
+            finalBoard = stableBoard,
+            steps = cascadeResult.steps,
+            totalScore = cascadeResult.totalScore,
+            collectedCounts = cascadeResult.collectedCounts,
+            wasReshuffled = reshuffled
+        )
+    }
+
+    fun applyHand(board: Match3Board, pos1: BoardPosition, pos2: BoardPosition): SwapResult {
+        if (!board.contains(pos1) || !board.contains(pos2)) return SwapResult.OutOfBounds
+        if (!pos1.isAdjacent(pos2)) return SwapResult.NotAdjacent
+        
+        val swappedBoard = board.swap(pos1, pos2)
+        val cascadeResult = cascadeProcessor.process(
+            initialBoard = swappedBoard,
+            preferredMatchPositions = listOf(pos2, pos1)
+        )
+        
+        val (stableBoard, reshuffled) = ensurePlayableBoardWithStatus(cascadeResult.finalBoard)
+        return SwapResult.Success(
+            initialBoard = board,
+            swappedBoard = swappedBoard,
+            stableBoard = stableBoard,
+            cascadeSteps = cascadeResult.steps,
+            scoreGained = cascadeResult.totalScore,
+            totalMatchedTiles = cascadeResult.totalMatchedTiles,
             collectedCounts = cascadeResult.collectedCounts,
             wasReshuffled = reshuffled
         )

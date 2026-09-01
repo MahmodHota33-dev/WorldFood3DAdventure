@@ -2,6 +2,7 @@ package com.mahmodhota.worldfood3dadventure.game.progress
 
 import com.mahmodhota.worldfood3dadventure.data.progress.model.*
 import com.mahmodhota.worldfood3dadventure.game.match3.model.BoosterInventory
+import com.mahmodhota.worldfood3dadventure.game.world.LevelRegistry
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -53,7 +54,7 @@ class ProgressionQueryTest {
 
     @Test
     fun testTotalCountries() {
-        assertEquals("Should have 7 countries", 7, ProgressionQuery.totalCountries())
+        assertEquals("Should have all countries", LevelRegistry.allCountryIds.size, ProgressionQuery.totalCountries())
     }
 
     @Test

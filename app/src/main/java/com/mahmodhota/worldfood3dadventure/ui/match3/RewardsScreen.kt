@@ -2,6 +2,7 @@ package com.mahmodhota.worldfood3dadventure.ui.match3
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -11,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CardGiftcard
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
@@ -20,13 +22,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.mahmodhota.worldfood3dadventure.data.audio.GlobalSystemManager
+import com.mahmodhota.worldfood3dadventure.data.audio.SfxType
+import com.mahmodhota.worldfood3dadventure.data.progress.GameProgressManager
 import com.mahmodhota.worldfood3dadventure.game.progress.CountryProgress
+import com.mahmodhota.worldfood3dadventure.game.progress.DailyMission
 import com.mahmodhota.worldfood3dadventure.game.progress.ProgressionQuery
 import com.mahmodhota.worldfood3dadventure.game.world.LevelRegistry
 import com.mahmodhota.worldfood3dadventure.ui.match3.components.*
@@ -54,6 +61,9 @@ fun RewardsScreen(
     val totalStars = ProgressionQuery.totalStarsEarned(gameState)
     val coins = ProgressionQuery.totalCoins(gameState)
     val starsToNextUnlock = ProgressionQuery.starsNeededForNextUnlock(gameState)
+    val totalCountries = ProgressionQuery.totalCountries()
+    val completedCountries = ProgressionQuery.completedCountries(gameState)
+    val journey = gameState.dailyJourney
 
     val countryRewards = remember(gameState) {
         ProgressionQuery.countryProgressMap(gameState)
@@ -95,15 +105,52 @@ fun RewardsScreen(
                         .fillMaxSize()
                         .widthIn(max = 800.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(bottom = 16.dp)
+                    contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
                     item {
                         RewardsHeroCard(
                             totalStars = totalStars,
                             coins = coins,
                             starsToNext = starsToNextUnlock,
+                            streak = journey.streak,
                             compact = compact
                         )
+                    }
+
+                    // P10-W: Today's Journey (Daily Missions)
+                    item {
+                        Text(
+                            text = "TODAY'S JOURNEY",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.2.sp
+                        )
+                    }
+
+                    items(journey.missions, key = { it.id }) { mission ->
+                        DailyMissionCard(mission = mission, compact = compact) {
+                            GlobalSystemManager.audio.playSfx(SfxType.COIN_COLLECT)
+                            GameProgressManager.repository.claimDailyMissionReward(mission.id)
+                        }
+                    }
+
+                    if (completedCountries >= totalCountries) {
+                        item {
+                            Surface(
+                                shape = RoundedCornerShape(24.dp),
+                                color = PremiumColors.Gold.copy(alpha = 0.15f),
+                                border = BorderStroke(2.dp, PremiumColors.Gold),
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("🏆", fontSize = 64.sp)
+                                    Spacer(Modifier.height(16.dp))
+                                    Text("GLOBAL MASTER CHEF", color = PremiumColors.Gold, fontWeight = FontWeight.Black, fontSize = 22.sp, letterSpacing = 1.5.sp)
+                                    Text("You have explored every corner of the world!", color = Color.White, textAlign = TextAlign.Center, fontSize = 14.sp)
+                                }
+                            }
+                        }
                     }
 
                     item {
@@ -152,6 +199,7 @@ private fun RewardsHeroCard(
     totalStars: Int,
     coins: Int,
     starsToNext: Int,
+    streak: Int,
     compact: Boolean
 ) {
     Surface(
@@ -178,14 +226,18 @@ private fun RewardsHeroCard(
                 }
                 Spacer(Modifier.width(16.dp))
                 Column {
-                    Text("CHEF REWARDS", color = PremiumColors.Gold, fontWeight = FontWeight.Black, fontSize = if (compact) 18.sp else 22.sp, letterSpacing = 1.sp)
-                    Text("Earn prizes by exploring new countries", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                    Text("TRAVEL REWARDS", color = PremiumColors.Gold, fontWeight = FontWeight.Black, fontSize = if (compact) 18.sp else 22.sp, letterSpacing = 1.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("🔥 $streak DAY STREAK", color = Color(0xFFFFA726), fontSize = 11.sp, fontWeight = FontWeight.Black)
+                        Spacer(Modifier.width(8.dp))
+                        Text("World Traveler Progress", color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp)
+                    }
                 }
             }
             
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 RewardMetricChip("Total Stars", totalStars.toString(), Icons.Default.Star, PremiumColors.Gold, Modifier.weight(1f))
-                RewardMetricChip("Total Coins", coins.toString(), Icons.Default.EmojiEvents, Color(0xFF72A8FF), Modifier.weight(1f))
+                RewardMetricChip("Coins", coins.toString(), Icons.Default.EmojiEvents, Color(0xFF72A8FF), Modifier.weight(1f))
             }
 
             if (starsToNext > 0) {
@@ -211,6 +263,98 @@ private fun RewardsHeroCard(
             }
         }
     }
+}
+
+@Composable
+private fun DailyMissionCard(mission: DailyMission, compact: Boolean, onClaim: () -> Unit) {
+    val progress = (mission.currentProgress.toFloat() / mission.target.toFloat()).coerceIn(0f, 1f)
+    val accent = if (mission.isCompleted) PremiumColors.Gold else Color.White.copy(alpha = 0.4f)
+    
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .premiumPanel()
+            .border(1.dp, accent.copy(alpha = 0.2f), PremiumShapes.PanelShape),
+        color = Color.Transparent
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(Color.White.copy(alpha = 0.05f), CircleShape)
+                        .border(1.dp, accent.copy(alpha = 0.3f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val icon = when(mission.type) {
+                        com.mahmodhota.worldfood3dadventure.game.progress.MissionType.TRAVEL -> "✈️"
+                        com.mahmodhota.worldfood3dadventure.game.progress.MissionType.FOOD -> "🍲"
+                        com.mahmodhota.worldfood3dadventure.game.progress.MissionType.STARS -> "⭐"
+                        else -> "🎯"
+                    }
+                    Text(icon, fontSize = 20.sp)
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(mission.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(mission.description, color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
+                }
+                
+                if (mission.isCompleted && !mission.isClaimed) {
+                    Button(
+                        onClick = onClaim,
+                        colors = ButtonDefaults.buttonColors(containerColor = PremiumColors.Gold),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        modifier = Modifier.height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("CLAIM", color = PremiumColors.DeepNavy, fontSize = 12.sp, fontWeight = FontWeight.Black)
+                    }
+                } else if (mission.isClaimed) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF66D19D), modifier = Modifier.size(24.dp))
+                } else {
+                    Text("${mission.currentProgress} / ${mission.target}", color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                }
+            }
+            
+            Spacer(Modifier.height(12.dp))
+            
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.08f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(progress)
+                        .fillMaxHeight()
+                        .background(if (mission.isCompleted) PremiumColors.Gold else Color(0xFF4AADCC))
+                )
+            }
+            
+            if (!mission.isClaimed) {
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (mission.rewardXp > 0) MissionRewardChip("XP", mission.rewardXp)
+                    if (mission.rewardCoins > 0) MissionRewardChip("COINS", mission.rewardCoins)
+                    mission.rewardBooster?.let { MissionRewardChip(it.name, 1) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MissionRewardChip(label: String, value: Int) {
+    Text(
+        text = "+$value $label",
+        color = PremiumColors.Gold.copy(alpha = 0.8f),
+        fontSize = 9.sp,
+        fontWeight = FontWeight.Black,
+        letterSpacing = 0.5.sp
+    )
 }
 
 @Composable
@@ -275,7 +419,7 @@ private fun RewardItemCard(reward: RewardUi, compact: Boolean) {
 }
 
 @Composable
-private fun RewardMetricChip(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, modifier: Modifier) {
+private fun RewardMetricChip(label: String, value: String, icon: ImageVector, color: Color, modifier: Modifier) {
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),

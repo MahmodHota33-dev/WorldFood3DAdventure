@@ -6,6 +6,7 @@ enum class NavTab(
 ) {
     Profile("profile", "Profile"),
     Rewards("rewards", "Rewards"),
+    FoodDiscovery("collection", "Food"),
     Passport("book", "Passport"),
     World("world", "World")
 }
@@ -17,6 +18,7 @@ object NavigationSpec {
     val orderedTabs: List<NavTab> = listOf(
         NavTab.Profile,
         NavTab.Rewards,
+        NavTab.FoodDiscovery,
         NavTab.Passport,
         NavTab.World
     )

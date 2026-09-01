@@ -25,6 +25,7 @@ data class ForcedBoardResolution(
 
 private data class StepResolution(
     val clearedPositions: Set<BoardPosition>,
+    val damagedBlockers: Map<BoardPosition, BlockerState>,
     val createdSpecialTiles: Map<BoardPosition, SpecialTileType>,
     val specialEffects: List<SpecialBoardEffect>,
     val scoreBonus: Int
@@ -56,11 +57,17 @@ class CascadeProcessor(
         val collected = mutableMapOf<FoodTileType, Int>()
         var pendingForcedResolution = forcedInitialResolution
         var pendingPreferredPositions = preferredMatchPositions
+        
+        // Track tiles that were "hit" but survived because of a blocker.
+        // They remain on the board and shouldn't be cleared in the same cascade sequence
+        // to satisfy "only a later match removes the tile".
+        // We track by ID because positions change during gravity/refill.
+        val idsHitByBlockersThisMove = mutableSetOf<Long>()
 
         while (cascadeIndex <= maxCascades) {
             val forcedResolution = pendingForcedResolution
             val stepResolution = if (forcedResolution != null) {
-                val resolved = resolveForcedStep(currentBoard, forcedResolution)
+                val resolved = resolveForcedStep(currentBoard, forcedResolution, idsHitByBlockersThisMove)
                 pendingForcedResolution = null
                 pendingPreferredPositions = emptyList()
                 resolved
@@ -68,18 +75,30 @@ class CascadeProcessor(
                 val matchResult = MatchDetector.findMatches(currentBoard, pendingPreferredPositions)
                 pendingPreferredPositions = emptyList()
                 if (!matchResult.hasMatches) break
-                resolveMatchedStep(currentBoard, matchResult)
+                resolveMatchedStep(currentBoard, matchResult, idsHitByBlockersThisMove)
             }
 
-            if (stepResolution.clearedPositions.isEmpty() && stepResolution.createdSpecialTiles.isEmpty()) {
+            if (stepResolution.clearedPositions.isEmpty() && 
+                stepResolution.damagedBlockers.isEmpty() && 
+                stepResolution.createdSpecialTiles.isEmpty()) {
                 break
             }
+            
+            // Update the set of IDs that survived due to blockers
+            stepResolution.damagedBlockers.forEach { (pos, _) ->
+                currentBoard.tileAt(pos)?.let { idsHitByBlockersThisMove.add(it.id) }
+            }
 
-            totalMatched += stepResolution.clearedPositions.size
-            val scoreAwarded = calculateScore(stepResolution.clearedPositions.size, cascadeIndex) + stepResolution.scoreBonus
+            totalMatched += stepResolution.clearedPositions.size + stepResolution.damagedBlockers.size
+            val scoreAwarded = calculateScore(stepResolution.clearedPositions.size + stepResolution.damagedBlockers.size, cascadeIndex) + stepResolution.scoreBonus
             totalScore += scoreAwarded
 
             stepResolution.clearedPositions.forEach { pos ->
+                currentBoard.tileAt(pos)?.let { tile ->
+                    collected[tile.type] = (collected[tile.type] ?: 0) + 1
+                }
+            }
+            stepResolution.damagedBlockers.forEach { (pos, _) ->
                 currentBoard.tileAt(pos)?.let { tile ->
                     collected[tile.type] = (collected[tile.type] ?: 0) + 1
                 }
@@ -89,10 +108,14 @@ class CascadeProcessor(
             for (r in 0 until currentBoard.rows) {
                 for (c in 0 until currentBoard.columns) {
                     val pos = BoardPosition(r, c)
-                    intermediateMap[pos] = if (stepResolution.clearedPositions.contains(pos)) {
-                        null
-                    } else {
-                        currentBoard.tileAt(pos)
+                    val existing = currentBoard.tileAt(pos)
+                    
+                    intermediateMap[pos] = when {
+                        stepResolution.clearedPositions.contains(pos) -> null
+                        stepResolution.damagedBlockers.containsKey(pos) -> {
+                            existing?.copy(blocker = stepResolution.damagedBlockers[pos]!!)
+                        }
+                        else -> existing
                     }
                 }
             }
@@ -134,12 +157,20 @@ class CascadeProcessor(
         return CascadeResult(currentBoard, steps, totalScore, totalMatched, collected)
     }
 
-    private fun resolveMatchedStep(board: Match3Board, matchResult: MatchResult): StepResolution {
+    private fun resolveMatchedStep(
+        board: Match3Board, 
+        matchResult: MatchResult,
+        immuneIds: Set<Long>
+    ): StepResolution {
         val createdSpecialTiles = matchResult.specialTilesToSpawn
         val baseClearedPositions = matchResult.uniquePositions - createdSpecialTiles.keys
         val expanded = expandSpecialClearance(board, baseClearedPositions)
+        
+        val (cleared, damaged) = applyBlockerLogic(board, expanded.clearedPositions, immuneIds)
+        
         return StepResolution(
-            clearedPositions = expanded.clearedPositions,
+            clearedPositions = cleared,
+            damagedBlockers = damaged,
             createdSpecialTiles = createdSpecialTiles,
             specialEffects = expanded.effects,
             scoreBonus = createdSpecialTiles.size * Match3SpecialConfig.SpecialCreationScoreBonus
@@ -148,7 +179,8 @@ class CascadeProcessor(
 
     private fun resolveForcedStep(
         board: Match3Board,
-        resolution: ForcedBoardResolution
+        resolution: ForcedBoardResolution,
+        immuneIds: Set<Long>
     ): StepResolution {
         val expanded = expandSpecialClearance(
             board = board,
@@ -156,12 +188,40 @@ class CascadeProcessor(
             forcedSpecialOverrides = resolution.forcedSpecialOverrides,
             forcedColorTargets = resolution.forcedColorTargets
         )
+        
+        val (cleared, damaged) = applyBlockerLogic(board, expanded.clearedPositions, immuneIds)
+        
         return StepResolution(
-            clearedPositions = expanded.clearedPositions,
+            clearedPositions = cleared,
+            damagedBlockers = damaged,
             createdSpecialTiles = resolution.createdSpecialTiles,
             specialEffects = resolution.visualEffects + expanded.effects,
             scoreBonus = resolution.scoreBonus
         )
+    }
+
+    private fun applyBlockerLogic(
+        board: Match3Board,
+        positions: Set<BoardPosition>,
+        immuneIds: Set<Long>
+    ): Pair<Set<BoardPosition>, Map<BoardPosition, BlockerState>> {
+        val actuallyCleared = mutableSetOf<BoardPosition>()
+        val damagedBlockers = mutableMapOf<BoardPosition, BlockerState>()
+
+        positions.forEach { pos ->
+            val tile = board.tileAt(pos) ?: return@forEach
+            
+            // If the tile is immune (already hit ice this move), don't clear it or damage it again
+            if (immuneIds.contains(tile.id)) return@forEach
+
+            if (tile.blocker != BlockerState.NONE) {
+                damagedBlockers[pos] = tile.blocker.damage()
+            } else {
+                actuallyCleared.add(pos)
+            }
+        }
+
+        return actuallyCleared to damagedBlockers
     }
 
     private fun calculateScore(matchedCount: Int, cascadeMultiplier: Int): Int {

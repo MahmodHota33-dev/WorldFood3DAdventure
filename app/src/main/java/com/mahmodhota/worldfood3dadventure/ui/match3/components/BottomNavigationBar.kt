@@ -26,8 +26,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mahmodhota.worldfood3dadventure.data.audio.SfxType
 
 /**
  * Premium bottom navigation bar for the game hub.
@@ -133,10 +135,14 @@ private fun NavItem(
             )
             .clickable(
                 interactionSource = interaction,
-                onClick = onClick
+                indication = null,
+                onClick = {
+                    com.mahmodhota.worldfood3dadventure.data.audio.GlobalSystemManager.audio.playSfx(SfxType.BUTTON_CLICK)
+                    onClick()
+                }
             )
             .padding(horizontal = if (compact) 4.dp else 6.dp, vertical = if (compact) 5.dp else 6.dp)
-            .heightIn(min = if (compact) 48.dp else 54.dp)
+            .heightIn(min = 48.dp) // P10-AJ: Ensure min 48dp height
             .scale(itemScale),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -164,10 +170,11 @@ private fun NavItem(
         Spacer(Modifier.height(4.dp))
         Text(
             text = label,
-            fontSize = if (compact) 9.sp else 10.sp,
+            fontSize = if (compact) 8.sp else 9.sp, // P10-AJ: Auto-scale labels
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
             color = contentColor,
-            maxLines = 1
+            maxLines = 1,
+            overflow = TextOverflow.Clip // P10-AJ: Prevent dots
         )
         Spacer(Modifier.height(4.dp))
         Box(
@@ -188,5 +195,6 @@ private fun iconForTab(tab: NavTab): ImageVector {
         NavTab.Passport -> Icons.AutoMirrored.Filled.MenuBook
         NavTab.Rewards -> Icons.Default.CardGiftcard
         NavTab.Profile -> Icons.Default.Person
+        NavTab.FoodDiscovery -> Icons.Default.Restaurant
     }
 }

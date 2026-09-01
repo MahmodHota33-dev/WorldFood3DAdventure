@@ -31,7 +31,7 @@ internal fun DrawScope.drawFlightPath(
         val t = i.toFloat() / segments.toFloat()
         val sample = animator.sampleAt(t)
         val routeR = r * (1f + sample.altitudeNorm)
-        val p = projectLatLon(sample.latDeg, sample.lonDeg, rotY, rotX, cx, cy, routeR)
+        val p = GlobeMath.projectLatLon(sample.latDeg, sample.lonDeg, rotY, rotX, cx, cy, routeR)
         if (p != null) {
             if (firstPoint) {
                 reusablePath.moveTo(p.x, p.y)
@@ -58,7 +58,7 @@ internal fun DrawScope.drawFlightPath(
     )
 
     animator.currentSample()?.let { sample ->
-        val head = projectLatLon(sample.latDeg, sample.lonDeg, rotY, rotX, cx, cy, r * (1f + sample.altitudeNorm))
+        val head = GlobeMath.projectLatLon(sample.latDeg, sample.lonDeg, rotY, rotX, cx, cy, r * (1f + sample.altitudeNorm))
         if (head != null) {
             drawCircle(
                 color = Color(1f, 0.94f, 0.72f, 0.35f * alpha),
@@ -87,8 +87,8 @@ internal fun DrawScope.drawFlightAirplane(
     val current = samples.first
     val next = samples.second
 
-    val p0 = projectLatLon(current.latDeg, current.lonDeg, rotY, rotX, cx, cy, r * (1f + current.altitudeNorm)) ?: return
-    val p1 = projectLatLon(next.latDeg, next.lonDeg, rotY, rotX, cx, cy, r * (1f + next.altitudeNorm)) ?: return
+    val p0 = GlobeMath.projectLatLon(current.latDeg, current.lonDeg, rotY, rotX, cx, cy, r * (1f + current.altitudeNorm)) ?: return
+    val p1 = GlobeMath.projectLatLon(next.latDeg, next.lonDeg, rotY, rotX, cx, cy, r * (1f + next.altitudeNorm)) ?: return
 
     val dirX = p1.x - p0.x
     val dirY = p1.y - p0.y

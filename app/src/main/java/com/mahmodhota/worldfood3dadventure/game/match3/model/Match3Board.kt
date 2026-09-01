@@ -78,6 +78,17 @@ class Match3Board(
         return Match3Board(rows, columns, newTiles.toList())
     }
 
+    /**
+     * Damages a blocker at the specified position if it exists.
+     * Returns a new board if changed, or the same board if no blocker was present.
+     */
+    fun damageBlocker(position: BoardPosition): Match3Board {
+        val tile = tileAt(position) ?: return this
+        if (tile.blocker == BlockerState.NONE) return this
+        
+        return replace(position, tile.copy(blocker = tile.blocker.damage()))
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Match3Board) return false

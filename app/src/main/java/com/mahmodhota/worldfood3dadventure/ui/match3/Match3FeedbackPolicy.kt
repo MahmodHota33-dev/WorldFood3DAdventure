@@ -36,22 +36,31 @@ internal fun resolveCascadeFeedback(
         else -> null
     }
     val sfx = when {
-        hasColorClear || matchedCount >= 5 -> SfxType.MATCH_LARGE
-        hasSpecial -> SfxType.COMBO_2
-        chainCount >= 5 -> SfxType.COMBO_3
-        chainCount == 4 -> SfxType.COMBO_3
-        chainCount == 3 -> SfxType.COMBO_2
-        chainCount == 2 -> SfxType.COMBO_1
-        else -> SfxType.MATCH_SMALL
+        hasColorClear || matchedCount >= 5 -> SfxType.MATCH_5
+        matchedCount == 4 -> SfxType.MATCH_4
+        chainCount >= 3 -> SfxType.CASCADE_3_PLUS
+        chainCount == 2 -> SfxType.CASCADE_2
+        chainCount == 1 && hasSpecial -> SfxType.CASCADE_1
+        else -> SfxType.MATCH_3
     }
     val haptic = when {
         hasColorClear || matchedCount >= 5 -> HapticFeedbackStrength.HEAVY
         hasSpecial -> HapticFeedbackStrength.MEDIUM
         chainCount >= 4 -> HapticFeedbackStrength.HEAVY
         chainCount >= 2 -> HapticFeedbackStrength.MEDIUM
-        else -> HapticFeedbackStrength.MEDIUM
+        else -> HapticFeedbackStrength.LIGHT
     }
     return CascadeFeedbackPlan(comboLabel = comboLabel, sfxType = sfx, haptic = haptic)
+}
+
+internal fun specialEffectSfx(effects: List<SpecialBoardEffect>): SfxType? {
+    if (effects.isEmpty()) return null
+    return when {
+        effects.any { it.type == SpecialBoardEffectType.COLOR_CLEAR } -> SfxType.COLOR_BOMB_FINISH
+        effects.any { it.type == SpecialBoardEffectType.BOMB } -> SfxType.BOMB_EXPLOSION
+        effects.any { it.type == SpecialBoardEffectType.HORIZONTAL_LINE || it.type == SpecialBoardEffectType.VERTICAL_LINE } -> SfxType.ROCKET_SWEEP
+        else -> null
+    }
 }
 
 internal fun floatingScoreLabel(scoreAwarded: Int, cascadeIndex: Int): String {

@@ -1,0 +1,22 @@
+material {
+    name : earth,
+    shadingModel : lit,
+    parameters : [
+        {
+            type : sampler2d,
+            name : earthTexture
+        }
+    ],
+    requires : [
+        uv0
+    ]
+}
+
+fragment {
+    void material(inout MaterialInputs material) {
+        prepareMaterial(material);
+        material.baseColor = texture(materialParams_earthTexture, getUV0());
+        material.metallic = 0.0;
+        material.roughness = 0.6;
+    }
+}

@@ -22,7 +22,7 @@ class GlobeMathTest {
     @Test
     fun `latLonToXyz at origin faces viewer`() {
         // Lat=0, Lon=0 → x=0, y=0, z=1 (pointing towards the camera)
-        val v = latLonToXyz(0f, 0f)
+        val v = GlobeMath.latLonToXyz(0f, 0f)
         assertEquals(0f, v[0], 0.001f)
         assertEquals(0f, v[1], 0.001f)
         assertEquals(1f, v[2], 0.001f)
@@ -30,7 +30,7 @@ class GlobeMathTest {
 
     @Test
     fun `latLonToXyz north pole returns Y-up vector`() {
-        val v = latLonToXyz(90f, 0f)
+        val v = GlobeMath.latLonToXyz(90f, 0f)
         assertEquals(0f, v[0], 0.001f)
         assertEquals(1f, v[1], 0.001f)
         assertEquals(0f, v[2], 0.001f)
@@ -38,7 +38,7 @@ class GlobeMathTest {
 
     @Test
     fun `latLonToXyz south pole returns Y-down vector`() {
-        val v = latLonToXyz(-90f, 0f)
+        val v = GlobeMath.latLonToXyz(-90f, 0f)
         assertEquals(0f,  v[0], 0.001f)
         assertEquals(-1f, v[1], 0.001f)
         assertEquals(0f,  v[2], 0.001f)
@@ -53,8 +53,8 @@ class GlobeMathTest {
             23.6f to -102.6f  // Mexico
         )
         for ((lat, lon) in coords) {
-            val v = latLonToXyz(lat, lon)
-            val len = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+            val v = GlobeMath.latLonToXyz(lat, lon)
+            val len = sqrt((v[0] * v[0]) + (v[1] * v[1]) + (v[2] * v[2]))
             assertEquals("unit vector for lat=$lat, lon=$lon", 1f, len, 0.001f)
         }
     }
@@ -64,24 +64,24 @@ class GlobeMathTest {
     @Test
     fun `projectPoint returns non-null for point facing camera`() {
         // lat=0, lon=0 is directly in front at rotY=0, rotX=0
-        val p = latLonToXyz(0f, 0f)
-        val result = projectPoint(p, 0f, 0f, 500f, 500f, 200f)
+        val p = GlobeMath.latLonToXyz(0f, 0f)
+        val result = GlobeMath.projectPoint(p, 0f, 0f, 500f, 500f, 200f)
         assertNotNull("Front-facing point should project successfully", result)
     }
 
     @Test
     fun `projectPoint returns null for point on far side`() {
         // lat=0, lon=180 is directly behind the globe when camera is at rotY=0
-        val p = latLonToXyz(0f, 180f)
-        val result = projectPoint(p, 0f, 0f, 500f, 500f, 200f)
+        val p = GlobeMath.latLonToXyz(0f, 180f)
+        val result = GlobeMath.projectPoint(p, 0f, 0f, 500f, 500f, 200f)
         assertNull("Point on far side should return null", result)
     }
 
     @Test
     fun `projectPoint maps origin to canvas centre`() {
-        val p = latLonToXyz(0f, 0f)
+        val p = GlobeMath.latLonToXyz(0f, 0f)
         val cx = 400f; val cy = 600f
-        val result = projectPoint(p, 0f, 0f, cx, cy, 200f)
+        val result = GlobeMath.projectPoint(p, 0f, 0f, cx, cy, 200f)
         assertNotNull(result)
         assertEquals(cx, result!!.x, 0.5f)
         assertEquals(cy, result.y, 0.5f)
@@ -90,16 +90,16 @@ class GlobeMathTest {
     @Test
     fun `Germany is visible at default camera orientation`() {
         // Default camera: rotY = -15, rotX = 25
-        val pos = projectLatLon(51.1f, 10.4f, -15f, 25f, 500f, 500f, 200f)
+        val pos = GlobeMath.projectLatLon(51.1f, 10.4f, -15f, 25f, 500f, 500f, 200f)
         assertNotNull("Germany should be visible at the default camera angle", pos)
     }
 
     @Test
     fun `projectLatLon matches projectPoint pipeline`() {
         val lat = 46.2f; val lon = 2.2f  // France
-        val xyz = latLonToXyz(lat, lon)
-        val fromXyz  = projectPoint(xyz, -15f, 25f, 300f, 400f, 150f)
-        val fromLatLon = projectLatLon(lat, lon, -15f, 25f, 300f, 400f, 150f)
+        val xyz = GlobeMath.latLonToXyz(lat, lon)
+        val fromXyz  = GlobeMath.projectPoint(xyz, -15f, 25f, 300f, 400f, 150f)
+        val fromLatLon = GlobeMath.projectLatLon(lat, lon, -15f, 25f, 300f, 400f, 150f)
         if (fromXyz == null) {
             assertNull(fromLatLon)
         } else {
@@ -170,14 +170,14 @@ class GlobeMathTest {
     fun `zoom stays above minimum when factor is very small`() {
         val cam = GlobeCameraState(initialZoom = 1f)
         cam.applyZoom(0.001f)
-        assertTrue("zoom must be ≥ 0.6", cam.zoom >= 0.6f)
+        assertTrue("zoom must be ≥ ${GlobeCameraState.MIN_ZOOM}", cam.zoom >= GlobeCameraState.MIN_ZOOM)
     }
 
     @Test
     fun `zoom stays below maximum when factor is very large`() {
         val cam = GlobeCameraState(initialZoom = 1f)
         cam.applyZoom(1000f)
-        assertTrue("zoom must be ≤ 2.2", cam.zoom <= 2.2f)
+        assertTrue("zoom must be ≤ ${GlobeCameraState.MAX_ZOOM}", cam.zoom <= GlobeCameraState.MAX_ZOOM)
     }
 
     // ── GlobeCameraState — fly-to ─────────────────────────────────────────────
@@ -230,7 +230,7 @@ class GlobeMathTest {
     fun `nightIntensity returns 0 for sun-facing point`() {
         // lat=0, lon=0 → z2=+1 when rotY=0, rotX=0 → full day (z toward viewer = toward sun)
         // dot = 0*SUN_X + 0*SUN_Y + 1*SUN_Z = +0.88 → nightIntensity = 0
-        val result = nightIntensity(0f, 0f, 1f)
+        val result = GlobeMath.nightIntensity(0f, 0f, 1f)
         assertEquals(0f, result, 0.001f)
     }
 
@@ -238,40 +238,40 @@ class GlobeMathTest {
     fun `nightIntensity is positive for night-side point`() {
         // A point on the lower-right in camera space (night side):
         // x2=+0.6, y2=-0.5 → dot = 0.6*(-0.30) + (-0.5)*(+0.34) + 0.0*0.88 = -0.18 - 0.17 = -0.35
-        val result = nightIntensity(0.6f, -0.5f, 0f)
+        val result = GlobeMath.nightIntensity(0.6f, -0.5f, 0f)
         assertTrue("Night-side point must have positive nightIntensity", result > 0f)
     }
 
     @Test
     fun `nightIntensity upper-left point is day`() {
         // Point upper-left: x2=-0.5, y2=+0.5 → dot large positive → nightIntensity = 0
-        val result = nightIntensity(-0.5f, 0.5f, 0.7f)
+        val result = GlobeMath.nightIntensity(-0.5f, 0.5f, 0.7f)
         assertEquals(0f, result, 0.001f)
     }
 
     @Test
     fun `nightIntensity is clamped to 0_1`() {
         // Extreme night-side: all components strongly against sun
-        val result1 = nightIntensity(1f, -1f, -1f)
+        val result1 = GlobeMath.nightIntensity(1f, -1f, -1f)
         assertTrue("nightIntensity must be ≤ 1", result1 <= 1f)
         assertTrue("nightIntensity must be ≥ 0", result1 >= 0f)
 
         // Extreme day side: all components strongly toward sun
-        val result2 = nightIntensity(-1f, 1f, 1f)
+        val result2 = GlobeMath.nightIntensity(-1f, 1f, 1f)
         assertEquals(0f, result2, 0.001f)
     }
 
     @Test
     fun `nightIntensity returns 0 for NaN inputs`() {
-        assertEquals(0f, nightIntensity(Float.NaN, 0f, 0f), 0.001f)
-        assertEquals(0f, nightIntensity(0f, Float.NaN, 0f), 0.001f)
-        assertEquals(0f, nightIntensity(0f, 0f, Float.NaN), 0.001f)
+        assertEquals(0f, GlobeMath.nightIntensity(Float.NaN, 0f, 0f), 0.001f)
+        assertEquals(0f, GlobeMath.nightIntensity(0f, Float.NaN, 0f), 0.001f)
+        assertEquals(0f, GlobeMath.nightIntensity(0f, 0f, Float.NaN), 0.001f)
     }
 
     @Test
     fun `nightIntensity returns 0 for Infinity inputs`() {
-        assertEquals(0f, nightIntensity(Float.POSITIVE_INFINITY, 0f, 0f), 0.001f)
-        assertEquals(0f, nightIntensity(0f, Float.NEGATIVE_INFINITY, 0f), 0.001f)
+        assertEquals(0f, GlobeMath.nightIntensity(Float.POSITIVE_INFINITY, 0f, 0f), 0.001f)
+        assertEquals(0f, GlobeMath.nightIntensity(0f, Float.NEGATIVE_INFINITY, 0f), 0.001f)
     }
 
     @Test
@@ -279,7 +279,7 @@ class GlobeMathTest {
         // The terminator is where dot ≈ 0. Construct a point orthogonal to sun:
         // sun = (-0.30, +0.34, +0.88). An orthogonal point: (0.34/0.45, 0.30/0.45, 0) normalised
         // dot = 0.755*(-0.30) + 0.655*(+0.34) + 0*0.88 = -0.227 + 0.223 = -0.004 ≈ 0
-        val result = nightIntensity(0.755f, 0.655f, 0f)
+        val result = GlobeMath.nightIntensity(0.755f, 0.655f, 0f)
         // Should be a tiny positive or 0 — very close to terminator
         assertTrue("Terminator point intensity must be in 0..1", result in 0f..1f)
     }
@@ -300,7 +300,7 @@ class GlobeMathTest {
     fun `all CITY_LIGHT_XYZ entries are unit vectors`() {
         for (i in CITY_LIGHT_XYZ.indices) {
             val v = CITY_LIGHT_XYZ[i]
-            val len = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+            val len = sqrt((v[0] * v[0]) + (v[1] * v[1]) + (v[2] * v[2]))
             assertEquals("CITY_LIGHT_XYZ[$i] must be unit vector", 1f, len, 0.002f)
         }
     }
@@ -319,16 +319,16 @@ class GlobeMathTest {
     fun `city light on back side of globe is rejected`() {
         // lat=0, lon=180 faces away from the camera at rotY=0, rotX=0
         // Project it: z2 should be ≤ -0.05 → must not appear
-        val xyz = latLonToXyz(0f, 180f)
-        val p = projectPoint(xyz, 0f, 0f, 500f, 500f, 200f)
+        val xyz = GlobeMath.latLonToXyz(0f, 180f)
+        val p = GlobeMath.projectPoint(xyz, 0f, 0f, 500f, 500f, 200f)
         assertNull("Back-side city light position must not project", p)
     }
 
     @Test
     fun `city light on front side of globe projects successfully`() {
         // lat=0, lon=0 faces the camera at rotY=0, rotX=0
-        val xyz = latLonToXyz(0f, 0f)
-        val p = projectPoint(xyz, 0f, 0f, 500f, 500f, 200f)
+        val xyz = GlobeMath.latLonToXyz(0f, 0f)
+        val p = GlobeMath.projectPoint(xyz, 0f, 0f, 500f, 500f, 200f)
         assertNotNull("Front-side city light position must project", p)
     }
 }

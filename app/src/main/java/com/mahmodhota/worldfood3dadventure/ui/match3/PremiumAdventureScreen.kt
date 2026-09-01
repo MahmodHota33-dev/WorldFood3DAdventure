@@ -1,45 +1,17 @@
 package com.mahmodhota.worldfood3dadventure.ui.match3
 
 import android.util.Log
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,22 +33,13 @@ import com.mahmodhota.worldfood3dadventure.game.match3.Match3LevelRegistry
 import com.mahmodhota.worldfood3dadventure.game.match3.model.FoodTileType
 import com.mahmodhota.worldfood3dadventure.game.match3.model.GameStatus
 import com.mahmodhota.worldfood3dadventure.game.match3.model.LevelGoal
+import com.mahmodhota.worldfood3dadventure.game.match3.model.BoosterType
+import com.mahmodhota.worldfood3dadventure.game.match3.model.BoosterInventory
 import com.mahmodhota.worldfood3dadventure.game.world.LevelRegistry
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.FoodIcon
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.FranceBackground
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.GermanyBackground
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.ItalyBackground
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.JapanBackground
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.Match3BoardComposable
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.MexicoBackground
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumColors
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumBoosterPanel
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.PremiumCompletionDialog
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.SpainBackground
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.SudanBackground
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.TopStatusBar
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.WorldMapComponent
-import com.mahmodhota.worldfood3dadventure.ui.match3.components.WorldMapGeometry
+import com.mahmodhota.worldfood3dadventure.game.world.model.CountryProgressionChain
+import com.mahmodhota.worldfood3dadventure.ui.match3.components.*
+import com.mahmodhota.worldfood3dadventure.ui.world3d.filament.FilamentGlobeView
+import kotlinx.coroutines.delay
 import kotlin.math.min
 
 internal data class Match3RouteValidation(
@@ -104,7 +67,6 @@ fun PremiumAdventureScreen(
     onTabSelected: (String) -> Unit,
     onSettingsClick: () -> Unit
 ) {
-    // Validate route before creating ViewModel
     val routeValidation = remember(countryId, levelNumber) {
         val countryExists = LevelRegistry.getCountry(countryId) != null
         val levelExists = Match3LevelRegistry.getLevel(countryId, levelNumber) != null
@@ -120,17 +82,12 @@ fun PremiumAdventureScreen(
     
     LaunchedEffect(routeValidation.isValid, routeValidation.reason, countryId, levelNumber) {
         if (!routeValidation.isValid) {
-            Log.w(
-                "PremiumAdventureScreen",
-                "Invalid match3 route country=$countryId level=$levelNumber reason=${routeValidation.reason}"
-            )
+            Log.w("PremiumAdventureScreen", "Invalid route country=$countryId level=$levelNumber reason=${routeValidation.reason}")
             onTabSelected("world")
         }
     }
     
-    if (!routeValidation.isValid) {
-        return
-    }
+    if (!routeValidation.isValid) return
     
     val viewModel: Match3ViewModel = remember(countryId, levelNumber) {
        Match3ViewModel(countryId, levelNumber)
@@ -143,8 +100,9 @@ fun PremiumAdventureScreen(
        onDispose { viewModel.onScreenExit() }
     }
 
-    var mapScale by remember { mutableStateOf(1f) }
-    var mapOffset by remember { mutableStateOf(Offset.Zero) }
+    // P10-O: Reset map state when country or level changes
+    var mapScale by remember(countryId, levelNumber) { mutableStateOf(1f) }
+    var mapOffset by remember(countryId, levelNumber) { mutableStateOf(Offset.Zero) }
     val transformState = androidx.compose.foundation.gestures.rememberTransformableState { _, zoomChange, offsetChange, _ ->
         mapScale = (mapScale * zoomChange).coerceIn(0.75f, 3f)
         mapOffset += offsetChange
@@ -183,17 +141,9 @@ fun PremiumAdventureScreen(
                         .background(
                             Brush.verticalGradient(
                                 if (isTabletLandscape) {
-                                    listOf(
-                                        Color(0x6403060D),
-                                        Color(0x1202060D),
-                                        Color(0x3F020408)
-                                    )
+                                    listOf(Color(0x6403060D), Color(0x1202060D), Color(0x3F020408))
                                 } else {
-                                    listOf(
-                                        Color(0x7803060D),
-                                        Color(0x1802060D),
-                                        Color(0x52020408)
-                                    )
+                                    listOf(Color(0x7803060D), Color(0x1802060D), Color(0x52020408))
                                 }
                             )
                         )
@@ -262,7 +212,9 @@ fun PremiumAdventureScreen(
                                         specialEffectLabel = state.specialEffectLabel,
                                         specialEffectNonce = state.specialEffectNonce,
                                         spawnedSpecialTiles = state.spawnedSpecialTiles,
-                                        spawnedSpecialNonce = state.spawnedSpecialNonce
+                                        spawnedSpecialNonce = state.spawnedSpecialNonce,
+                                        reshuffleNonce = state.reshuffleNonce,
+                                        hintedPositions = state.hintedPositions
                                     )
                                 }
                             }
@@ -307,7 +259,7 @@ fun PremiumAdventureScreen(
                         )
 
                         CompactGameplayInfoStrip(
-                            countryName = countryId.replaceFirstChar { it.uppercase() },
+                            countryName = countryMeta?.displayName ?: countryId.replaceFirstChar { it.uppercase() },
                             levelNumber = levelNumber,
                             levelTitle = levelDef?.title ?: "Adventure Puzzle",
                             movesRemaining = state.movesRemaining,
@@ -316,6 +268,8 @@ fun PremiumAdventureScreen(
                             score = state.score,
                             goalPulseType = state.goalPulseType,
                             goalPulseNonce = state.goalPulseNonce,
+                            completedLevels = completedLevels,
+                            totalLevels = totalLevels,
                             modifier = Modifier.height(stripHeight)
                         )
 
@@ -358,7 +312,9 @@ fun PremiumAdventureScreen(
                                 specialEffectLabel = state.specialEffectLabel,
                                 specialEffectNonce = state.specialEffectNonce,
                                 spawnedSpecialTiles = state.spawnedSpecialTiles,
-                                spawnedSpecialNonce = state.spawnedSpecialNonce
+                                spawnedSpecialNonce = state.spawnedSpecialNonce,
+                                reshuffleNonce = state.reshuffleNonce,
+                                hintedPositions = state.hintedPositions
                             )
                         }
 
@@ -373,61 +329,225 @@ fun PremiumAdventureScreen(
     }
 
     AnimatedVisibility(
-        visible = state.status == GameStatus.WON || state.status == GameStatus.LOST,
+        visible = state.status == GameStatus.WON && !state.showCountryComplete && !state.showNextDestination,
         enter = fadeIn() + scaleIn(initialScale = 0.96f),
         exit = fadeOut() + scaleOut(targetScale = 0.96f)
     ) {
-        when (state.status) {
-            GameStatus.WON -> {
-                val stars = when {
-                    state.score >= state.scoreThresholds.threeStars -> 3
-                    state.score >= state.scoreThresholds.twoStars -> 2
-                    else -> 1
-                }
-                val hasNext = remember(countryId, levelNumber) {
-                    Match3LevelRegistry.getLevel(countryId, levelNumber + 1) != null
-                }
-                val isChapterFinale = countryId == "sudan" && levelNumber == 15
+        val stars = when {
+            state.score >= state.scoreThresholds.threeStars -> 3
+            state.score >= state.scoreThresholds.twoStars -> 2
+            else -> 1
+        }
+        val hasNext = remember(countryId, levelNumber) {
+            Match3LevelRegistry.getLevel(countryId, levelNumber + 1) != null
+        }
+        VictoryOverlay(
+            countryId = countryId,
+            levelNumber = levelNumber,
+            stars = stars,
+            score = state.score,
+            xpReward = state.earnedXp,
+            coinReward = state.earnedCoins,
+            collectedFood = state.discoveredFood,
+            isCountryComplete = state.isCountryComplete,
+            hasNextLevel = hasNext,
+            onContinue = {
+                if (hasNext) onNextLevelSelected(levelNumber + 1)
+                else onReturn()
+            },
+            onBackToMap = { onReturn() }
+        )
+    }
 
-                PremiumCompletionDialog(
-                    isWin = true,
-                    score = state.score,
-                    stars = stars,
-                    collected = state.collectedCounts,
-                    xpReward = 50 * stars,
-                    coinReward = 10 * stars,
-                    unlockedCountry = ProgressionManager.newlyUnlockedCountry,
-                    hasNextLevel = hasNext,
-                    onContinue = {
-                        onReturn()
-                    },
-                    onNextLevel = {
-                        onNextLevelSelected(levelNumber + 1)
-                    },
-                    onReplay = {
-                        viewModel.resetGame()
-                    }
-                )
+    AnimatedVisibility(
+        visible = state.status == GameStatus.LOST,
+        enter = fadeIn() + scaleIn(initialScale = 0.96f),
+        exit = fadeOut() + scaleOut(targetScale = 0.96f)
+    ) {
+        FailureOverlay(
+            countryId = countryId,
+            levelNumber = levelNumber,
+            goals = state.goals,
+            collected = state.collectedCounts,
+            score = state.score,
+            onRetry = { viewModel.resetGame() },
+            onBackToMap = { onReturn() },
+            onBuyExtraMoves = { viewModel.onBoosterSelected(BoosterType.EXTRA_MOVES) },
+            canAffordExtraMoves = ProgressionManager.playerProgress.coins >= com.mahmodhota.worldfood3dadventure.game.match3.model.BoosterConfig.EXTRA_MOVES_COST,
+            extraMovesCost = com.mahmodhota.worldfood3dadventure.game.match3.model.BoosterConfig.EXTRA_MOVES_COST
+        )
+    }
+
+    AnimatedVisibility(
+        visible = state.showHelpDialog,
+        enter = fadeIn() + scaleIn(initialScale = 0.94f),
+        exit = fadeOut() + scaleOut(targetScale = 0.94f)
+    ) {
+        PremiumHelpDialog(
+            type = state.helpDialogType,
+            coins = ProgressionManager.playerProgress.coins,
+            onBuy = { viewModel.onBuyBooster(it) },
+            onDismiss = { viewModel.onDismissHelpDialog() }
+        )
+    }
+
+    AnimatedVisibility(
+        visible = state.isNewFoodDiscovery && state.status == GameStatus.WON && !state.showCountryComplete,
+        enter = fadeIn() + scaleIn(initialScale = 0.85f),
+        exit = fadeOut() + scaleOut(targetScale = 1.15f)
+    ) {
+        NewFoodDiscoveryOverlay(
+            food = state.discoveredFood ?: FoodTileType.APPLE,
+            countryId = countryId,
+            onDismiss = { viewModel.onDismissNewFoodDiscovery() }
+        )
+    }
+
+    if (state.showTutorial) {
+        OnboardingTooltip(
+            text = "MATCH 3 ADVENTURE\n\nSwap neighboring tiles to create a match of 3 or more items.\n\nGood luck on your first discovery!",
+            onDismiss = { viewModel.onDismissTutorial() }
+        )
+    }
+
+    LevelIntroOverlay(
+        countryId = countryId,
+        levelNumber = levelNumber,
+        goals = state.goals,
+        isVisible = state.showTravelIntro
+    )
+
+    AnimatedVisibility(
+        visible = state.showCountryComplete,
+        enter = fadeIn() + scaleIn(initialScale = 0.94f),
+        exit = fadeOut() + scaleOut(targetScale = 0.94f)
+    ) {
+        CountryCompleteOverlay(
+            countryId = countryId,
+            stars = ProgressionManager.getCountryProgress(countryId).totalStars,
+            xpReward = state.earnedXp,
+            coinReward = state.earnedCoins,
+            onContinue = { viewModel.onDismissCountryComplete() }
+        )
+    }
+
+    AnimatedVisibility(
+        visible = state.showNextDestination,
+        enter = fadeIn() + scaleIn(initialScale = 0.94f),
+        exit = fadeOut() + scaleOut(targetScale = 0.94f)
+    ) {
+        val nextSpec = remember(countryId) { CountryProgressionChain.getNextCountrySpec(countryId) }
+        NextDestinationOverlay(
+            nextCountry = nextSpec,
+            currentStars = ProgressionManager.playerProgress.totalStars,
+            onTravel = {
+                viewModel.onDismissNextDestination()
+                if (nextSpec != null) {
+                    ProgressionManager.setTravelDestination(nextSpec.countryId)
+                    onReturn() // This will navigate back to the globe in MainActivity
+                } else {
+                    onReturn()
+                }
+            },
+            onBackToMap = {
+                viewModel.onDismissNextDestination()
+                onReturn()
             }
-            GameStatus.LOST -> {
-                PremiumCompletionDialog(
-                    isWin = false,
-                    score = state.score,
-                    stars = 0,
-                    collected = state.collectedCounts,
-                    xpReward = 0,
-                    coinReward = 0,
-                    unlockedCountry = null,
-                    hasNextLevel = false,
-                    onContinue = {
-                        onReturn()
-                    },
-                    onReplay = {
-                        viewModel.resetGame()
-                    }
+        )
+    }
+}
+
+@Composable
+private fun PremiumHelpDialog(
+    type: BoosterType?,
+    coins: Int,
+    onBuy: (BoosterType) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val boosterType = type ?: BoosterType.EXTRA_MOVES
+    val cost = com.mahmodhota.worldfood3dadventure.game.match3.model.BoosterConfig.costFor(boosterType)
+    val name = boosterType.name.replace('_', ' ').lowercase().replaceFirstChar { it.uppercase() }
+    val icon = when(boosterType) {
+        BoosterType.HAMMER -> "🔨"
+        BoosterType.ROCKET -> "🚀"
+        BoosterType.HAND -> "🖐️"
+        BoosterType.SHUFFLE -> "🔀"
+        BoosterType.EXTRA_MOVES -> "➕"
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.65f))
+            .clickable(onClick = onDismiss, indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            modifier = Modifier
+                .padding(28.dp)
+                .widthIn(max = 340.dp)
+                .clickable(enabled = false) {},
+            shape = RoundedCornerShape(26.dp),
+            color = PremiumColors.DeepNavy,
+            border = androidx.compose.foundation.BorderStroke(1.5.dp, PremiumColors.Gold.copy(alpha = 0.6f)),
+            tonalElevation = 12.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = if (type == null) "NEED A LITTLE TRAVEL HELP?" else "OUT OF ${name.uppercase()}S!",
+                    color = PremiumColors.Gold,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 17.sp,
+                    letterSpacing = 1.sp,
+                    textAlign = TextAlign.Center
                 )
+                Spacer(Modifier.height(18.dp))
+                Box(
+                    modifier = Modifier.size(82.dp).background(Color.White.copy(alpha = 0.06f), CircleShape).border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(icon, fontSize = 42.sp)
+                }
+                Spacer(Modifier.height(18.dp))
+                Text(
+                    text = if (type == null) "You're almost there! A few extra moves could help you reach your culinary goal." else "Would you like to buy a $name to help with this level?",
+                    color = Color.White.copy(alpha = 0.85f),
+                    textAlign = TextAlign.Center,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
+                )
+                Spacer(Modifier.height(24.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.08f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("NOT NOW", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Button(
+                        onClick = { onBuy(boosterType) },
+                        modifier = Modifier.weight(1.3f),
+                        colors = ButtonDefaults.buttonColors(containerColor = PremiumColors.Gold),
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = coins >= cost
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("💰", fontSize = 14.sp)
+                            Spacer(Modifier.width(6.dp))
+                            Text(cost.toString(), color = PremiumColors.DeepNavy, fontWeight = FontWeight.Black, fontSize = 15.sp)
+                        }
+                    }
+                }
+                if (coins < cost) {
+                    Spacer(Modifier.height(12.dp))
+                    Text("Not enough coins!", color = Color(0xFFFF6B6B), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
             }
-            GameStatus.PLAYING -> Unit
         }
     }
 }
@@ -442,6 +562,7 @@ private fun CountryGameplayBackground(countryId: String) {
         "japan" -> JapanBackground()
         "mexico" -> MexicoBackground()
         "sudan" -> SudanBackground()
+        else -> GermanyBackground()
     }
 }
 
@@ -468,70 +589,17 @@ private fun TabletDestinationPanel(
         border = androidx.compose.foundation.BorderStroke(1.dp, accentStart.copy(alpha = 0.52f))
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            accentStart.copy(alpha = 0.30f),
-                            Color.Transparent
-                        )
-                    )
-                )
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(accentStart.copy(alpha = 0.30f), Color.Transparent))).padding(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(
-                text = metadataName.uppercase(),
-                color = PremiumColors.Gold,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 15.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = "$metadataFlag  LEVEL $levelNumber",
-                color = Color.White.copy(alpha = 0.88f),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = levelTitle,
-                color = Color.White.copy(alpha = 0.80f),
-                fontStyle = FontStyle.Italic,
-                fontSize = 12.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            CompactAdventureMapHeader(
-                mapScale = mapScale,
-                mapOffset = mapOffset,
-                transformState = transformState,
-                selectedCountryId = countryId,
-                mapHeight = 170.dp
-            )
-
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color.White.copy(alpha = 0.07f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = "★ $stars stars",
-                        color = PremiumColors.Gold,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 12.sp
-                    )
-                    Text(
-                        text = "$completedLevels / $totalLevels levels completed",
-                        color = Color.White.copy(alpha = 0.78f),
-                        fontSize = 11.sp
-                    )
+            Text(text = metadataName.uppercase(), color = PremiumColors.Gold, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = "$metadataFlag  LEVEL $levelNumber", color = Color.White.copy(alpha = 0.88f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(text = levelTitle, color = Color.White.copy(alpha = 0.80f), fontStyle = FontStyle.Italic, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            CompactAdventureMapHeader(mapScale = mapScale, mapOffset = mapOffset, transformState = transformState, selectedCountryId = countryId, mapHeight = 170.dp)
+            Surface(shape = RoundedCornerShape(12.dp), color = Color.White.copy(alpha = 0.07f), border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))) {
+                Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(text = "★ $stars stars", color = PremiumColors.Gold, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
+                    Text(text = "$completedLevels / $totalLevels levels completed", color = Color.White.copy(alpha = 0.78f), fontSize = 11.sp)
                 }
             }
         }
@@ -546,178 +614,77 @@ private fun TabletGameplayPanel(
     goals: List<LevelGoal>,
     collected: Map<FoodTileType, Int>,
     score: Int,
-    boosterInventory: com.mahmodhota.worldfood3dadventure.game.match3.model.BoosterInventory,
-    selectedBooster: com.mahmodhota.worldfood3dadventure.game.match3.model.BoosterType?,
-    activatedBooster: com.mahmodhota.worldfood3dadventure.game.match3.model.BoosterType?,
+    boosterInventory: BoosterInventory,
+    selectedBooster: BoosterType?,
+    activatedBooster: BoosterType?,
     activationNonce: Int,
-    onBoosterSelected: (com.mahmodhota.worldfood3dadventure.game.match3.model.BoosterType) -> Unit,
+    onBoosterSelected: (BoosterType) -> Unit,
     boostersEnabled: Boolean,
     modifier: Modifier = Modifier
 ) {
     val goalData = summarizePrimaryGoal(goals, collected, score)
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
-        color = PremiumColors.DeepNavy.copy(alpha = 0.82f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, PremiumColors.WhiteLow.copy(alpha = 0.55f))
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 10.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color.White.copy(alpha = 0.07f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, PremiumColors.Gold.copy(alpha = 0.34f))
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Text(
-                        text = countryName.uppercase(),
-                        color = Color.White.copy(alpha = 0.70f),
-                        fontSize = 10.sp,
-                        maxLines = 1
-                    )
-                    Text(
-                        text = "LEVEL $levelNumber",
-                        color = PremiumColors.Gold,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 16.sp
-                    )
-                    Text(
-                        text = "Moves $movesRemaining",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
+    Surface(modifier = modifier, shape = RoundedCornerShape(18.dp), color = PremiumColors.DeepNavy.copy(alpha = 0.82f), border = androidx.compose.foundation.BorderStroke(1.dp, PremiumColors.WhiteLow.copy(alpha = 0.55f))) {
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Surface(shape = RoundedCornerShape(12.dp), color = Color.White.copy(alpha = 0.07f), border = androidx.compose.foundation.BorderStroke(1.dp, PremiumColors.Gold.copy(alpha = 0.34f))) {
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(text = countryName.uppercase(), color = Color.White.copy(alpha = 0.70f), fontSize = 10.sp, maxLines = 1)
+                    Text(text = "LEVEL $levelNumber", color = PremiumColors.Gold, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                    Text(text = "Moves $movesRemaining", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }
-
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color.White.copy(alpha = 0.07f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "GOAL",
-                        color = PremiumColors.Gold,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
+            Surface(shape = RoundedCornerShape(12.dp), color = Color.White.copy(alpha = 0.07f), border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))) {
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(text = "GOAL", color = PremiumColors.Gold, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (goalData.iconType != null) {
-                            FoodIcon(type = goalData.iconType, size = 22.dp)
-                        } else {
-                            Text("⭐", fontSize = 14.sp)
-                        }
+                        if (goalData.iconType != null) { FoodIcon(type = goalData.iconType, size = 22.dp) } else { Text("⭐", fontSize = 14.sp) }
                         Spacer(Modifier.width(6.dp))
                         Column {
-                            Text(
-                                text = goalData.label,
-                                color = Color.White.copy(alpha = 0.80f),
-                                fontSize = 11.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = goalData.progress,
-                                color = Color.White,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 13.sp
-                            )
+                            Text(text = goalData.label, color = Color.White.copy(alpha = 0.80f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(text = goalData.progress, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
                         }
                     }
                 }
             }
-
-            Text(
-                text = "BOOSTERS",
-                color = PremiumColors.Gold,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 11.sp
-            )
+            Text(text = "BOOSTERS", color = PremiumColors.Gold, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp)
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-                PremiumBoosterPanel(
-                    inventory = boosterInventory,
-                    selectedBooster = selectedBooster,
-                    activatedBooster = activatedBooster,
-                    activationNonce = activationNonce,
-                    onBoosterSelected = onBoosterSelected,
-                    isHorizontal = false,
-                    enabled = boostersEnabled
-                )
+                PremiumBoosterPanel(inventory = boosterInventory, selectedBooster = selectedBooster, activatedBooster = activatedBooster, activationNonce = activationNonce, onBoosterSelected = onBoosterSelected, isHorizontal = false, enabled = boostersEnabled)
             }
         }
     }
 }
 
-private data class GoalSummary(
-    val label: String,
-    val progress: String,
-    val iconType: FoodTileType?
-)
+private data class GoalSummary(val label: String, val progress: String, val iconType: FoodTileType?)
 
-private fun summarizePrimaryGoal(
-    goals: List<LevelGoal>,
-    collected: Map<FoodTileType, Int>,
-    score: Int
-): GoalSummary {
+private fun summarizePrimaryGoal(goals: List<LevelGoal>, collected: Map<FoodTileType, Int>, score: Int): GoalSummary {
     val primaryGoal = goals.firstOrNull()
     return when (primaryGoal) {
         is LevelGoal.CollectFood -> {
             val current = collected[primaryGoal.type] ?: 0
-            GoalSummary(
-                label = primaryGoal.type.name.replace('_', ' '),
-                progress = "$current/${primaryGoal.amount}",
-                iconType = primaryGoal.type
-            )
+            GoalSummary(label = primaryGoal.type.name.replace('_', ' '), progress = "$current/${primaryGoal.amount}", iconType = primaryGoal.type)
         }
-        is LevelGoal.ScoreTarget -> GoalSummary(
-            label = "Score Target",
-            progress = "$score/${primaryGoal.target}",
-            iconType = null
-        )
-        null -> GoalSummary(
-            label = "Mission",
-            progress = "--",
-            iconType = null
-        )
+        is LevelGoal.ScoreTarget -> GoalSummary(label = "Score Target", progress = "$score/${primaryGoal.target}", iconType = null)
+        null -> GoalSummary(label = "Mission", progress = "--", iconType = null)
     }
 }
 
-private fun countryAccentGradient(countryId: String): Pair<Color, Color> =
-    when (countryId) {
-        "germany" -> Pair(Color(0xFF1A3B1E), Color(0xFF0D1F12))
-        "italy" -> Pair(Color(0xFF3B2C16), Color(0xFF221407))
-        "france" -> Pair(Color(0xFF0D1845), Color(0xFF060E28))
-        "spain" -> Pair(Color(0xFF461208), Color(0xFF1E0804))
-        "japan" -> Pair(Color(0xFF170F3D), Color(0xFF0A0820))
-        "mexico" -> Pair(Color(0xFF0C2E3C), Color(0xFF061820))
-        "sudan" -> Pair(Color(0xFF2C1404), Color(0xFF160A02))
-        else -> Pair(Color(0xFF162944), Color(0xFF0A1628))
-    }
+private fun countryAccentGradient(countryId: String): Pair<Color, Color> = when (countryId) {
+    "germany" -> Pair(Color(0xFF1A3B1E), Color(0xFF0D1F12))
+    "italy" -> Pair(Color(0xFF3B2C16), Color(0xFF221407))
+    "france" -> Pair(Color(0xFF0D1845), Color(0xFF060E28))
+    "spain" -> Pair(Color(0xFF461208), Color(0xFF1E0804))
+    "japan" -> Pair(Color(0xFF170F3D), Color(0xFF0A0820))
+    "mexico" -> Pair(Color(0xFF0C2E3C), Color(0xFF061820))
+    "sudan" -> Pair(Color(0xFF2C1404), Color(0xFF160A02))
+    else -> Pair(Color(0xFF162944), Color(0xFF0A1628))
+}
 
-internal fun shouldUseTabletLandscapeLayout(maxWidth: Dp, maxHeight: Dp): Boolean =
-    maxWidth >= 900.dp && maxWidth > maxHeight
+internal fun shouldUseTabletLandscapeLayout(maxWidth: Dp, maxHeight: Dp): Boolean = maxWidth >= 900.dp && maxWidth > maxHeight
 
-internal fun tabletGameplaySidePanelWidth(maxWidth: Dp): Dp =
-    when {
-        maxWidth >= 1300.dp -> 240.dp
-        maxWidth >= 1100.dp -> 228.dp
-        else -> 210.dp
-    }
+internal fun tabletGameplaySidePanelWidth(maxWidth: Dp): Dp = when {
+    maxWidth >= 1300.dp -> 240.dp
+    maxWidth >= 1100.dp -> 228.dp
+    else -> 210.dp
+}
 
 internal fun tabletBoardSize(centerWidth: Dp, centerHeight: Dp): Dp {
     val available = min(centerWidth.value, centerHeight.value).dp
@@ -725,50 +692,10 @@ internal fun tabletBoardSize(centerWidth: Dp, centerHeight: Dp): Dp {
 }
 
 @Composable
-private fun CompactAdventureMapHeader(
-    mapScale: Float,
-    mapOffset: Offset,
-    transformState: androidx.compose.foundation.gestures.TransformableState,
-    selectedCountryId: String,
-    mapHeight: androidx.compose.ui.unit.Dp
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(mapHeight)
-            .clip(RoundedCornerShape(22.dp))
-            .background(PremiumColors.DeepNavy)
-            .border(1.3.dp, PremiumColors.WhiteLow.copy(alpha = 0.56f), RoundedCornerShape(22.dp))
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        Color(0x203BA3FF),
-                        Color.Transparent
-                    )
-                )
-            )
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(22.dp)
-                .background(
-                    Brush.verticalGradient(
-                        listOf(Color.White.copy(alpha = 0.12f), Color.Transparent)
-                    )
-                )
-        )
-        WorldMapComponent(
-            mapScale = mapScale,
-            offset = mapOffset,
-            state = transformState,
-            selectedCountryId = selectedCountryId,
-            onCountryClick = {},
-            onCountryLongClick = {},
-            gameplayMode = true,
-            focusCountryId = selectedCountryId,
-            modifier = Modifier.fillMaxSize()
-        )
+private fun CompactAdventureMapHeader(mapScale: Float, mapOffset: Offset, transformState: androidx.compose.foundation.gestures.TransformableState, selectedCountryId: String, mapHeight: Dp) {
+    Box(modifier = Modifier.fillMaxWidth().height(mapHeight).clip(RoundedCornerShape(22.dp)).background(PremiumColors.DeepNavy).border(1.3.dp, PremiumColors.WhiteLow.copy(alpha = 0.56f), RoundedCornerShape(22.dp)).background(Brush.verticalGradient(listOf(Color(0x203BA3FF), Color.Transparent)))) {
+        Box(modifier = Modifier.fillMaxWidth().height(22.dp).background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.12f), Color.Transparent))))
+        FilamentGlobeView(onFailure = {}, modifier = Modifier.fillMaxSize(), rotationX = 20f, rotationY = -15f)
     }
 }
 
@@ -783,38 +710,27 @@ private fun CompactGameplayInfoStrip(
     score: Int,
     goalPulseType: FoodTileType? = null,
     goalPulseNonce: Int = 0,
+    completedLevels: Int = 0,
+    totalLevels: Int = 15,
     modifier: Modifier = Modifier
 ) {
     val primaryGoal = goals.firstOrNull()
     val goalLabel: String
     val goalProgress: String
     val goalIconType: FoodTileType?
-
     when (primaryGoal) {
         is LevelGoal.CollectFood -> {
             val current = collected[primaryGoal.type] ?: 0
-            goalLabel = primaryGoal.type.name.replace('_', ' ')
-            goalProgress = "$current/${primaryGoal.amount}"
-            goalIconType = primaryGoal.type
+            goalLabel = primaryGoal.type.name.replace('_', ' '); goalProgress = "$current/${primaryGoal.amount}"; goalIconType = primaryGoal.type
         }
         is LevelGoal.ScoreTarget -> {
-            goalLabel = "Score Target"
-            goalProgress = "$score/${primaryGoal.target}"
-            goalIconType = null
+            goalLabel = "Score Target"; goalProgress = "$score/${primaryGoal.target}"; goalIconType = null
         }
         null -> {
-            goalLabel = "Mission"
-            goalProgress = "--"
-            goalIconType = null
+            goalLabel = "Mission"; goalProgress = "--"; goalIconType = null
         }
     }
-
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        color = PremiumColors.DarkSlate,
-        border = androidx.compose.foundation.BorderStroke(1.dp, PremiumColors.Gold.copy(alpha = 0.45f))
-    ) {
+    Surface(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), color = PremiumColors.DarkSlate, border = androidx.compose.foundation.BorderStroke(1.dp, PremiumColors.Gold.copy(alpha = 0.45f))) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val compactWidth = maxWidth < 380.dp
             val titleFont = if (compactWidth) 10.sp else 11.sp
@@ -825,135 +741,48 @@ private fun CompactGameplayInfoStrip(
             val horizontalInset = if (compactWidth) 8.dp else 10.dp
             val verticalInset = if (compactWidth) 6.dp else 8.dp
             var goalPulseVisible by remember { mutableStateOf(false) }
-            LaunchedEffect(goalPulseNonce) {
-                if (goalPulseNonce > 0) {
-                    goalPulseVisible = true
-                    kotlinx.coroutines.delay(240)
-                    goalPulseVisible = false
+            LaunchedEffect(goalPulseNonce) { if (goalPulseNonce > 0) { goalPulseVisible = true; delay(240); goalPulseVisible = false } }
+            val pulseScale by animateFloatAsState(targetValue = if (goalPulseVisible) 1.035f else 1f, animationSpec = spring(dampingRatio = 0.72f, stiffness = 520f), label = "goalPulseScale")
+            val pulseBorderAlpha by animateFloatAsState(targetValue = if (goalPulseVisible) 0.9f else 0.45f, animationSpec = spring(dampingRatio = 0.78f, stiffness = 560f), label = "goalPulseBorder")
+            Row(modifier = Modifier.fillMaxSize().heightIn(min = 68.dp).padding(horizontal = horizontalInset, vertical = verticalInset), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1.4f).padding(end = 2.dp), verticalArrangement = Arrangement.Center) {
+                    Text(text = "${countryName.uppercase()} • $levelNumber/$totalLevels", color = PremiumColors.Gold, fontWeight = FontWeight.ExtraBold, fontSize = titleFont, letterSpacing = 0.8.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Spacer(Modifier.height(4.dp))
+                    // P10-P: Compact progression dots
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        repeat(totalLevels) { i ->
+                            val active = i < completedLevels
+                            val current = i == (levelNumber - 1)
+                            Box(
+                                modifier = Modifier
+                                    .size(if (current) 5.dp else 4.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        when {
+                                            current -> PremiumColors.Gold
+                                            active -> Color(0xFF4CAF50)
+                                            else -> Color.White.copy(alpha = 0.2f)
+                                        }
+                                    )
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(text = levelTitle, color = Color.White.copy(alpha = 0.7f), fontStyle = FontStyle.Italic, fontSize = (subtitleFont.value - 1).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-            }
-            val pulseScale by animateFloatAsState(
-                targetValue = if (goalPulseVisible) 1.035f else 1f,
-                animationSpec = spring(dampingRatio = 0.72f, stiffness = 520f),
-                label = "goalPulseScale"
-            )
-            val pulseBorderAlpha by animateFloatAsState(
-                targetValue = if (goalPulseVisible) 0.9f else 0.45f,
-                animationSpec = spring(dampingRatio = 0.78f, stiffness = 560f),
-                label = "goalPulseBorder"
-            )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .heightIn(min = 68.dp)
-                    .padding(horizontal = horizontalInset, vertical = verticalInset),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(
-                    modifier = Modifier
-                        .weight(1.4f)
-                        .padding(end = 2.dp),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "${countryName.uppercase()} • LEVEL $levelNumber",
-                        color = PremiumColors.Gold,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = titleFont,
-                        letterSpacing = 0.8.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = levelTitle,
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontStyle = FontStyle.Italic,
-                        fontSize = subtitleFont,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color.White.copy(alpha = 0.08f),
-                    modifier = Modifier
-                        .weight(0.78f)
-                        .widthIn(min = 72.dp)
-                        .semantics { contentDescription = "Moves remaining $movesRemaining" }
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 6.dp, vertical = if (compactWidth) 4.dp else 5.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            "MOVES",
-                            color = Color.White.copy(alpha = 0.74f),
-                            fontSize = if (compactWidth) 8.sp else 9.sp,
-                            maxLines = 1
-                        )
-                        Text(
-                            text = movesRemaining.toString(),
-                            color = if (movesRemaining < 5) Color(0xFFFF6B6B) else Color.White,
-                            fontWeight = FontWeight.Black,
-                            fontSize = movesValueFont,
-                            maxLines = 1,
-                            textAlign = TextAlign.Center
-                        )
+                Surface(shape = RoundedCornerShape(12.dp), color = Color.White.copy(alpha = 0.08f), modifier = Modifier.weight(0.78f).widthIn(min = 72.dp).semantics { contentDescription = "Moves remaining $movesRemaining" }) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = if (compactWidth) 4.dp else 5.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                        Text("MOVES", color = Color.White.copy(alpha = 0.74f), fontSize = if (compactWidth) 8.sp else 9.sp, maxLines = 1)
+                        Text(text = movesRemaining.toString(), color = if (movesRemaining < 5) Color(0xFFFF6B6B) else Color.White, fontWeight = FontWeight.Black, fontSize = movesValueFont, maxLines = 1, textAlign = TextAlign.Center)
                     }
                 }
-
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color.White.copy(alpha = 0.08f),
-                    modifier = Modifier
-                        .weight(1.1f)
-                        .widthIn(min = if (compactWidth) 108.dp else 116.dp)
-                        .semantics { contentDescription = "Goal $goalLabel progress $goalProgress" }
-                        .clip(RoundedCornerShape(12.dp))
-                        .border(
-                            width = 1.2.dp,
-                            color = (if (goalPulseType != null) PremiumColors.Gold else Color.White).copy(alpha = pulseBorderAlpha),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        .graphicsLayer {
-                            scaleX = pulseScale
-                            scaleY = pulseScale
-                        }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = if (compactWidth) 6.dp else 8.dp, vertical = if (compactWidth) 5.dp else 7.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (goalIconType != null) {
-                            FoodIcon(type = goalIconType, size = if (compactWidth) 18.dp else 20.dp)
-                        } else {
-                            Text("⭐", fontSize = if (compactWidth) 13.sp else 14.sp)
-                        }
+                Surface(shape = RoundedCornerShape(12.dp), color = Color.White.copy(alpha = 0.08f), modifier = Modifier.weight(1.1f).widthIn(min = if (compactWidth) 108.dp else 116.dp).semantics { contentDescription = "Goal $goalLabel progress $goalProgress" }.clip(RoundedCornerShape(12.dp)).border(width = 1.2.dp, color = (if (goalPulseType != null) PremiumColors.Gold else Color.White).copy(alpha = pulseBorderAlpha), shape = RoundedCornerShape(12.dp)).graphicsLayer { scaleX = pulseScale; scaleY = pulseScale }) {
+                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = if (compactWidth) 6.dp else 8.dp, vertical = if (compactWidth) 5.dp else 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (goalIconType != null) { FoodIcon(type = goalIconType, size = if (compactWidth) 18.dp else 20.dp) } else { Text("⭐", fontSize = if (compactWidth) 13.sp else 14.sp) }
                         Spacer(Modifier.width(if (compactWidth) 4.dp else 6.dp))
                         Column(modifier = Modifier.fillMaxWidth()) {
-                            Text(
-                                text = goalLabel,
-                                color = Color.White.copy(alpha = 0.78f),
-                                fontSize = goalLabelFont,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = goalProgress,
-                                color = Color.White,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = goalProgressFont,
-                                maxLines = 1,
-                                overflow = TextOverflow.Clip
-                            )
+                            Text(text = goalLabel, color = Color.White.copy(alpha = 0.78f), fontSize = goalLabelFont, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(text = goalProgress, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = goalProgressFont, maxLines = 1, overflow = TextOverflow.Clip)
                         }
                     }
                 }
@@ -963,40 +792,22 @@ private fun CompactGameplayInfoStrip(
 }
 
 @Composable
-private fun AdventureQuickActions(
-    onTabSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
+private fun AdventureQuickActions(onTabSelected: (String) -> Unit, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        QuickActionChip(
-            title = "WORLD",
-            emoji = "🌍",
-            modifier = Modifier.weight(1f)
-        ) { onTabSelected("world") }
-        QuickActionChip(
-            title = "REWARDS",
-            emoji = "🎁",
-            modifier = Modifier.weight(1f)
-        ) { onTabSelected("rewards") }
-        QuickActionChip(
-            title = "PROFILE",
-            emoji = "👤",
-            modifier = Modifier.weight(1f)
-        ) { onTabSelected("profile") }
+        QuickActionChip(title = "WORLD", emoji = "🌍", modifier = Modifier.weight(1f)) { onTabSelected("world") }
+        QuickActionChip(title = "FOOD", emoji = "🍴", modifier = Modifier.weight(1f)) { onTabSelected("collection") }
+        QuickActionChip(title = "BOOK", emoji = "📖", modifier = Modifier.weight(1f)) { onTabSelected("book") }
+        QuickActionChip(title = "REWARDS", emoji = "🎁", modifier = Modifier.weight(1f)) { onTabSelected("rewards") }
+        QuickActionChip(title = "PROFILE", emoji = "👤", modifier = Modifier.weight(1f)) { onTabSelected("profile") }
     }
 }
 
 @Composable
-private fun QuickActionChip(
-    title: String,
-    emoji: String,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
+private fun QuickActionChip(title: String, emoji: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         modifier = modifier,
@@ -1009,22 +820,27 @@ private fun QuickActionChip(
                 .clip(RoundedCornerShape(14.dp))
                 .background(
                     Brush.horizontalGradient(
-                        listOf(PremiumColors.DarkSlate.copy(alpha = 0.92f), PremiumColors.DeepNavy.copy(alpha = 0.92f))
+                        listOf(
+                            PremiumColors.DarkSlate.copy(alpha = 0.92f),
+                            PremiumColors.DeepNavy.copy(alpha = 0.92f)
+                        )
                     )
                 )
                 .border(1.dp, PremiumColors.WhiteLow.copy(alpha = 0.45f), RoundedCornerShape(14.dp))
-                .padding(horizontal = 6.dp),
+                .padding(horizontal = 4.dp), // Reduced from 6.dp
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(emoji, fontSize = 12.sp)
-            Spacer(Modifier.width(4.dp))
+            Text(emoji, fontSize = 11.sp) // Reduced from 12.sp
+            Spacer(Modifier.width(3.dp)) // Reduced from 4.dp
             Text(
                 text = title,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall, // Changed from labelMedium
+                fontSize = 8.sp, // Explicitly set smaller
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
-                maxLines = 1
+                maxLines = 1,
+                overflow = TextOverflow.Clip // Prevent clipping dots if possible
             )
         }
     }

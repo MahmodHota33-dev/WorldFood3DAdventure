@@ -58,7 +58,7 @@ class GlobeLightingTest {
     @Test
     fun `shared lighting keeps city and day-night consistency`() {
         val lighting = GlobeLighting.forCycle(1.8f)
-        val n1 = nightIntensity(0.35f, -0.22f, 0.88f, lighting)
+        val n1 = GlobeLighting.nightIntensity(0.35f, -0.22f, 0.88f, lighting)
         val n2 = GlobeLighting.nightIntensity(0.35f, -0.22f, 0.88f, lighting)
         assertEquals(n2, n1, 0.0001f)
     }

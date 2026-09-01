@@ -28,6 +28,15 @@ object GameKeys {
 
     val CHAPTER_1_COMPLETED = booleanPreferencesKey("chapter_1_completed")
     val WORLD_EXPLORER_BADGE = booleanPreferencesKey("world_explorer_badge")
+    val HAS_SEEN_ONBOARDING = booleanPreferencesKey("has_seen_onboarding")
+    val ONBOARDING_STATE = stringPreferencesKey("onboarding_state")
+    val UNLOCKED_ACHIEVEMENTS = stringSetPreferencesKey("unlocked_achievements")
+
+    // Daily Journey
+    val DAILY_DATE_KEY = stringPreferencesKey("daily_date_key")
+    val DAILY_STREAK = intPreferencesKey("daily_streak")
+    val LAST_ACTIVE_DATE = stringPreferencesKey("last_active_date")
+    val DAILY_MISSIONS_JSON = stringPreferencesKey("daily_missions_json")
 
     // Stats
     val FIRST_INSTALL = longPreferencesKey("stat_first_install")
@@ -50,4 +59,5 @@ object GameKeys {
     fun levelStars(cId: String, lvl: Int) = intPreferencesKey("l_${cId}_${lvl}_stars")
     fun levelScore(cId: String, lvl: Int) = intPreferencesKey("l_${cId}_${lvl}_score")
     fun boosterCount(type: BoosterType) = intPreferencesKey("booster_${type.name.lowercase()}")
+    fun foodDiscovered(cId: String, foodId: String) = booleanPreferencesKey("fd_${cId}_${foodId}")
 }

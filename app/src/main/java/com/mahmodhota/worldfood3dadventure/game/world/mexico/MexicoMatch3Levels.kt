@@ -5,7 +5,7 @@ import com.mahmodhota.worldfood3dadventure.game.match3.model.LevelGoal
 import com.mahmodhota.worldfood3dadventure.game.match3.model.Match3LevelDefinition
 
 /**
- * 10 Playable Match-3 levels for the Mexico chapter.
+ * 15 Playable Match-3 levels for the Mexico chapter.
  */
 object MexicoMatch3Levels {
     
@@ -14,7 +14,7 @@ object MexicoMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 1,
             countryId = "mexico",
-            allowedTiles = listOf(FoodTileType.TACO, FoodTileType.GUACAMOLE, FoodTileType.CHILI, FoodTileType.TOMATO),
+            allowedTiles = listOf(FoodTileType.TACO, FoodTileType.GUACAMOLE, FoodTileType.CHILI, FoodTileType.TOMATO, FoodTileType.CORN),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.TACO, 20)),
             moves = 20
         ),
@@ -22,7 +22,7 @@ object MexicoMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 2,
             countryId = "mexico",
-            allowedTiles = listOf(FoodTileType.BURRITO, FoodTileType.TACO, FoodTileType.QUESADILLA, FoodTileType.CHILI),
+            allowedTiles = listOf(FoodTileType.BURRITO, FoodTileType.TACO, FoodTileType.QUESADILLA, FoodTileType.CHILI, FoodTileType.CORN),
             goals = listOf(LevelGoal.ScoreTarget(5000)),
             moves = 22
         ),
@@ -30,7 +30,7 @@ object MexicoMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 3,
             countryId = "mexico",
-            allowedTiles = listOf(FoodTileType.GUACAMOLE, FoodTileType.NACHOS, FoodTileType.CHILI, FoodTileType.TOMATO),
+            allowedTiles = listOf(FoodTileType.GUACAMOLE, FoodTileType.NACHOS, FoodTileType.CHILI, FoodTileType.TOMATO, FoodTileType.TACO),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.GUACAMOLE, 15)),
             moves = 24
         ),
@@ -38,7 +38,7 @@ object MexicoMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 4,
             countryId = "mexico",
-            allowedTiles = listOf(FoodTileType.NACHOS, FoodTileType.TACO, FoodTileType.GUACAMOLE, FoodTileType.CHILI),
+            allowedTiles = listOf(FoodTileType.NACHOS, FoodTileType.TACO, FoodTileType.GUACAMOLE, FoodTileType.CHILI, FoodTileType.CORN),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.NACHOS, 25)),
             moves = 25
         ),
@@ -46,7 +46,7 @@ object MexicoMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 5,
             countryId = "mexico",
-            allowedTiles = listOf(FoodTileType.CHILI, FoodTileType.TACO, FoodTileType.BURRITO, FoodTileType.POZOLE),
+            allowedTiles = listOf(FoodTileType.CHILI, FoodTileType.TACO, FoodTileType.BURRITO, FoodTileType.POZOLE, FoodTileType.CORN),
             goals = listOf(LevelGoal.ScoreTarget(7000)),
             moves = 26
         ),
@@ -54,7 +54,7 @@ object MexicoMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 6,
             countryId = "mexico",
-            allowedTiles = listOf(FoodTileType.TAMALE, FoodTileType.POZOLE, FoodTileType.CHILI, FoodTileType.GUACAMOLE),
+            allowedTiles = listOf(FoodTileType.TAMALE, FoodTileType.POZOLE, FoodTileType.CHILI, FoodTileType.GUACAMOLE, FoodTileType.CORN),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.TAMALE, 20)),
             moves = 28
         ),
@@ -62,7 +62,7 @@ object MexicoMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 7,
             countryId = "mexico",
-            allowedTiles = listOf(FoodTileType.QUESADILLA, FoodTileType.NACHOS, FoodTileType.TACO, FoodTileType.CHILI),
+            allowedTiles = listOf(FoodTileType.QUESADILLA, FoodTileType.NACHOS, FoodTileType.TACO, FoodTileType.CHILI, FoodTileType.CORN),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.QUESADILLA, 15)),
             moves = 28
         ),
@@ -70,7 +70,7 @@ object MexicoMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 8,
             countryId = "mexico",
-            allowedTiles = listOf(FoodTileType.CHURROS, FoodTileType.DORAYAKI, FoodTileType.GELATO, FoodTileType.MACARON),
+            allowedTiles = listOf(FoodTileType.CHURROS, FoodTileType.TACO, FoodTileType.GELATO, FoodTileType.MACARON, FoodTileType.COFFEE),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.CHURROS, 12)),
             moves = 30
         ),
@@ -78,7 +78,7 @@ object MexicoMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 9,
             countryId = "mexico",
-            allowedTiles = listOf(FoodTileType.POZOLE, FoodTileType.TAMALE, FoodTileType.CHILI, FoodTileType.TOMATO),
+            allowedTiles = listOf(FoodTileType.POZOLE, FoodTileType.TAMALE, FoodTileType.CHILI, FoodTileType.TOMATO, FoodTileType.TACO),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.POZOLE, 15)),
             moves = 30
         ),
@@ -86,7 +86,7 @@ object MexicoMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 10,
             countryId = "mexico",
-            allowedTiles = listOf(FoodTileType.TACO, FoodTileType.BURRITO, FoodTileType.GUACAMOLE, FoodTileType.NACHOS, FoodTileType.CHILI, FoodTileType.TAMALE),
+            allowedTiles = listOf(FoodTileType.TACO, FoodTileType.BURRITO, FoodTileType.GUACAMOLE, FoodTileType.NACHOS, FoodTileType.CHILI, FoodTileType.TAMALE, FoodTileType.CORN),
             goals = listOf(LevelGoal.ScoreTarget(20000)),
             moves = 32
         ),
@@ -94,7 +94,7 @@ object MexicoMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 11,
             countryId = "mexico",
-            allowedTiles = listOf(FoodTileType.NACHOS, FoodTileType.CHURROS, FoodTileType.TACO, FoodTileType.GUACAMOLE),
+            allowedTiles = listOf(FoodTileType.NACHOS, FoodTileType.CHURROS, FoodTileType.TACO, FoodTileType.GUACAMOLE, FoodTileType.CORN),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.NACHOS, 30)),
             moves = 28
         ),
@@ -102,7 +102,7 @@ object MexicoMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 12,
             countryId = "mexico",
-            allowedTiles = listOf(FoodTileType.POZOLE, FoodTileType.TAMALE, FoodTileType.CHILI, FoodTileType.TOMATO),
+            allowedTiles = listOf(FoodTileType.POZOLE, FoodTileType.TAMALE, FoodTileType.CHILI, FoodTileType.TOMATO, FoodTileType.TACO),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.POZOLE, 20)),
             moves = 25
         ),
@@ -110,7 +110,7 @@ object MexicoMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 13,
             countryId = "mexico",
-            allowedTiles = listOf(FoodTileType.QUESADILLA, FoodTileType.BURRITO, FoodTileType.TACO, FoodTileType.GUACAMOLE),
+            allowedTiles = listOf(FoodTileType.QUESADILLA, FoodTileType.BURRITO, FoodTileType.TACO, FoodTileType.GUACAMOLE, FoodTileType.CORN),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.QUESADILLA, 22)),
             moves = 30
         ),
@@ -118,7 +118,7 @@ object MexicoMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 14,
             countryId = "mexico",
-            allowedTiles = listOf(FoodTileType.TACO, FoodTileType.TAMALE, FoodTileType.NACHOS, FoodTileType.CHURROS),
+            allowedTiles = listOf(FoodTileType.TACO, FoodTileType.TAMALE, FoodTileType.NACHOS, FoodTileType.CHURROS, FoodTileType.CORN),
             goals = listOf(LevelGoal.CollectFood(FoodTileType.TACO, 25), LevelGoal.CollectFood(FoodTileType.CHURROS, 15)),
             moves = 35
         ),
@@ -126,7 +126,7 @@ object MexicoMatch3Levels {
         Match3LevelDefinition(
             levelNumber = 15,
             countryId = "mexico",
-            allowedTiles = FoodTileType.values().filter { it.name in listOf("TACO", "BURRITO", "GUACAMOLE", "NACHOS", "CHILI", "TAMALE", "POZOLE", "QUESADILLA", "CHURROS") },
+            allowedTiles = FoodTileType.values().filter { it.name in listOf("TACO", "BURRITO", "GUACAMOLE", "NACHOS", "CHILI", "TAMALE", "POZOLE", "QUESADILLA", "CHURROS", "CORN", "TOMATO") },
             goals = listOf(LevelGoal.ScoreTarget(35000), LevelGoal.CollectFood(FoodTileType.TAMALE, 15)),
             moves = 40
         )

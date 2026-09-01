@@ -1,15 +1,13 @@
 package com.mahmodhota.worldfood3dadventure.ui.match3.components
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -54,6 +52,7 @@ import com.mahmodhota.worldfood3dadventure.game.match3.model.SpecialTileType
 import com.mahmodhota.worldfood3dadventure.ui.match3.Match3AnimationPhase
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.*
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -84,13 +83,33 @@ fun Match3BoardComposable(
     specialEffectNonce: Int = 0,
     spawnedSpecialTiles: Map<BoardPosition, SpecialTileType> = emptyMap(),
     spawnedSpecialNonce: Int = 0,
-    reshuffleNonce: Int = 0
+    reshuffleNonce: Int = 0,
+    hintedPositions: Set<BoardPosition> = emptySet()
 ) {
     var previousBoard by remember { mutableStateOf<Match3Board?>(null) }
     val boardShakeOffsetPx = remember { Animatable(0f) }
     val specialEffectProgress = remember { Animatable(0f) }
     val spawnedSpecialProgress = remember { Animatable(0f) }
     val matchGlowProgress = remember { Animatable(0f) }
+    val specialFlashAlpha = remember { Animatable(0f) }
+    
+    LaunchedEffect(specialEffects) {
+        if (specialEffects.isNotEmpty()) {
+            specialFlashAlpha.snapTo(0.12f)
+            specialFlashAlpha.animateTo(0f, tween(350))
+        }
+    }
+
+    val hintPulseProgress = rememberInfiniteTransition(label = "hintPulse")
+    val hintScale by hintPulseProgress.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "hintScale"
+    )
     var showReshuffleLabel by remember { mutableStateOf(false) }
 
     LaunchedEffect(reshuffleNonce) {
@@ -213,9 +232,24 @@ fun Match3BoardComposable(
                         .pointerInput(board, boardSize) {
                             val boardSizePx = boardSize.toPx()
                             val tileExtentPx = boardSizePx / board.columns
+                            detectTapGestures { offset ->
+                                val clampedX = offset.x.coerceIn(0f, boardSizePx - 1f)
+                                val clampedY = offset.y.coerceIn(0f, boardSizePx - 1f)
+                                val col = (clampedX / tileExtentPx).toInt()
+                                val row = (clampedY / tileExtentPx).toInt()
+                                if (row in 0 until board.rows && col in 0 until board.columns) {
+                                    android.util.Log.d("Match3Board", "Tap detected at ($row, $col)")
+                                    onTileClick(BoardPosition(row, col))
+                                }
+                            }
+                        }
+                        .pointerInput(board, boardSize) {
+                            val boardSizePx = boardSize.toPx()
+                            val tileExtentPx = boardSizePx / board.columns
                             var dragOrigin: BoardPosition? = null
                             var accumulatedDragX = 0f
                             var accumulatedDragY = 0f
+                            
                             detectDragGestures(
                                 onDragStart = { offset ->
                                     accumulatedDragX = 0f
@@ -235,7 +269,7 @@ fun Match3BoardComposable(
                                     if (origin != null) {
                                         accumulatedDragX += dragAmount.x
                                         accumulatedDragY += dragAmount.y
-                                        val threshold = tileExtentPx * 0.24f
+                                        val threshold = tileExtentPx * 0.4f 
                                         val absX = abs(accumulatedDragX)
                                         val absY = abs(accumulatedDragY)
                                         val targetPos = when {
@@ -253,16 +287,8 @@ fun Match3BoardComposable(
                                         }
                                     }
                                 },
-                                onDragEnd = {
-                                    dragOrigin = null
-                                    accumulatedDragX = 0f
-                                    accumulatedDragY = 0f
-                                },
-                                onDragCancel = {
-                                    dragOrigin = null
-                                    accumulatedDragX = 0f
-                                    accumulatedDragY = 0f
-                                }
+                                onDragEnd = { dragOrigin = null },
+                                onDragCancel = { dragOrigin = null }
                             )
                         }
                 ) {
@@ -329,6 +355,7 @@ fun Match3BoardComposable(
                         }
 
                         key(visualTile.tile.id) {
+                            val isHinted = visualTile.currentLogicalPosition in (hintedPositions ?: emptySet())
                             Box(
                                 modifier = Modifier
                                     .size(tileSize)
@@ -338,7 +365,12 @@ fun Match3BoardComposable(
                                             y = animY.value.roundToInt()
                                         )
                                     }
-                                    .clickable { onTileClick(visualTile.currentLogicalPosition) }
+                                    .graphicsLayer {
+                                        if (isHinted) {
+                                            scaleX = hintScale
+                                            scaleY = hintScale
+                                        }
+                                    }
                             ) {
                                 FoodTileComposable(
                                     tile = visualTile.tile,
@@ -348,7 +380,8 @@ fun Match3BoardComposable(
                                     isRefilling = visualTile.role == TileAnimationRole.Refilling,
                                     specialEffectType = tileEffect,
                                     spawnedSpecialType = spawnedSpecialTiles[visualTile.currentLogicalPosition],
-                                    spawnedSpecialNonce = spawnedSpecialNonce
+                                    spawnedSpecialNonce = spawnedSpecialNonce,
+                                    tileSize = tileSize // Pass size for icon scaling
                                 )
                             }
                         }
@@ -481,22 +514,28 @@ fun Match3BoardComposable(
                                             x = (effect.origin.column + 0.5f) * tileSizePx,
                                             y = (effect.origin.row + 0.5f) * tileSizePx
                                         )
+                                        // Outer Shockwave
                                         drawCircle(
-                                            color = Color(0xFFFFC857).copy(alpha = 0.45f * (1f - progress / 2f)),
-                                            radius = tileSizePx * (0.92f + progress * 1.45f),
+                                            color = Color(0xFFFFD54F).copy(alpha = 0.45f * (1f - progress)),
+                                            radius = tileSizePx * (1.0f + progress * 1.8f),
                                             center = center
                                         )
+                                        // Inner Flash
                                         drawCircle(
-                                            color = Color.White.copy(alpha = 0.28f * (1f - progress)),
-                                            radius = tileSizePx * (0.32f + progress * 0.48f),
+                                            color = Color.White.copy(alpha = 0.5f * (1f - progress)),
+                                            radius = tileSizePx * (0.4f + progress * 0.8f),
                                             center = center
                                         )
-                                        drawCircle(
-                                            color = Color(0xFFFFF1B3).copy(alpha = 0.18f * (1f - progress)),
-                                            radius = tileSizePx * (0.55f + progress * 0.9f),
-                                            center = center,
-                                            style = Stroke(width = tileSizePx * 0.08f)
-                                        )
+                                        // Particle Burst
+                                        repeat(8) { i ->
+                                            val angle = (i.toFloat() / 8f) * 2f * PI.toFloat()
+                                            val dist = tileSizePx * 1.5f * progress
+                                            drawCircle(
+                                                color = Color(0xFFFFA000).copy(alpha = 1f - progress),
+                                                radius = tileSizePx * 0.08f,
+                                                center = Offset(center.x + cos(angle) * dist, center.y + sin(angle) * dist)
+                                            )
+                                        }
                                     }
                                     SpecialBoardEffectType.COLOR_CLEAR -> {
                                         effect.affectedPositions.take(Match3SpecialConfig.MaxSpecialParticles * 10).forEachIndexed { index, pos ->
@@ -533,6 +572,13 @@ fun Match3BoardComposable(
                         text = specialEffectLabel,
                         nonce = specialEffectNonce
                     )
+                    
+                    // P10-B: Special activation flash
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.White.copy(alpha = specialFlashAlpha.value))
+                    )
                 }
 
                 if (comboCount > 1) {
@@ -556,6 +602,7 @@ fun Match3BoardComposable(
 private fun ComboOverlay(count: Int, label: String?) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(count) {
+        if (count <= 1) return@LaunchedEffect
         visible = true
         delay(Match3MotionTokens.ComboOverlayDurationMs.toLong())
         visible = false
@@ -563,30 +610,34 @@ private fun ComboOverlay(count: Int, label: String?) {
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn() + scaleIn(initialScale = 0.5f),
-        exit = fadeOut() + scaleOut(targetScale = 1.5f)
+        enter = fadeIn(tween(150)) + scaleIn(initialScale = 0.4f, animationSpec = spring(dampingRatio = 0.55f, stiffness = 400f)),
+        exit = fadeOut(tween(300)) + scaleOut(targetScale = 1.4f)
     ) {
         Box(
             modifier = Modifier
-                .offset(y = (-120).dp)
-                .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
-                .padding(horizontal = 20.dp, vertical = 10.dp)
-                .border(2.dp, PremiumColors.Gold, RoundedCornerShape(24.dp))
+                .offset(y = (-130).dp) // P10-B: Slightly higher
+                .background(
+                    Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.65f), Color.Transparent)),
+                    RoundedCornerShape(24.dp)
+                )
+                .padding(horizontal = 24.dp, vertical = 12.dp)
+                .border(2.5.dp, PremiumColors.Gold, RoundedCornerShape(24.dp))
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = "COMBO x$count",
                     color = PremiumColors.Gold,
-                    fontSize = 22.sp,
+                    fontSize = (24 + count).coerceAtMost(36).sp, // P10-B: Dynamic size
                     fontWeight = FontWeight.Black,
-                    letterSpacing = 1.2.sp
+                    letterSpacing = 1.5.sp
                 )
                 if (!label.isNullOrBlank()) {
                     Text(
-                        text = label,
+                        text = label.uppercase(),
                         color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.5.sp
                     )
                 }
             }
@@ -640,22 +691,22 @@ private fun BoxScope.FloatingScoreOverlay(
     LaunchedEffect(nonce, text) {
         if (nonce <= 0) return@LaunchedEffect
         visible = true
-        delay(420)
+        delay(Match3MotionTokens.ScoreFloatingDurationMs)
         visible = false
     }
     if (!visible) return
     val progress by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
-        animationSpec = tween(durationMillis = 420),
+        animationSpec = tween(durationMillis = Match3MotionTokens.ScoreFloatingDurationMs.toInt()),
         label = "floatingScoreProgress"
     )
     val anchorX = ((anchor?.column ?: 3) + 0.5f) * tileSizePx
     val anchorY = ((anchor?.row ?: 3) + 0.32f) * tileSizePx
     val clampedX = anchorX.coerceIn(tileSizePx * 1.35f, boardSizePx - tileSizePx * 1.35f)
     val clampedY = anchorY.coerceIn(tileSizePx * 0.85f, boardSizePx - tileSizePx * 0.85f)
-    val rise = tileSizePx * 0.78f * progress
-    val alpha = (1f - progress * 0.9f).coerceIn(0f, 1f)
-    val scale = 0.92f + (0.16f * progress)
+    val rise = tileSizePx * 1.15f * progress // P10-B: Higher rise
+    val alpha = (1f - progress * 0.88f).coerceIn(0f, 1f)
+    val scale = 0.96f + (0.24f * progress) // P10-B: More scale
 
     Box(
         modifier = Modifier
@@ -666,15 +717,16 @@ private fun BoxScope.FloatingScoreOverlay(
                 scaleX = scale
                 scaleY = scale
             }
-            .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(16.dp))
-            .border(1.dp, PremiumColors.Gold.copy(alpha = 0.7f), RoundedCornerShape(16.dp))
-            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .background(Color.Black.copy(alpha = 0.38f), RoundedCornerShape(18.dp))
+            .border(1.2.dp, PremiumColors.Gold.copy(alpha = 0.75f), RoundedCornerShape(18.dp))
+            .padding(horizontal = 12.dp, vertical = 5.dp)
     ) {
         Text(
             text = text,
-            color = PremiumColors.Gold,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 14.sp
+            color = Color.White,
+            fontWeight = FontWeight.Black,
+            fontSize = 15.sp,
+            letterSpacing = 0.8.sp
         )
     }
 }
@@ -689,28 +741,32 @@ private fun SpecialEffectOverlay(
     LaunchedEffect(nonce, text) {
         if (nonce <= 0) return@LaunchedEffect
         visible = true
-        delay(380)
+        delay(700) // P10-B: Longer duration
         visible = false
     }
     if (!visible) return
 
     androidx.compose.animation.AnimatedVisibility(
         visible = visible,
-        enter = androidx.compose.animation.fadeIn(animationSpec = tween(90)) + androidx.compose.animation.scaleIn(initialScale = 0.92f),
-        exit = androidx.compose.animation.fadeOut(animationSpec = tween(180)) + androidx.compose.animation.scaleOut(targetScale = 1.06f)
+        enter = androidx.compose.animation.fadeIn(animationSpec = tween(120)) + androidx.compose.animation.scaleIn(initialScale = 0.85f),
+        exit = androidx.compose.animation.fadeOut(animationSpec = tween(250)) + androidx.compose.animation.scaleOut(targetScale = 1.15f)
     ) {
         Box(
             modifier = Modifier
-                .offset(y = (-76).dp)
-                .background(PremiumColors.DeepNavy.copy(alpha = 0.84f), RoundedCornerShape(16.dp))
-                .border(1.dp, PremiumColors.Gold.copy(alpha = 0.72f), RoundedCornerShape(16.dp))
-                .padding(horizontal = 14.dp, vertical = 6.dp)
+                .offset(y = (-84).dp)
+                .background(
+                    Brush.verticalGradient(listOf(PremiumColors.DeepNavy.copy(alpha = 0.92f), Color.Black.copy(alpha = 0.92f))),
+                    RoundedCornerShape(20.dp)
+                )
+                .border(1.5.dp, PremiumColors.Gold.copy(alpha = 0.88f), RoundedCornerShape(20.dp))
+                .padding(horizontal = 22.dp, vertical = 8.dp)
         ) {
             Text(
                 text = text.uppercase(),
                 color = PremiumColors.Gold,
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp
+                fontWeight = FontWeight.Black,
+                fontSize = 14.sp,
+                letterSpacing = 1.2.sp
             )
         }
     }
