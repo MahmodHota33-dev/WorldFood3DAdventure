@@ -77,7 +77,7 @@ fun SettingsDialog(onDismiss: () -> Unit) {
                 HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
 
                 TextButton(
-                    onClick = { uriHandler.openUri("https://mahmodhota.com/worldfood/privacy") },
+                    onClick = { uriHandler.openUri("https://wadtaktok-dev.github.io/WorldFood3DAdventure/privacy.html") },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Privacy Policy", color = Color(0xFF64B5F6), fontSize = 12.sp)

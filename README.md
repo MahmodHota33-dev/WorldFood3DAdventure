@@ -71,7 +71,7 @@ Core gameplay systems include:
 - **UI Framework**: Jetpack Compose (Material 3)
 - **3D Engine**: Google Filament
 - **Minimum SDK**: 26 (Android 8.0)
-- **Target SDK**: 37 (Android 15)
+- **Target SDK**: 37 (Android 17)
 - **Application ID**: `com.mahmodhota.worldfood3dadventure`
 
 ---

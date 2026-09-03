@@ -37,3 +37,11 @@ s1_final.png
 s2.png
 small.png
 view_*.xml
+.idea/
+app/release/*.apk
+app/release/output-metadata.json
+google-services.json
+*.pem
+*.p12
+*.pfx
+.env
