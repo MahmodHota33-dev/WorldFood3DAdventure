@@ -37,8 +37,8 @@ Depending on your location, you may have rights regarding your data, such as the
 ## 5. Contact Us
 
 If you have any questions about this Privacy Policy, please contact us at:
-**Email**: [privacy@mahmodhota.com] (Placeholder)
-**Website**: [https://mahmodhota.com](https://mahmodhota.com)
+**Email**: Supportworldbooksfoods@gmail.com
+**GitHub**: [https://github.com/MahmodHota33-dev/WorldFood3DAdventure](https://github.com/MahmodHota33-dev/WorldFood3DAdventure)
 
 ---
-*This privacy policy is also available online at: [https://wadtaktok-dev.github.io/WorldFood3DAdventure/privacy.html](https://wadtaktok-dev.github.io/WorldFood3DAdventure/privacy.html)*
+*This privacy policy is also available online at: [https://MahmodHota33-dev.github.io/WorldFood3DAdventure/privacy.html](https://MahmodHota33-dev.github.io/WorldFood3DAdventure/privacy.html)*

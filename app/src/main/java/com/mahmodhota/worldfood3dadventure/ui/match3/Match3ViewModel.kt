@@ -102,7 +102,10 @@ internal fun canAcceptBoosterRequest(
     inventoryCount: Int,
     requestedType: BoosterType? = null
 ): Boolean {
-    if (isAnimating) return false
+    // Allow Extra Moves during LOST state even if animating (e.g. defeat animation)
+    if (isAnimating && !(status == GameStatus.LOST && requestedType == BoosterType.EXTRA_MOVES)) {
+        return false
+    }
     if (status != GameStatus.PLAYING) {
         // Special case: Extra moves can be used during LOST state to recover
         if (status == GameStatus.LOST && requestedType == BoosterType.EXTRA_MOVES) {
@@ -226,6 +229,7 @@ class Match3ViewModel(
 
     private fun initializeBoardAsync() {
         android.util.Log.d("Match3VM", "Starting board initialization...")
+        uiState = uiState.copy(isAnimating = true)
         boardInitJob?.cancel()
         boardInitJob = viewModelScope.launch {
             try {

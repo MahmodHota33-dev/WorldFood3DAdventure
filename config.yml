@@ -5,9 +5,9 @@ blank_issues_enabled: false
 
 contact_links:
   - name: Security Vulnerability
-    url: https://github.com/wadtaktok-dev/WorldFood3DAdventure/security
+    url: https://github.com/MahmodHota33-dev/WorldFood3DAdventure/security
     about: Please report security-related issues responsibly. Do not publish sensitive security information in a public issue.
 
   - name: WorldFood 3D Adventure Repository
-    url: https://github.com/wadtaktok-dev/WorldFood3DAdventure
+    url: https://github.com/MahmodHota33-dev/WorldFood3DAdventure
     about: Visit the main project repository for documentation and project information.

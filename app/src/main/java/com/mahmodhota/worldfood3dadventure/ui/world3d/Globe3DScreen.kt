@@ -430,7 +430,7 @@ private fun CountryMarker(
                 val rx = camera.rotationX
                 val ry = camera.rotationY
                 
-                val proj = engine.project(country.xyz) ?: return@offset IntOffset.Zero
+                val proj = engine.project(country.xyz, rx, ry) ?: return@offset IntOffset.Zero
                 val pos = proj.offset
                 
                 val circleSize = if (isSelected) 24.dp.toPx() else 16.dp.toPx()
@@ -447,7 +447,7 @@ private fun CountryMarker(
                 val rx = camera.rotationX
                 val ry = camera.rotationY
                 
-                val proj = engine.project(country.xyz) ?: return@graphicsLayer
+                val proj = engine.project(country.xyz, rx, ry) ?: return@graphicsLayer
                 val visibility = proj.visibility
                 
                 scaleX = pinScale * pulseScale
@@ -792,7 +792,7 @@ fun Globe3DScreen(
                         
                         // We iterate through all countries and project them
                         GLOBE_COUNTRIES.forEach { country ->
-                            val proj = engine.project(country.xyz) ?: return@forEach
+                            val proj = engine.project(country.xyz, camera.rotationX, camera.rotationY) ?: return@forEach
                             
                             // Check distance in pixels
                             val dist = (proj.offset - tapOffset).getDistance()
@@ -953,7 +953,7 @@ fun Globe3DScreen(
                 }
 
                 flightAnimator.currentSample()?.let { sample ->
-                    engine.project(sample.latDeg, sample.lonDeg)?.let { result ->
+                    engine.project(sample.latDeg, sample.lonDeg, camera.rotationX, camera.rotationY)?.let { result ->
                         Text(
                             text = "\u2708\ufe0f",
                             fontSize = 22.sp,

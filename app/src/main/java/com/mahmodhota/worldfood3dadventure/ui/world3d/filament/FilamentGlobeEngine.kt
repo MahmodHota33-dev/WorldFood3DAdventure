@@ -388,10 +388,13 @@ class FilamentGlobeEngine(private val context: Context) {
 
     /**
      * Projects geographic XYZ coordinates to screen coordinates.
-     * Uses cached matrices from prepareProjection().
+     * Evaluates projection matrices for the given camera rotation.
      */
-    fun project(xyz: FloatArray): ProjectionResult? {
+    fun project(xyz: FloatArray, rotX: Float = lastRotX, rotY: Float = lastRotY): ProjectionResult? {
         if (lastWidth <= 0 || lastHeight <= 0) return null
+        if (rotX != lastRotX || rotY != lastRotY) {
+            prepareProjection(rotX, rotY)
+        }
         
         synchronized(matrixLock) {
             // worldPos = [x, y, z, 1]
@@ -410,8 +413,11 @@ class FilamentGlobeEngine(private val context: Context) {
         }
     }
 
-    fun project(latDeg: Float, lonDeg: Float): ProjectionResult? {
+    fun project(latDeg: Float, lonDeg: Float, rotX: Float = lastRotX, rotY: Float = lastRotY): ProjectionResult? {
         if (lastWidth <= 0 || lastHeight <= 0) return null
+        if (rotX != lastRotX || rotY != lastRotY) {
+            prepareProjection(rotX, rotY)
+        }
         
         synchronized(matrixLock) {
             val phi = (90f - latDeg) * PI.toFloat() / 180f
